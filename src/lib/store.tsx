@@ -99,6 +99,15 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface JournalEntry {
+  id: string;
+  content: string;
+  mood: "great" | "good" | "okay" | "bad" | "terrible" | null;
+  linkedGoalIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Store Interface ─────────────────────────────────────
 
 interface StoreContextType {
@@ -134,6 +143,12 @@ interface StoreContextType {
   addChatMessage: (message: Omit<ChatMessage, "id" | "createdAt">) => ChatMessage;
   getChatMessages: (goalId: string | null) => ChatMessage[];
 
+  // Journal
+  journalEntries: JournalEntry[];
+  addJournalEntry: (entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => JournalEntry;
+  updateJournalEntry: (id: string, updates: Partial<JournalEntry>) => void;
+  deleteJournalEntry: (id: string) => void;
+
   // AI Memory
   setAiMemory: (memory: string) => void;
 
@@ -162,6 +177,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [aiMemory, setAiMemoryState] = useState<string>("");
 
   // ─── Goals ───────────────────────────────────────────
@@ -257,6 +273,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (goalId: string | null) => chatMessages.filter((m) => m.goalId === goalId),
     [chatMessages]
   );
+
+  // ─── Journal ─────────────────────────────────────────
+
+  const addJournalEntry = useCallback((data: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => {
+    const now = new Date().toISOString();
+    const entry: JournalEntry = { ...data, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
+    setJournalEntries((prev) => [entry, ...prev]);
+    return entry;
+  }, []);
+
+  const updateJournalEntry = useCallback((id: string, updates: Partial<JournalEntry>) => {
+    setJournalEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e))
+    );
+  }, []);
+
+  const deleteJournalEntry = useCallback((id: string) => {
+    setJournalEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
 
   // ─── AI Memory ───────────────────────────────────────
 
@@ -391,12 +426,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        goals, milestones, tasks, events, chatMessages, aiMemory,
+        goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory,
         addGoal, updateGoal, deleteGoal,
         addMilestone, updateMilestone, deleteMilestone,
         addTask, updateTask, deleteTask,
         addEvent, updateEvent, deleteEvent,
         addChatMessage, getChatMessages,
+        addJournalEntry, updateJournalEntry, deleteJournalEntry,
         setAiMemory,
         getGoalProgress, getGoalMilestones, getGoalTasks,
         autoSchedule,
