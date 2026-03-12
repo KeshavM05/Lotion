@@ -7,9 +7,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  wide?: boolean;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, wide }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,17 +32,27 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0, 0, 0, 0.6)", backdropFilter: "blur(4px)" }}
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-          <h2 className="text-lg font-semibold">{title}</h2>
+      <div
+        className={`glass-static mx-4 max-h-[85vh] overflow-auto animate-in ${
+          wide ? "w-full max-w-2xl" : "w-full max-w-lg"
+        }`}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+          <h2 className="text-lg" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-[var(--accent)] transition-colors"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: "var(--text-muted)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />

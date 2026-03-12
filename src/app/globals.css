@@ -1,31 +1,197 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --sidebar: #f8f9fa;
-  --border: #e5e7eb;
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --muted: #6b7280;
-  --accent: #f3f4f6;
+  /* Backgrounds */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a28;
+  --bg-glass: rgba(255, 255, 255, 0.03);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Text */
+  --text-primary: #f0f0f5;
+  --text-secondary: #8888a0;
+  --text-muted: #555566;
+  --text-accent: #c4b5fd;
+
+  /* Accent */
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-glow: rgba(139, 92, 246, 0.15);
+  --accent-soft: rgba(139, 92, 246, 0.1);
+
+  /* Status */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+
+  /* Goal categories */
+  --cat-career: #8b5cf6;
+  --cat-business: #f59e0b;
+  --cat-finance: #10b981;
+  --cat-personal: #ec4899;
+  --cat-health: #34d399;
+  --cat-creative: #f97316;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --sidebar: #111111;
-    --border: #1f2937;
-    --primary: #818cf8;
-    --primary-hover: #6366f1;
-    --muted: #9ca3af;
-    --accent: #1f2937;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Glass card */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass:hover {
+  border-color: var(--border-hover);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-static {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Glow button */
+.btn-glow {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 0 20px var(--accent-glow), 0 0 60px rgba(139, 92, 246, 0.08);
+  transition: all 0.2s ease;
+}
+
+.btn-glow:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.25), 0 0 80px rgba(139, 92, 246, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Progress ring animation */
+@keyframes progress-fill {
+  from { stroke-dashoffset: var(--progress-circumference); }
+  to { stroke-dashoffset: var(--progress-offset); }
+}
+
+.progress-ring-circle {
+  animation: progress-fill 0.8s ease-out forwards;
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Stagger children */
+.stagger-children > * {
+  opacity: 0;
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Pulse glow for AI thinking */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.ai-thinking {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* Input styling */
+.input-glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.input-glass::placeholder {
+  color: var(--text-muted);
+}
+
+.input-glass:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* Select styling */
+select.input-glass {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555566' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+select.input-glass option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
