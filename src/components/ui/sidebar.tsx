@@ -8,7 +8,9 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: CalendarIcon },
   { href: "/goals", label: "Goals", icon: GoalsIcon },
   { href: "/tasks", label: "Tasks", icon: TasksIcon },
+  { href: "/journal", label: "Journal", icon: JournalIcon },
   { href: "/coach", label: "AI Coach", icon: CoachIcon },
+  { href: "/memory", label: "AI Memory", icon: MemoryIcon },
 ];
 
 export function Sidebar() {
@@ -140,10 +142,28 @@ function TasksIcon({ active }: { active: boolean }) {
   );
 }
 
+function JournalIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: active ? 1 : 0.7 }}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
 function CoachIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: active ? 1 : 0.7 }}>
       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
+function MemoryIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: active ? 1 : 0.7 }}>
+      <path d="M12 2a10 10 0 1 0 10 10" />
+      <path d="M12 6v6l4 2" />
     </svg>
   );
 }
