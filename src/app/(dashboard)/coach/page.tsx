@@ -1,39 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useStore } from "@/lib/store";
+import { useState, useRef, useEffect } from "react";
+import { useAiChat } from "@/lib/use-ai-chat";
 
 export default function CoachPage() {
-  const store = useStore();
   const [input, setInput] = useState("");
-  const messages = store.getChatMessages(null);
+  const { messages, sendMessage, isLoading } = useAiChat({ goalId: null });
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, isLoading]);
 
   function send() {
-    if (!input.trim()) return;
-    store.addChatMessage({ goalId: null, role: "user", content: input.trim() });
-    const userMsg = input.trim();
+    if (!input.trim() || isLoading) return;
+    const msg = input.trim();
     setInput("");
-
-    // Simulated AI response
-    setTimeout(() => {
-      const goalsSummary = store.goals
-        .filter((g) => g.status === "active")
-        .map((g) => `• ${g.title} (${store.getGoalProgress(g.id)}%)`)
-        .join("\n");
-
-      const activeTasks = store.tasks.filter((t) => !t.completed).length;
-      const todayEvents = store.events.filter((e) => {
-        const d = new Date(e.start);
-        const now = new Date();
-        return d.toDateString() === now.toDateString();
-      }).length;
-
-      store.addChatMessage({
-        goalId: null,
-        role: "assistant",
-        content: `Here's a snapshot of where you stand:\n\n**Active Goals:**\n${goalsSummary || "No goals set yet — let's define your vision!"}\n\n**Today:** ${todayEvents} events, ${activeTasks} active tasks\n\nWhat would you like to focus on? I can help you:\n• Break a goal into actionable steps\n• Plan your week\n• Reflect on your progress\n• Brainstorm strategies\n\n*Connect the Claude API for real AI coaching.*`,
-      });
-    }, 600);
+    sendMessage(msg);
   }
 
   return (
@@ -51,7 +34,7 @@ export default function CoachPage() {
       {/* Messages */}
       <div className="flex-1 overflow-auto p-8">
         <div className="max-w-2xl mx-auto space-y-4">
-          {messages.length === 0 && (
+          {messages.length === 0 && !isLoading && (
             <div className="text-center py-20">
               <div
                 className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
@@ -68,7 +51,6 @@ export default function CoachPage() {
                 I know your goals, your calendar, and your progress. Let me help you move forward.
               </p>
 
-              {/* Suggestion chips */}
               <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
                 {[
                   "What should I focus on today?",
@@ -78,9 +60,7 @@ export default function CoachPage() {
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
-                    onClick={() => {
-                      setInput(suggestion);
-                    }}
+                    onClick={() => setInput(suggestion)}
                     className="px-4 py-2 rounded-xl text-xs font-medium transition-all glass"
                     style={{ color: "var(--text-secondary)" }}
                   >
@@ -99,8 +79,7 @@ export default function CoachPage() {
                   style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                    <path d="M12 2a10 10 0 1 0 10 10" />
-                    <path d="M12 6v6l4 2" />
+                    <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
                   </svg>
                 </div>
               )}
@@ -117,6 +96,21 @@ export default function CoachPage() {
               </div>
             </div>
           ))}
+
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
+                style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="ai-thinking">
+                  <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
+                </svg>
+              </div>
+              <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: "20px 20px 20px 4px" }}>
+                <span className="ai-thinking inline-block" style={{ color: "var(--text-muted)" }}>Thinking...</span>
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
         </div>
       </div>
 
@@ -129,11 +123,12 @@ export default function CoachPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-            className="input-glass flex-1"
+            disabled={isLoading}
+            className="input-glass flex-1 disabled:opacity-50"
           />
           <button
             onClick={send}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLoading}
             className="btn-glow px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
