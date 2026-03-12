@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useRef } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useStore, type Priority, type TaskStatus, CATEGORY_COLORS, CATEGORY_LABELS, PRIORITY_LABELS } from "@/lib/store";
+import { useStore, type Priority, CATEGORY_LABELS, PRIORITY_LABELS } from "@/lib/store";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { Modal } from "@/components/ui/modal";
+import { useAiChat } from "@/lib/use-ai-chat";
 
 type Tab = "milestones" | "tasks" | "chat";
 
 export default function GoalDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const store = useStore();
   const goalId = params.id as string;
 
@@ -35,6 +35,8 @@ export default function GoalDetailPage() {
 
   // Chat
   const [chatInput, setChatInput] = useState("");
+  const { messages: chatMessages, sendMessage: sendChatMessage, isLoading: chatLoading } = useAiChat({ goalId });
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   if (!goal) {
     return (
@@ -52,8 +54,6 @@ export default function GoalDetailPage() {
   const progress = store.getGoalProgress(goalId);
   const milestones = store.getGoalMilestones(goalId);
   const tasks = store.getGoalTasks(goalId);
-  const chatMessages = store.getChatMessages(goalId);
-
   function addMilestone() {
     if (!msTitle.trim()) return;
     store.addMilestone({
@@ -94,18 +94,9 @@ export default function GoalDetailPage() {
 
   function sendChat() {
     if (!chatInput.trim()) return;
-    store.addChatMessage({ goalId, role: "user", content: chatInput.trim() });
-    const userMsg = chatInput.trim();
+    const msg = chatInput.trim();
     setChatInput("");
-
-    // Simulated AI response
-    setTimeout(() => {
-      store.addChatMessage({
-        goalId,
-        role: "assistant",
-        content: `I see you're working on "${goal?.title}". That's a great goal! Based on your progress (${progress}% complete), here are some thoughts:\n\n• You have ${milestones.length} milestones and ${tasks.filter((t: { completed: boolean }) => !t.completed).length} active tasks\n• Consider breaking your next milestone into smaller, daily tasks\n• Would you like me to suggest a schedule for this week?\n\n*This is a demo response. Connect the Claude API for real coaching.*`,
-      });
-    }, 800);
+    sendChatMessage(msg);
   }
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
@@ -376,21 +367,42 @@ export default function GoalDetailPage() {
                   key={msg.id}
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
+                  {msg.role === "assistant" && (
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
+                      style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                        <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
+                      </svg>
+                    </div>
+                  )}
                   <div
                     className="max-w-[80%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap"
                     style={{
                       background: msg.role === "user" ? "var(--accent)" : "var(--bg-glass)",
                       color: msg.role === "user" ? "white" : "var(--text-primary)",
                       border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
-                      borderRadius: msg.role === "user"
-                        ? "20px 20px 4px 20px"
-                        : "20px 20px 20px 4px",
+                      borderRadius: msg.role === "user" ? "20px 20px 4px 20px" : "20px 20px 20px 4px",
                     }}
                   >
                     {msg.content}
                   </div>
                 </div>
               ))}
+
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
+                    style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="ai-thinking">
+                      <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
+                    </svg>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: "20px 20px 20px 4px" }}>
+                    <span className="ai-thinking inline-block" style={{ color: "var(--text-muted)" }}>Thinking...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
             </div>
 
             {/* Chat input */}
@@ -402,11 +414,12 @@ export default function GoalDetailPage() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendChat()}
-                  className="input-glass flex-1"
+                  disabled={chatLoading}
+                  className="input-glass flex-1 disabled:opacity-50"
                 />
                 <button
                   onClick={sendChat}
-                  disabled={!chatInput.trim()}
+                  disabled={!chatInput.trim() || chatLoading}
                   className="btn-glow px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
