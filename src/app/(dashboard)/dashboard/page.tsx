@@ -31,236 +31,207 @@ export default function DashboardPage() {
     .slice(0, 5);
 
   return (
-    <div className="flex h-full">
-      {/* Main content */}
-      <div className="flex-1 overflow-auto p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Dashboard
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </p>
-        </div>
+    <div className="flex flex-col h-full">
+      {/* Dashboard Header */}
+      <header className="mb-12">
+        <h2 className="text-5xl font-serif text-[#F5F5F5] mb-2">Dashboard</h2>
+        <p className="text-on-secondary-container font-body tracking-wide">
+          Welcome back. Your celestial alignment is high today.
+        </p>
+      </header>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <MetricCard label="Active Goals" value={activeGoals.length.toString()} color="var(--accent)" />
-          <MetricCard label="Tasks to Do" value={activeTasks.length.toString()} color="var(--warning)" />
-          <MetricCard label="Today's Events" value={todayEvents.length.toString()} color="var(--info)" />
-          <MetricCard label="Journal Entries" value={todayEntries.length.toString()} suffix="today" color="var(--success)" />
-        </div>
-
-        {/* Overdue alert */}
-        {overdueTasks.length > 0 && (
-          <div
-            className="mb-8 p-4 rounded-xl flex items-start gap-3"
-            style={{ background: "rgba(248,113,113,0.08)", borderLeft: "3px solid var(--danger)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" className="mt-0.5 flex-shrink-0">
-              <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-            </svg>
-            <div>
-              <div className="text-sm font-medium" style={{ color: "var(--danger)" }}>
-                {overdueTasks.length} overdue task{overdueTasks.length > 1 ? "s" : ""}
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-12 gap-6 items-start">
+        {/* Main Content Column */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          {/* AI Coach Featured Insight Card */}
+          <div className="glass-card p-8 rounded-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
+              <span className="material-symbols-outlined text-8xl text-[#C17A72]">flare</span>
+            </div>
+            <div className="relative z-10 max-w-2xl">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined text-[#C17A72]">smart_toy</span>
+                <span className="font-label text-xs uppercase tracking-widest text-[#C17A72]">
+                  Personalized Insight
+                </span>
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                {overdueTasks.map((t) => t.title).join(", ")}
-              </div>
+              <h3 className="text-3xl font-serif italic text-white mb-4">
+                "The quietest hours often hold the loudest truths. You've been most productive at 7:00 AM this week—try leaning into that stillness tomorrow."
+              </h3>
+              <p className="text-[#BEC6DF] font-body leading-relaxed mb-6 opacity-80">
+                Based on your recent journal entries and task completion patterns, your creative energy peaks when your environment is at its lowest frequency.
+              </p>
+              <Link href="/coach" className="flex items-center gap-2 text-[#C17A72] font-label text-sm font-semibold hover:translate-x-1 transition-transform">
+                View Full Analysis
+                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              </Link>
             </div>
           </div>
-        )}
 
-        {/* Goals Overview */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Goals
-            </h2>
-            <Link href="/goals" className="text-xs font-medium transition-colors flex items-center gap-1" style={{ color: "var(--accent)" }}>
-              View All
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            </Link>
-          </div>
-          {activeGoals.length === 0 ? (
-            <EmptyCard message="No goals yet. Define your vision to get started." linkText="Create a goal" linkHref="/goals" />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {activeGoals.slice(0, 4).map((goal) => {
-                const progress = store.getGoalProgress(goal.id);
-                return (
-                  <Link key={goal.id} href={`/goals/${goal.id}`} className="glass p-4 flex items-center gap-4 group">
-                    <ProgressRing progress={progress} size={44} strokeWidth={3} color={goal.color}>
-                      <span className="text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>{progress}%</span>
-                    </ProgressRing>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate group-hover:text-white transition-colors" style={{ color: "var(--text-primary)" }}>
-                        {goal.title}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${goal.color}15`, color: goal.color }}>
-                          {CATEGORY_LABELS[goal.category]}
-                        </span>
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          {store.getGoalTasks(goal.id).filter((t) => !t.completed).length} tasks
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
+              <span className="font-mono text-4xl text-[#C17A72] mb-1">{activeGoals.length}</span>
+              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+                Active Goals
+              </span>
             </div>
-          )}
-        </div>
+            <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center border-l-2 border-l-[#C17A72]/30">
+              <span className="font-mono text-4xl text-[#C17A72] mb-1">{activeTasks.length}</span>
+              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+                Tasks Due Today
+              </span>
+            </div>
+            <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
+              <span className="font-mono text-4xl text-[#C17A72] mb-1">
+                {Math.round((completedTasks.length / Math.max(store.tasks.length, 1)) * 100)}%
+              </span>
+              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+                Week Progress
+              </span>
+            </div>
+          </div>
 
-        {/* Upcoming Deadlines */}
-        {upcomingDeadlines.length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Upcoming Deadlines
-            </h2>
-            <div className="space-y-1">
-              {upcomingDeadlines.map((task) => {
-                const goal = task.goalId ? store.goals.find((g) => g.id === task.goalId) : null;
-                return (
-                  <div key={task.id} className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors"
-                    style={{ background: "transparent" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+
+          {/* Goals Section */}
+          <div className="pt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-serif text-2xl text-white">Active Goals</h4>
+              <Link
+                href="/goals"
+                className="text-xs font-label text-[#9CA3AF] hover:text-[#C17A72] uppercase tracking-widest"
+              >
+                View All
+              </Link>
+            </div>
+            {activeGoals.length === 0 ? (
+              <EmptyCard message="No goals yet. Define your vision to get started." linkText="Create a goal" linkHref="/goals" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeGoals.slice(0, 4).map((goal) => {
+                  const progress = store.getGoalProgress(goal.id);
+                  return (
+                    <Link
+                      key={goal.id}
+                      href={`/goals/${goal.id}`}
+                      className="glass-card p-6 rounded-2xl flex items-center gap-4 group hover:scale-[1.02] transition-all duration-300"
+                    >
+                      <ProgressRing progress={progress} size={56} strokeWidth={4} color={goal.color}>
+                        <span className="text-xs font-mono font-bold text-[#F5F5F5]">{progress}%</span>
+                      </ProgressRing>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-label text-white group-hover:text-[#C17A72] transition-colors truncate mb-1">
+                          {goal.title}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider"
+                            style={{ background: `${goal.color}20`, color: goal.color }}
+                          >
+                            {CATEGORY_LABELS[goal.category]}
+                          </span>
+                          <span className="text-[10px] text-on-secondary-container">
+                            {store.getGoalTasks(goal.id).filter((t) => !t.completed).length} tasks
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Journal Preview */}
+          <div className="pt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-serif text-2xl text-white">Journal Preview</h4>
+              <Link
+                href="/journal"
+                className="text-xs font-label text-[#9CA3AF] hover:text-[#C17A72] uppercase tracking-widest"
+              >
+                View All Entries
+              </Link>
+            </div>
+            {store.journalEntries.length === 0 ? (
+              <EmptyCard message="No journal entries yet. Start capturing your thoughts." linkText="Write entry" linkHref="/journal" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {store.journalEntries.slice(0, 2).map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="glass-card p-8 rounded-2xl transition-all duration-300 hover:scale-[1.02]"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: goal?.color || "var(--accent)" }} />
-                    <span className="text-sm flex-1" style={{ color: "var(--text-primary)" }}>{task.title}</span>
-                    <span className="text-[11px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      {task.deadline ? formatRelativeDate(task.deadline) : ""}
-                    </span>
+                    <div className="flex items-center gap-4 mb-4">
+                      <span className="font-mono text-xs text-[#C17A72]">
+                        {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
+                      </span>
+                      <div className="h-px flex-1 bg-white/10"></div>
+                    </div>
+                    <h5 className="text-lg font-serif text-white mb-2">
+                      {new Date(entry.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} Entry
+                    </h5>
+                    <p className="text-on-secondary-container font-body text-sm line-clamp-3 leading-relaxed opacity-70">
+                      {entry.content}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Journal */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Recent Journal
-            </h2>
-            <Link href="/journal" className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--accent)" }}>
-              View All
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            </Link>
-          </div>
-          {store.journalEntries.length === 0 ? (
-            <EmptyCard message="No journal entries yet. Start capturing your thoughts." linkText="Write entry" linkHref="/journal" />
-          ) : (
-            <div className="space-y-3">
-              {store.journalEntries.slice(0, 3).map((entry) => (
-                <div key={entry.id} className="glass-static p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      {new Date(entry.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                    </span>
-                    {entry.mood && (
-                      <span className="text-xs">{entry.mood === "great" ? "\u2728" : entry.mood === "good" ? "\u263a\ufe0f" : entry.mood === "okay" ? "\ud83d\ude10" : entry.mood === "bad" ? "\ud83d\ude1e" : "\ud83d\ude29"}</span>
-                    )}
-                  </div>
-                  <p className="text-sm line-clamp-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                    {entry.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right Context Sidebar */}
-      <div
-        className="w-[300px] border-l p-6 hidden xl:flex flex-col gap-6 overflow-auto"
-        style={{ borderColor: "var(--border)", background: "rgba(0,0,0,0.2)" }}
-      >
-        {/* Stats */}
-        <div className="glass-static p-5">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider mb-4" style={{ color: "var(--text-muted)" }}>
-            Overview
-          </h3>
-          <div className="space-y-4">
-            <StatRow label="Total Goals" value={store.goals.length.toString()} />
-            <StatRow label="Tasks Completed" value={`${completedTasks.length}/${store.tasks.length}`} />
-            <StatRow label="Journal Days" value={journalDays.toString()} />
-            <StatRow label="AI Chats" value={store.chatMessages.length.toString()} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Today's Schedule */}
-        <div className="glass-static p-5">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider mb-4" style={{ color: "var(--text-muted)" }}>
-            Today&apos;s Schedule
-          </h3>
-          {todayEvents.length === 0 ? (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>No events today</p>
-          ) : (
-            <div className="space-y-3">
-              {todayEvents.slice(0, 5).map((event) => (
-                <div key={event.id} className="flex items-start gap-3">
-                  <div className="w-1 h-full rounded-full flex-shrink-0 mt-1" style={{ background: event.color, minHeight: "28px" }} />
-                  <div>
-                    <div className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{event.title}</div>
-                    <div className="text-[10px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      {new Date(event.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                      {" - "}
-                      {new Date(event.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        {/* Right Sidebar Column */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+          {/* Upcoming Events */}
+          <div className="glass-card p-8 rounded-2xl">
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="font-serif text-xl text-white">Upcoming</h4>
+              <span className="material-symbols-outlined text-[#9CA3AF] cursor-pointer hover:text-white transition-colors">
+                calendar_view_day
+              </span>
+            </div>
+            {todayEvents.length === 0 ? (
+              <p className="text-sm text-on-secondary-container">No events today</p>
+            ) : (
+              <div className="space-y-8">
+                {todayEvents.slice(0, 3).map((event, idx, arr) => (
+                  <div key={event.id} className="flex gap-4 group cursor-pointer">
+                    <div className="flex flex-col items-center">
+                      <span className="font-mono text-sm text-[#C17A72] font-bold">
+                        {new Date(event.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      {idx < arr.length - 1 && (
+                        <div className="w-px h-full bg-white/10 my-2"></div>
+                      )}
+                    </div>
+                    <div className={idx < arr.length - 1 ? "pb-6" : ""}>
+                      <p className="text-sm font-label text-white group-hover:text-[#C17A72] transition-colors">
+                        {event.title}
+                      </p>
+                      <p className="text-xs text-[#9CA3AF] mt-1">
+                        {event.description || "No description"}
+                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="glass-card p-8 rounded-2xl">
+            <h4 className="font-serif text-xl text-white mb-6">Overview</h4>
+            <div className="space-y-4">
+              <StatRow label="Total Goals" value={store.goals.length.toString()} />
+              <StatRow
+                label="Tasks Completed"
+                value={`${completedTasks.length}/${store.tasks.length}`}
+              />
+              <StatRow label="Journal Days" value={journalDays.toString()} />
+              <StatRow label="AI Chats" value={store.chatMessages.length.toString()} />
             </div>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="glass-static p-5">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider mb-4" style={{ color: "var(--text-muted)" }}>
-            Quick Actions
-          </h3>
-          <div className="space-y-2">
-            <Link href="/goals" className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>
-              New Goal
-            </Link>
-            <Link href="/journal" className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-              Journal Entry
-            </Link>
-            <Link href="/coach" className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-              Talk to AI Coach
-            </Link>
-          </div>
-        </div>
-
-        {/* Keyboard shortcut hint */}
-        <div className="text-center mt-auto">
-          <div className="inline-flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", color: "var(--text-muted)" }}>
-            <kbd className="px-1 py-0.5 rounded text-[9px]" style={{ background: "rgba(255,255,255,0.06)" }}>Ctrl+K</kbd>
-            Command Palette
-            <span style={{ color: "var(--border)" }}>|</span>
-            <kbd className="px-1 py-0.5 rounded text-[9px]" style={{ background: "rgba(255,255,255,0.06)" }}>Ctrl+Shift+J</kbd>
-            Quick Capture
           </div>
         </div>
       </div>
@@ -268,26 +239,12 @@ export default function DashboardPage() {
   );
 }
 
-function MetricCard({ label, value, suffix, color }: { label: string; value: string; suffix?: string; color: string }) {
-  return (
-    <div className="glass p-5 transition-colors">
-      <div className="text-3xl font-bold mb-1" style={{ fontFamily: "'Playfair Display', Georgia, serif", color }}>
-        {value}
-      </div>
-      <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-        {label} {suffix && <span style={{ color: "var(--text-muted)" }}>{suffix}</span>}
-      </div>
-    </div>
-  );
-}
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
-      <span className="text-sm font-semibold" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "var(--text-primary)" }}>
-        {value}
-      </span>
+      <span className="text-xs text-on-secondary-container">{label}</span>
+      <span className="text-sm font-mono font-semibold text-white">{value}</span>
     </div>
   );
 }
