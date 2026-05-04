@@ -1,28 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Backgrounds */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-tertiary: #1a1a28;
-  --bg-glass: rgba(255, 255, 255, 0.03);
+  /* Backgrounds — exact Quillio */
+  --bg-primary: #0F1729;
+  --bg-secondary: #0F1729;
+  --bg-tertiary: #1A2744;
+  --bg-card: #1A2744;
+  --bg-glass: rgba(26, 39, 68, 0.6);
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
   /* Text */
-  --text-primary: #f0f0f5;
-  --text-secondary: #8888a0;
-  --text-muted: #555566;
-  --text-accent: #c4b5fd;
+  --text-primary: #F5F5F5;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-accent: #d4a69a;
 
-  /* Accent */
-  --accent: #8b5cf6;
-  --accent-hover: #7c3aed;
-  --accent-glow: rgba(139, 92, 246, 0.15);
-  --accent-soft: rgba(139, 92, 246, 0.1);
+  /* Accent — Quillio warm rose / burnt coral */
+  --accent: #C17A72;
+  --accent-hover: #b06a62;
+  --accent-glow: rgba(193, 122, 114, 0.15);
+  --accent-soft: rgba(193, 122, 114, 0.10);
 
   /* Status */
   --success: #34d399;
@@ -31,7 +31,7 @@
   --info: #60a5fa;
 
   /* Goal categories */
-  --cat-career: #8b5cf6;
+  --cat-career: #C17A72;
   --cat-business: #f59e0b;
   --cat-finance: #10b981;
   --cat-personal: #ec4899;
@@ -41,7 +41,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -54,65 +54,71 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
 }
 
 h1, h2, h3 {
   font-family: 'Playfair Display', Georgia, serif;
 }
 
-/* Glass card */
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Progress ring animation */
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.35s;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Glass card — Quillio style */
 .glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(26, 39, 68, 0.60);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
 .glass:hover {
-  border-color: var(--border-hover);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
 .glass-static {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(26, 39, 68, 0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* Glow button */
+/* Glow button — solid warm rose like Quillio sidebar active */
 .btn-glow {
   background: var(--accent);
   color: white;
-  box-shadow: 0 0 20px var(--accent-glow), 0 0 60px rgba(139, 92, 246, 0.08);
+  box-shadow: 0 4px 12px rgba(193, 122, 114, 0.25);
   transition: all 0.2s ease;
 }
 
 .btn-glow:hover {
   background: var(--accent-hover);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.25), 0 0 80px rgba(139, 92, 246, 0.12);
+  box-shadow: 0 6px 20px rgba(193, 122, 114, 0.35);
   transform: translateY(-1px);
 }
 
@@ -161,14 +167,15 @@ h1, h2, h3 {
   animation: pulse-glow 1.5s ease-in-out infinite;
 }
 
-/* Input styling */
+/* Input styling — Quillio card tint */
 .input-glass {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
+  background: rgba(26, 39, 68, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 12px;
   padding: 12px 16px;
   color: var(--text-primary);
   font-size: 0.875rem;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
   transition: all 0.15s ease;
   outline: none;
 }
@@ -178,20 +185,20 @@ h1, h2, h3 {
 }
 
 .input-glass:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  border-color: rgba(193, 122, 114, 0.5);
+  box-shadow: 0 0 0 3px rgba(193, 122, 114, 0.1);
 }
 
 /* Select styling */
 select.input-glass {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555566' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
 }
 
 select.input-glass option {
-  background: var(--bg-secondary);
+  background: #1A2744;
   color: var(--text-primary);
 }
