@@ -1,0 +1,86 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: "class",
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Material Design 3 color tokens from Google Stitch
+        "on-secondary-container": "#a8b5d9",
+        "on-surface-variant": "#c6c6cd",
+        "on-secondary-fixed-variant": "#3a4665",
+        "secondary-fixed": "#d9e2ff",
+        "on-surface": "#dbe2fb",
+        "inverse-primary": "#565e73",
+        secondary: "#b9c6eb",
+        "secondary-fixed-dim": "#b9c6eb",
+        primary: "#bec6df",
+        "on-primary": "#283043",
+        background: "#0b1325",
+        "on-secondary-fixed": "#0d1b37",
+        "on-error-container": "#ffdad6",
+        "on-tertiary-container": "#b36e67",
+        "inverse-on-surface": "#283043",
+        surface: "#0b1325",
+        "on-background": "#dbe2fb",
+        "tertiary-container": "#320806",
+        "tertiary-fixed": "#ffdad6",
+        error: "#ffb4ab",
+        "surface-container-low": "#131b2d",
+        "inverse-surface": "#dbe2fb",
+        "surface-tint": "#bec6df",
+        "primary-container": "#0f1729",
+        "error-container": "#93000a",
+        "on-tertiary-fixed-variant": "#6f3630",
+        "primary-fixed": "#dbe2fb",
+        "on-tertiary-fixed": "#380c09",
+        "on-primary-container": "#798097",
+        "surface-container-lowest": "#060e1f",
+        "tertiary-fixed-dim": "#ffb4ab",
+        "on-tertiary": "#53211c",
+        "on-primary-fixed-variant": "#3f465b",
+        "outline-variant": "#45464c",
+        outline: "#909097",
+        "on-primary-fixed": "#131b2d",
+        "surface-container-highest": "#2d3448",
+        "surface-dim": "#0b1325",
+        "on-secondary": "#23304d",
+        "surface-container": "#171f32",
+        tertiary: "#ffb4ab",
+        "secondary-container": "#3a4665",
+        "surface-variant": "#2d3448",
+        "primary-fixed-dim": "#bec6df",
+        "surface-bright": "#31394c",
+        "surface-container-high": "#222a3d",
+        "on-error": "#690005",
+
+        // Motion semantic colors (mapped to MD3)
+        accent: "#C17A72", // warm rose
+        "accent-hover": "#b06a62",
+      },
+      fontFamily: {
+        headline: ["Newsreader", "serif"],
+        display: ["Playfair Display", "serif"],
+        body: ["Space Grotesk", "sans-serif"],
+        label: ["Space Grotesk", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+        serif: ["Playfair Display", "serif"],
+      },
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+        "2xl": "1.5rem",
+        full: "9999px",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
