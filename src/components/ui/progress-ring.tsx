@@ -10,41 +10,41 @@ interface ProgressRingProps {
 
 export function ProgressRing({
   progress,
-  size = 64,
-  strokeWidth = 4,
-  color = "#8b5cf6",
+  size = 96,
+  strokeWidth = 6,
+  color = "#C17A72",
   children,
 }: ProgressRingProps) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
+  const radius = 42; // Fixed radius to match Google Stitch design
+  const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progress / 100) * circumference;
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg width={size} height={size} viewBox="0 0 100 100">
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          className="text-surface-variant/30 stroke-current"
+          cx="50"
+          cy="50"
           r={radius}
-          fill="none"
-          stroke="rgba(255,255,255,0.06)"
+          fill="transparent"
           strokeWidth={strokeWidth}
         />
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          className="progress-ring__circle stroke-current"
+          cx="50"
+          cy="50"
           r={radius}
-          fill="none"
+          fill="transparent"
           stroke={color}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="progress-ring-circle"
           style={{
-            "--progress-circumference": circumference,
-            "--progress-offset": offset,
-          } as React.CSSProperties}
+            transformOrigin: "50% 50%",
+            transform: "rotate(-90deg)",
+          }}
         />
       </svg>
       {children && (
