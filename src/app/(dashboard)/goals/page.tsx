@@ -76,174 +76,128 @@ export default function GoalsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-3xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Vision Board
-            </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              {activeGoals.length} active goal{activeGoals.length !== 1 ? "s" : ""} guiding your journey
-            </p>
-          </div>
-          <button onClick={openCreate} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <h2 className="text-5xl font-serif text-[#F5F5F5] mb-4">Vision Board</h2>
+          <p className="text-[#9CA3AF] max-w-xl font-body text-lg leading-relaxed">
+            Manifesting your celestial path through logic and design. Your long-term trajectories, curated by Motion.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={openCreate}
+            className="glass-card px-6 py-2 rounded-full text-sm font-medium border-tertiary/20 text-tertiary hover:bg-tertiary/10 transition-all"
+          >
             + New Goal
           </button>
-        </div>
-
-        {/* Category filters */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterCategory("all")}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{
-              background: filterCategory === "all" ? "var(--accent-soft)" : "transparent",
-              color: filterCategory === "all" ? "var(--accent)" : "var(--text-muted)",
-              border: `1px solid ${filterCategory === "all" ? "rgba(139,92,246,0.3)" : "var(--border)"}`,
-            }}
-          >
-            All
+          <button className="px-6 py-2 rounded-full text-sm font-medium text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors">
+            Milestones
           </button>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
-              style={{
-                background: filterCategory === cat ? `${CATEGORY_COLORS[cat]}15` : "transparent",
-                color: filterCategory === cat ? CATEGORY_COLORS[cat] : "var(--text-muted)",
-                border: `1px solid ${filterCategory === cat ? `${CATEGORY_COLORS[cat]}40` : "var(--border)"}`,
-              }}
-            >
-              <span className="w-2 h-2 rounded-full" style={{ background: CATEGORY_COLORS[cat] }} />
-              {CATEGORY_LABELS[cat]}
-            </button>
-          ))}
         </div>
       </div>
 
+      {/* Category Filters */}
+      <div className="flex flex-wrap gap-4 mb-10 overflow-x-auto pb-4">
+        <button
+          onClick={() => setFilterCategory("all")}
+          className={`px-6 py-2 rounded-full text-sm font-label tracking-wide border transition-all ${
+            filterCategory === "all"
+              ? "border-tertiary text-tertiary bg-tertiary/5"
+              : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
+          }`}
+        >
+          All Goals
+        </button>
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setFilterCategory(cat)}
+            className={`px-6 py-2 rounded-full text-sm font-label tracking-wide border transition-all ${
+              filterCategory === cat
+                ? "border-tertiary text-tertiary bg-tertiary/5"
+                : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
+            }`}
+          >
+            {CATEGORY_LABELS[cat]}
+          </button>
+        ))}
+      </div>
+
       {/* Goals Grid */}
-      <div className="flex-1 overflow-auto p-8">
+      <div className="flex-1 overflow-auto">
         {filteredGoals.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24" style={{ color: "var(--text-muted)" }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="mb-4" style={{ opacity: 0.4 }}>
-              <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
-            </svg>
+            <span className="material-symbols-outlined text-5xl opacity-20 mb-4">auto_awesome_motion</span>
             <p className="text-lg mb-1" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "var(--text-secondary)" }}>
               No goals yet
             </p>
             <p className="text-sm">Define your vision and let AI help you get there</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredGoals.map((goal) => {
               const progress = store.getGoalProgress(goal.id);
               const milestones = store.getGoalMilestones(goal.id);
               const tasks = store.getGoalTasks(goal.id);
-              const completedTasks = tasks.filter((t) => t.completed).length;
 
               return (
                 <Link
                   key={goal.id}
                   href={`/goals/${goal.id}`}
-                  className="glass group cursor-pointer transition-all duration-200"
-                  style={{ padding: 0, overflow: "hidden" }}
+                  className="glass-card p-8 rounded-2xl flex flex-col justify-between group hover:border-[#C17A72]/30 transition-all duration-500 hover:-translate-y-1"
                 >
-                  {/* Color bar */}
-                  <div className="h-1" style={{ background: goal.color }} />
-
-                  <div className="p-5">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md"
-                            style={{ background: `${goal.color}15`, color: goal.color }}
-                          >
-                            {CATEGORY_LABELS[goal.category]}
-                          </span>
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded"
-                            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)" }}
-                          >
-                            {PRIORITY_LABELS[goal.priority]}
-                          </span>
-                        </div>
-                        <h3
-                          className="text-base font-semibold truncate"
-                          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "var(--text-primary)" }}
-                        >
-                          {goal.title}
-                        </h3>
-                        {goal.description && (
-                          <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
-                            {goal.description}
-                          </p>
-                        )}
-                      </div>
-                      <ProgressRing progress={progress} size={52} strokeWidth={3} color={goal.color}>
-                        <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                          {progress}%
-                        </span>
+                  {/* Header with Progress Ring */}
+                  <div className="flex justify-between items-start mb-12">
+                    <div className="relative w-24 h-24">
+                      <ProgressRing progress={progress} size={96} strokeWidth={6} color="#C17A72">
+                        <span className="font-mono text-lg text-[#F5F5F5]">{progress}%</span>
                       </ProgressRing>
                     </div>
+                    <span className="text-xs font-label tracking-widest text-[#9CA3AF] uppercase">
+                      {CATEGORY_LABELS[goal.category]} • {goal.targetDate ? new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "ONGOING"}
+                    </span>
+                  </div>
 
-                    {/* Milestones preview */}
+                  {/* Content */}
+                  <div>
+                    <h3 className="text-2xl font-serif text-[#F5F5F5] mb-2">{goal.title}</h3>
+                    {goal.description && (
+                      <p className="text-[#9CA3AF] text-sm font-body mb-6 leading-relaxed line-clamp-2">
+                        {goal.description}
+                      </p>
+                    )}
+
+                    {/* Milestones */}
                     {milestones.length > 0 && (
-                      <div className="mb-3 space-y-1.5">
+                      <div className="space-y-3">
                         {milestones.slice(0, 3).map((ms) => (
-                          <div key={ms.id} className="flex items-center gap-2">
-                            <div
-                              className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                              style={{
-                                borderColor: ms.completed ? goal.color : "var(--border)",
-                                background: ms.completed ? goal.color : "transparent",
-                              }}
-                            >
-                              {ms.completed && (
-                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                                  <path d="M20 6L9 17l-5-5" />
-                                </svg>
-                              )}
-                            </div>
+                          <div key={ms.id} className="flex items-center gap-3 text-xs">
                             <span
-                              className="text-xs truncate"
-                              style={{
-                                color: ms.completed ? "var(--text-muted)" : "var(--text-secondary)",
-                                textDecoration: ms.completed ? "line-through" : "none",
-                              }}
+                              className={`material-symbols-outlined text-sm ${
+                                ms.completed ? "text-[#C17A72]" : "text-[#BEC6DF]"
+                              }`}
+                              style={ms.completed ? { fontVariationSettings: "'FILL' 1" } : {}}
                             >
+                              {ms.completed ? "check_circle" : "radio_button_unchecked"}
+                            </span>
+                            <span className={ms.completed ? "text-[#9CA3AF]" : "text-[#BEC6DF]"}>
                               {ms.title}
                             </span>
                           </div>
                         ))}
                         {milestones.length > 3 && (
-                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                            +{milestones.length - 3} more
+                          <span className="text-[10px] text-[#9CA3AF]">
+                            +{milestones.length - 3} more milestones
                           </span>
                         )}
                       </div>
                     )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {tasks.length > 0
-                          ? `${completedTasks}/${tasks.length} tasks`
-                          : "No tasks yet"}
-                      </span>
-                      {goal.targetDate && (
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                          {new Date(goal.targetDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </span>
-                      )}
-                    </div>
+                    {tasks.length > 0 && milestones.length === 0 && (
+                      <div className="text-xs text-[#9CA3AF]">
+                        {tasks.filter((t) => t.completed).length}/{tasks.length} tasks completed
+                      </div>
+                    )}
                   </div>
                 </Link>
               );
@@ -328,7 +282,7 @@ export default function GoalsPage() {
                   style={{
                     background: formPriority === p ? "var(--accent-soft)" : "rgba(255,255,255,0.03)",
                     color: formPriority === p ? "var(--accent)" : "var(--text-muted)",
-                    border: `1px solid ${formPriority === p ? "rgba(139,92,246,0.3)" : "var(--border)"}`,
+                    border: `1px solid ${formPriority === p ? "rgba(193,122,114,0.3)" : "var(--border)"}`,
                   }}
                 >
                   {PRIORITY_LABELS[p]}
