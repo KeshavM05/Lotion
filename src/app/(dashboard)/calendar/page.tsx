@@ -92,44 +92,33 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-5 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-5">
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-          </h1>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </div>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+          <h1 className="text-5xl font-serif text-[#F5F5F5] mb-2">Calendar</h1>
+          <p className="text-[#9CA3AF] font-mono text-xs uppercase tracking-widest">
+            {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} — {new Date(currentDate.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
         </div>
-        <button onClick={() => openCreate()} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">
-          + New Event
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
+            className="p-2 rounded-lg hover:bg-white/5 text-[#9CA3AF]"
+          >
+            <span className="material-symbols-outlined">chevron_left</span>
+          </button>
+          <button
+            onClick={() => setCurrentDate(new Date())}
+            className="px-4 py-2 rounded-lg hover:bg-white/5 text-[#F5F5F5] font-medium border border-white/10"
+          >
+            Today
+          </button>
+          <button
+            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }}
+            className="p-2 rounded-lg hover:bg-white/5 text-[#9CA3AF]"
+          >
+            <span className="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
       </div>
 
       {/* Grid */}
