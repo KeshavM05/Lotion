@@ -218,7 +218,7 @@ export default function TasksPage() {
                   style={{
                     background: formPriority === p ? "var(--accent-soft)" : "rgba(255,255,255,0.03)",
                     color: formPriority === p ? "var(--accent)" : "var(--text-muted)",
-                    border: `1px solid ${formPriority === p ? "rgba(139,92,246,0.3)" : "var(--border)"}`,
+                    border: `1px solid ${formPriority === p ? "rgba(193,122,114,0.3)" : "var(--border)"}`,
                   }}>{PRIORITY_LABELS[p]}</button>
               ))}
             </div>

@@ -133,7 +133,7 @@ export default function JournalPage() {
                       style={{
                         background: mood === m.value ? "var(--accent-soft)" : "rgba(255,255,255,0.03)",
                         color: mood === m.value ? "var(--accent)" : "var(--text-muted)",
-                        border: `1px solid ${mood === m.value ? "rgba(139,92,246,0.3)" : "var(--border)"}`,
+                        border: `1px solid ${mood === m.value ? "rgba(193,122,114,0.3)" : "var(--border)"}`,
                       }}
                     >
                       <span>{m.emoji}</span> {m.label}
@@ -196,7 +196,8 @@ export default function JournalPage() {
               <h3 className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
                 Today
               </h3>
-              <div className="space-y-3">
+              <div className="relative pl-6 ml-2">
+                <div className="absolute left-0 top-0 bottom-0 w-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                 {todayEntries.map((entry) => (
                   <EntryCard key={entry.id} entry={entry} store={store} onEdit={startEdit} />
                 ))}
@@ -210,7 +211,8 @@ export default function JournalPage() {
               <h3 className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
                 {date}
               </h3>
-              <div className="space-y-3">
+              <div className="relative pl-6 ml-2">
+                <div className="absolute left-0 top-0 bottom-0 w-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                 {entries.map((entry) => (
                   <EntryCard key={entry.id} entry={entry} store={store} onEdit={startEdit} />
                 ))}
@@ -249,44 +251,54 @@ function EntryCard({
   const time = new Date(entry.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
   return (
-    <div className="glass-static p-5 group cursor-pointer" onClick={() => onEdit(entry)}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-            {time}
-          </span>
-          {moodEmoji && <span className="text-sm">{moodEmoji}</span>}
+    <div className="relative pb-6 group cursor-pointer" onClick={() => onEdit(entry)}>
+      {/* Timeline dot */}
+      <div
+        className="absolute -left-[29px] top-1.5 h-2.5 w-2.5 rounded-full border-2 transition-colors z-10"
+        style={{
+          background: "var(--bg-secondary)",
+          borderColor: "rgba(255,255,255,0.15)",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)")}
+      />
+
+      <div
+        className="rounded-xl p-4 transition-all"
+        style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)" }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border-hover)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.transform = "translateX(4px)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.transform = "translateX(0)"; }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {time}
+            </span>
+            {moodEmoji && <span className="text-sm">{moodEmoji}</span>}
+            {entry.linkedGoalIds.length > 0 && entry.linkedGoalIds.map((gid) => {
+              const goal = store.goals.find((g) => g.id === gid);
+              if (!goal) return null;
+              return (
+                <span key={gid} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${goal.color}15`, color: goal.color }}>
+                  #{goal.title}
+                </span>
+              );
+            })}
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); store.deleteJournalEntry(entry.id); }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); store.deleteJournalEntry(entry.id); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all"
-          style={{ color: "var(--text-muted)" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+        <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "var(--text-primary)" }}>
+          {entry.content}
+        </p>
       </div>
-      <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "var(--text-primary)" }}>
-        {entry.content}
-      </p>
-      {entry.linkedGoalIds.length > 0 && (
-        <div className="flex gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-          {entry.linkedGoalIds.map((gid) => {
-            const goal = store.goals.find((g) => g.id === gid);
-            if (!goal) return null;
-            return (
-              <span
-                key={gid}
-                className="text-[10px] px-2 py-0.5 rounded-md"
-                style={{ background: `${goal.color}15`, color: goal.color }}
-              >
-                {goal.title}
-              </span>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

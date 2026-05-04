@@ -15,10 +15,10 @@ Not a corporate SaaS dashboard. This is *your* space.
 
 ```
 Background:
-  --bg-primary:     #0a0a0f       -- Deep near-black
-  --bg-secondary:   #12121a       -- Card backgrounds
-  --bg-tertiary:    #1a1a28       -- Elevated surfaces
-  --bg-glass:       rgba(255, 255, 255, 0.03)  -- Glass cards
+  --bg-primary:     #0F1729       -- Deep navy (Quillio)
+  --bg-secondary:   #0F1729       -- Same as primary
+  --bg-tertiary:    #1F2D47       -- Blue-tinted card backgrounds
+  --bg-glass:       rgba(31, 45, 71, 0.4)     -- Glass cards
 
 Borders:
   --border:         rgba(255, 255, 255, 0.08)
@@ -26,15 +26,15 @@ Borders:
 
 Text:
   --text-primary:   #f0f0f5       -- Headlines, primary content
-  --text-secondary: #8888a0       -- Body text, descriptions
-  --text-muted:     #555566       -- Timestamps, meta info
-  --text-accent:    #c4b5fd       -- Links, emphasis (soft violet)
+  --text-secondary: #9ca3af       -- Body text, descriptions
+  --text-muted:     #4b5563       -- Timestamps, meta info
+  --text-accent:    #d4a69a       -- Links, emphasis (soft rose)
 
 Accent:
-  --accent:         #8b5cf6       -- Primary actions (violet)
-  --accent-hover:   #7c3aed       -- Hover state
-  --accent-glow:    rgba(139, 92, 246, 0.15)  -- Subtle glow behind CTAs
-  --accent-soft:    rgba(139, 92, 246, 0.1)   -- Selected states
+  --accent:         #C17A72       -- Primary actions (warm rose)
+  --accent-hover:   #b06a62       -- Hover state
+  --accent-glow:    rgba(193, 122, 114, 0.15)  -- Subtle glow behind CTAs
+  --accent-soft:    rgba(193, 122, 114, 0.1)   -- Selected states
 
 Status:
   --success:        #34d399       -- Completed, on track

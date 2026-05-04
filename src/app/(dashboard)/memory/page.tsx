@@ -104,7 +104,7 @@ export default function MemoryPage() {
             <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>
               <div
                 className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-                style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}
+                style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}
               >
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                   <path d="M12 2a10 10 0 1 0 10 10" />

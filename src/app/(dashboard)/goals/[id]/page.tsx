@@ -369,7 +369,7 @@ export default function GoalDetailPage() {
                 >
                   {msg.role === "assistant" && (
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
-                      style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                      style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                         <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
                       </svg>
@@ -392,7 +392,7 @@ export default function GoalDetailPage() {
               {chatLoading && (
                 <div className="flex justify-start">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
-                    style={{ background: "var(--accent-glow)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                    style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="ai-thinking">
                       <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
                     </svg>
@@ -492,7 +492,7 @@ export default function GoalDetailPage() {
                   style={{
                     background: taskPriority === p ? "var(--accent-soft)" : "rgba(255,255,255,0.03)",
                     color: taskPriority === p ? "var(--accent)" : "var(--text-muted)",
-                    border: `1px solid ${taskPriority === p ? "rgba(139,92,246,0.3)" : "var(--border)"}`,
+                    border: `1px solid ${taskPriority === p ? "rgba(193,122,114,0.3)" : "var(--border)"}`,
                   }}
                 >
                   {PRIORITY_LABELS[p]}

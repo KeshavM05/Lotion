@@ -11,7 +11,7 @@ export type GoalCategory = "career" | "business" | "finance" | "personal" | "hea
 export type ChatRole = "user" | "assistant";
 
 export const CATEGORY_COLORS: Record<GoalCategory, string> = {
-  career: "#8b5cf6",
+  career: "#C17A72",
   business: "#f59e0b",
   finance: "#10b981",
   personal: "#ec4899",

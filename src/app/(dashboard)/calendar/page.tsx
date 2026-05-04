@@ -181,7 +181,7 @@ export default function CalendarPage() {
                     d.setHours(hour, 0, 0, 0);
                     openCreate(d);
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(139, 92, 246, 0.03)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(193, 122, 114, 0.03)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   {hour === 0 &&
