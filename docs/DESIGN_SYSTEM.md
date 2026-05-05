@@ -11,39 +11,44 @@ Not a corporate SaaS dashboard. This is *your* space.
 
 ## Color Palette
 
-### Dark Theme (Primary)
+### Dark Theme (Primary) — Material Design 3 + Google Stitch
 
 ```
 Background:
-  --bg-primary:     #0F1729       -- Deep navy (Quillio)
-  --bg-secondary:   #0F1729       -- Same as primary
-  --bg-tertiary:    #1F2D47       -- Blue-tinted card backgrounds
-  --bg-glass:       rgba(31, 45, 71, 0.4)     -- Glass cards
+  --background:     #0b1325       -- Deep navy base
+  --surface:        #0b1325       -- Same as background
+  --bg-gradient:    radial-gradient(circle at 50% -20%, #1a2744 0%, #0b1325 100%)
+
+Glass Cards (Material Design 3):
+  --glass-card:     rgba(26, 39, 68, 0.6)  -- Blue-tinted glass
+  backdrop-filter:  blur(24px)
+  border:           1px solid rgba(255, 255, 255, 0.1)
 
 Borders:
-  --border:         rgba(255, 255, 255, 0.08)
-  --border-hover:   rgba(255, 255, 255, 0.15)
+  --border:         rgba(255, 255, 255, 0.10)
+  --border-hover:   rgba(255, 255, 255, 0.18)
 
-Text:
-  --text-primary:   #f0f0f5       -- Headlines, primary content
-  --text-secondary: #9ca3af       -- Body text, descriptions
-  --text-muted:     #4b5563       -- Timestamps, meta info
-  --text-accent:    #d4a69a       -- Links, emphasis (soft rose)
+Text (Material Design 3):
+  --on-surface:           #dbe2fb       -- Primary text
+  --on-secondary-container: #a8b5d9    -- Body text
+  --on-surface-variant:   #c6c6cd       -- Secondary text
+  --text-muted:           #9CA3AF       -- Timestamps, meta info
 
-Accent:
-  --accent:         #C17A72       -- Primary actions (warm rose)
+Accent (Warm Rose):
+  --accent:         #C17A72       -- Primary actions
   --accent-hover:   #b06a62       -- Hover state
-  --accent-glow:    rgba(193, 122, 114, 0.15)  -- Subtle glow behind CTAs
-  --accent-soft:    rgba(193, 122, 114, 0.1)   -- Selected states
+  --accent-glow:    rgba(193, 122, 114, 0.15)
+  --accent-soft:    rgba(193, 122, 114, 0.10)
+  --tertiary:       #ffb4ab       -- MD3 tertiary
 
 Status:
   --success:        #34d399       -- Completed, on track
-  --warning:        #fbbf24       -- At risk, approaching deadline
+  --warning:        #fbbf24       -- At risk
   --danger:         #f87171       -- Overdue, critical
   --info:           #60a5fa       -- Informational
 
 Goal Categories:
-  --cat-career:     #8b5cf6       -- Violet
+  --cat-career:     #C17A72       -- Warm rose (updated from violet)
   --cat-business:   #f59e0b       -- Amber
   --cat-finance:    #10b981       -- Emerald
   --cat-personal:   #ec4899       -- Pink
@@ -53,55 +58,69 @@ Goal Categories:
 
 ---
 
-## Typography
+## Typography — Google Stitch Implementation
+
+**Explicit Font Families (pixel-perfect matching):**
 
 ```
-Headlines:     'Playfair Display', Georgia, serif
-               - Used for: page titles, goal names, hero text
-               - Weight: 700 (bold), sometimes 400 (italic for emphasis)
+Display/Headlines: font-['Playfair_Display']
+                   - Used for: page titles (text-5xl), goal names, hero text
+                   - Weights: 400-900 (italic for emphasis)
 
-Body:          'Inter', system-ui, -apple-system, sans-serif
-               - Used for: everything else
-               - Weights: 400 (body), 500 (medium labels), 600 (semibold nav)
+Body/Labels:       font-['Space_Grotesk']
+                   - Used for: body text, labels, descriptions, navigation
+                   - Weights: 300-700
 
-Mono:          'JetBrains Mono', 'Fira Code', monospace
-               - Used for: timestamps, stats, code-like content
+Mono/Stats:        font-['JetBrains_Mono']
+                   - Used for: timestamps, stats, numbers, dates
+                   - Weights: 400, 700
 
-Scale:
-  text-xs:     0.75rem / 12px    -- Timestamps, meta
-  text-sm:     0.875rem / 14px   -- Body, descriptions
+Additional:        font-['Newsreader']
+                   - Used for: alternative headline style
+                   - Weights: 200-800 (variable)
+
+Material Symbols:  Material Symbols Outlined
+                   - Settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24
+
+Scale (Tailwind):
+  text-xs:     0.75rem / 12px    -- Labels, meta, tracking-widest
+  text-sm:     0.875rem / 14px   -- Navigation, descriptions
   text-base:   1rem / 16px       -- Default body
-  text-lg:     1.125rem / 18px   -- Section headers
-  text-xl:     1.25rem / 20px    -- Card titles
-  text-2xl:    1.5rem / 24px     -- Page subtitles
-  text-3xl:    1.875rem / 30px   -- Page titles
-  text-4xl:    2.25rem / 36px    -- Hero text
-  text-5xl:    3rem / 48px       -- Landing hero
+  text-lg:     1.125rem / 18px   -- Section subheads
+  text-xl:     1.25rem / 20px    -- Card headers
+  text-2xl:    1.5rem / 24px     -- Section titles
+  text-3xl:    1.875rem / 30px   -- Featured quotes
+  text-4xl:    2.25rem / 36px    -- Stats, hero numbers
+  text-5xl:    3rem / 48px       -- Page titles (standard)
 ```
 
 ---
 
-## Glassmorphism
+## Glassmorphism — Actual Implementation
 
-The signature UI pattern. Used for cards, modals, overlays.
+The signature UI pattern from Google Stitch. Used for cards, modals, overlays.
 
 ```css
+/* Exact Google Stitch values */
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(26, 39, 68, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.glass-card-hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+/* Sidebar specific */
+aside {
+  background: rgba(6, 14, 31, 0.8);
+  backdrop-filter: blur(48px);
+  box-shadow: 0px 20px 40px rgba(15, 23, 41, 0.4);
+}
+
+/* Hover states */
+.glass-card:hover {
+  border-color: rgba(193, 122, 114, 0.3);
+  transform: translateY(-1px);
+  transition: all 500ms ease;
 }
 ```
 
@@ -185,8 +204,10 @@ Loading states:
 ## Layout Principles
 
 1. **Generous whitespace** — let content breathe
-2. **Consistent 8px grid** — all spacing in multiples of 8
-3. **Max content width** — 1200px for main content, centered
-4. **Sidebar always visible** on desktop (240px)
-5. **Cards don't touch** — minimum 16px gap
+2. **Consistent spacing** — gap-6 (24px), gap-8 (32px), gap-12 (48px)
+3. **Fixed sidebar** — 256px (w-64), always visible on desktop
+4. **Main content margin** — ml-64 to account for fixed sidebar
+5. **Cards don't touch** — minimum gap-6 (24px) between cards
 6. **Hierarchy through opacity** — not just size
+7. **Background blooms** — atmospheric colored blur effects for depth
+8. **Noise texture overlay** — subtle 3% opacity texture for polish

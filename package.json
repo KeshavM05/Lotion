@@ -1,6 +1,7 @@
 {
-  "name": "motion",
+  "name": "lotion",
   "version": "1.0.0",
+  "description": "AI Life Coach - Your AI-powered life coach for goals, calendar, and clarity",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
@@ -12,10 +13,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": [],
+  "keywords": ["ai", "life-coach", "goals", "calendar", "productivity", "next.js"],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1007.0",
     "@neondatabase/serverless": "^1.0.2",
