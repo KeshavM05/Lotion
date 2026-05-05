@@ -89,10 +89,10 @@ export default function JournalPage() {
       <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
               Journal
             </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
               Reflect on your day. Your entries help the AI coach understand you better.
             </p>
           </div>

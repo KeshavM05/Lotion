@@ -34,8 +34,8 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full">
       {/* Dashboard Header */}
       <header className="mb-12">
-        <h2 className="text-5xl font-serif text-[#F5F5F5] mb-2">Dashboard</h2>
-        <p className="text-on-secondary-container font-body tracking-wide">
+        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Dashboard</h2>
+        <p className="text-on-secondary-container font-['Space_Grotesk'] tracking-wide">
           Welcome back. Your celestial alignment is high today.
         </p>
       </header>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
                   Personalized Insight
                 </span>
               </div>
-              <h3 className="text-3xl font-serif italic text-white mb-4">
+              <h3 className="text-3xl font-['Playfair_Display'] italic text-white mb-4">
                 "The quietest hours often hold the loudest truths. You've been most productive at 7:00 AM this week—try leaning into that stillness tomorrow."
               </h3>
               <p className="text-[#BEC6DF] font-body leading-relaxed mb-6 opacity-80">
@@ -72,22 +72,22 @@ export default function DashboardPage() {
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-3 gap-6">
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-mono text-4xl text-[#C17A72] mb-1">{activeGoals.length}</span>
-              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">{activeGoals.length}</span>
+              <span className="font-['Space_Grotesk'] text-xs text-on-secondary-container uppercase tracking-widest">
                 Active Goals
               </span>
             </div>
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center border-l-2 border-l-[#C17A72]/30">
-              <span className="font-mono text-4xl text-[#C17A72] mb-1">{activeTasks.length}</span>
-              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">{activeTasks.length}</span>
+              <span className="font-['Space_Grotesk'] text-xs text-on-secondary-container uppercase tracking-widest">
                 Tasks Due Today
               </span>
             </div>
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-mono text-4xl text-[#C17A72] mb-1">
+              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">
                 {Math.round((completedTasks.length / Math.max(store.tasks.length, 1)) * 100)}%
               </span>
-              <span className="font-label text-xs text-on-secondary-container uppercase tracking-widest">
+              <span className="font-['Space_Grotesk'] text-xs text-on-secondary-container uppercase tracking-widest">
                 Week Progress
               </span>
             </div>

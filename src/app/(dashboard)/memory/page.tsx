@@ -25,10 +25,10 @@ export default function MemoryPage() {
       <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
               AI Memory
             </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
               This is what your AI coach knows about you. You can view and edit it anytime.
             </p>
           </div>

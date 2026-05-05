@@ -102,7 +102,7 @@ export default function TasksPage() {
       {/* Header */}
       <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>Tasks</h1>
+          <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Tasks</h1>
           <button onClick={openCreate} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">+ Add Task</button>
         </div>
         <div className="flex gap-1">

@@ -23,6 +23,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       </div>
       <CommandPalette />
       <QuickCaptureOverlay isOpen={isOpen} onClose={close} />
+      {/* Noise Texture Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/p6.png')] z-[100]"></div>
     </>
   );
 }

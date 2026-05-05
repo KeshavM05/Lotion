@@ -94,8 +94,8 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="mb-8 flex justify-between items-end">
         <div>
-          <h1 className="text-5xl font-serif text-[#F5F5F5] mb-2">Calendar</h1>
-          <p className="text-[#9CA3AF] font-mono text-xs uppercase tracking-widest">
+          <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Calendar</h1>
+          <p className="text-[#9CA3AF] font-['JetBrains_Mono'] text-xs uppercase tracking-widest">
             {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} — {new Date(currentDate.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>

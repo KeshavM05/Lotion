@@ -23,10 +23,10 @@ export default function CoachPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
           AI Coach
         </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
           Your personal life coach. Ask anything about your goals, schedule, or strategy.
         </p>
       </div>

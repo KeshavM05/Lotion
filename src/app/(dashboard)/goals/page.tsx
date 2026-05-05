@@ -79,8 +79,8 @@ export default function GoalsPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
-          <h2 className="text-5xl font-serif text-[#F5F5F5] mb-4">Vision Board</h2>
-          <p className="text-[#9CA3AF] max-w-xl font-body text-lg leading-relaxed">
+          <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-4">Vision Board</h2>
+          <p className="text-[#9CA3AF] max-w-xl font-['Space_Grotesk'] text-lg leading-relaxed">
             Manifesting your celestial path through logic and design. Your long-term trajectories, curated by Motion.
           </p>
         </div>
@@ -101,7 +101,7 @@ export default function GoalsPage() {
       <div className="flex flex-wrap gap-4 mb-10 overflow-x-auto pb-4">
         <button
           onClick={() => setFilterCategory("all")}
-          className={`px-6 py-2 rounded-full text-sm font-label tracking-wide border transition-all ${
+          className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
             filterCategory === "all"
               ? "border-tertiary text-tertiary bg-tertiary/5"
               : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
@@ -113,7 +113,7 @@ export default function GoalsPage() {
           <button
             key={cat}
             onClick={() => setFilterCategory(cat)}
-            className={`px-6 py-2 rounded-full text-sm font-label tracking-wide border transition-all ${
+            className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
               filterCategory === cat
                 ? "border-tertiary text-tertiary bg-tertiary/5"
                 : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
@@ -151,19 +151,19 @@ export default function GoalsPage() {
                   <div className="flex justify-between items-start mb-12">
                     <div className="relative w-24 h-24">
                       <ProgressRing progress={progress} size={96} strokeWidth={6} color="#C17A72">
-                        <span className="font-mono text-lg text-[#F5F5F5]">{progress}%</span>
+                        <span className="font-['JetBrains_Mono'] text-lg text-[#F5F5F5]">{progress}%</span>
                       </ProgressRing>
                     </div>
-                    <span className="text-xs font-label tracking-widest text-[#9CA3AF] uppercase">
+                    <span className="text-xs font-['Space_Grotesk'] tracking-widest text-[#9CA3AF] uppercase">
                       {CATEGORY_LABELS[goal.category]} • {goal.targetDate ? new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "ONGOING"}
                     </span>
                   </div>
 
                   {/* Content */}
                   <div>
-                    <h3 className="text-2xl font-serif text-[#F5F5F5] mb-2">{goal.title}</h3>
+                    <h3 className="text-2xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">{goal.title}</h3>
                     {goal.description && (
-                      <p className="text-[#9CA3AF] text-sm font-body mb-6 leading-relaxed line-clamp-2">
+                      <p className="text-[#9CA3AF] text-sm font-['Space_Grotesk'] mb-6 leading-relaxed line-clamp-2">
                         {goal.description}
                       </p>
                     )}
