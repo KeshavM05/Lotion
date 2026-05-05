@@ -100,20 +100,26 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Tasks</h1>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Tasks</h1>
+            <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
+              Organize and prioritize your action items
+            </p>
+          </div>
           <button onClick={openCreate} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">+ Add Task</button>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              className="px-4 py-2 rounded-lg text-xs font-['Space_Grotesk'] font-medium tracking-wide transition-all"
               style={{
                 background: activeTab === tab.key ? "var(--accent-soft)" : "transparent",
                 color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
+                border: `1px solid ${activeTab === tab.key ? "rgba(193,122,114,0.3)" : "transparent"}`,
               }}
             >
               {tab.label}
@@ -124,7 +130,7 @@ export default function TasksPage() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-auto px-8 py-6">
+      <div className="flex-1 overflow-auto">
         {sorted.length === 0 ? (
           <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>
             <svg width="40" height="40" className="mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.4 }}>

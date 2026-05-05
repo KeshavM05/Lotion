@@ -22,7 +22,7 @@ export default function MemoryPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
@@ -43,7 +43,7 @@ export default function MemoryPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8">
+      <div className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto">
           {editing ? (
             <div className="animate-in">

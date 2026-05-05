@@ -22,7 +22,7 @@ export default function CoachPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="mb-8">
         <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
           AI Coach
         </h1>
@@ -32,7 +32,7 @@ export default function CoachPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto p-8">
+      <div className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto space-y-4">
           {messages.length === 0 && !isLoading && (
             <div className="text-center py-20">
@@ -115,7 +115,7 @@ export default function CoachPage() {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="pt-4 border-t mt-6" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-2xl mx-auto flex gap-3">
           <input
             type="text"
