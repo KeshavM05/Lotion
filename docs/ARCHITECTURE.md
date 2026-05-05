@@ -1,4 +1,4 @@
-# Motion — Technical Architecture
+# Lotion — Technical Architecture
 
 ---
 

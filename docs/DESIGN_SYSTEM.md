@@ -1,4 +1,4 @@
-# Motion — Design System
+# Lotion — Design System
 
 ---
 

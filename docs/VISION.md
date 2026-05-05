@@ -1,4 +1,4 @@
-# Motion — AI Life Coach
+# Lotion — AI Life Coach
 
 > Your life is one interconnected journey. Your tools should reflect that.
 

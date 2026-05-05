@@ -59,7 +59,7 @@ const config: Config = {
         "surface-container-high": "#222a3d",
         "on-error": "#690005",
 
-        // Motion semantic colors (mapped to MD3)
+        // Lotion semantic colors (mapped to MD3)
         accent: "#C17A72", // warm rose
         "accent-hover": "#b06a62",
       },

@@ -25,9 +25,9 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-50 flex flex-col py-8 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)]">
       {/* Logo */}
       <div className="mb-12 px-4">
-        <h1 className="text-2xl font-serif italic text-[#F5F5F5]">Motion</h1>
+        <h1 className="text-2xl font-serif italic text-[#F5F5F5]">Lotion</h1>
         <p className="text-xs text-[#9CA3AF] font-body tracking-[0.2em] uppercase mt-1">
-          Celestial Curator
+          AI Coach
         </p>
       </div>
 

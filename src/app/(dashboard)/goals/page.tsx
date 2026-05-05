@@ -81,7 +81,7 @@ export default function GoalsPage() {
         <div>
           <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-4">Vision Board</h2>
           <p className="text-[#9CA3AF] max-w-xl font-['Space_Grotesk'] text-lg leading-relaxed">
-            Manifesting your celestial path through logic and design. Your long-term trajectories, curated by Motion.
+            Manifesting your celestial path through logic and design. Your long-term trajectories, curated by Lotion.
           </p>
         </div>
         <div className="flex gap-3">

@@ -1,4 +1,4 @@
-# Motion — Feature Scope & MVP
+# Lotion — Feature Scope & MVP
 
 ---
 
