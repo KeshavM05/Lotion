@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
-import { milestones, goals } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { milestones } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 
 // PATCH /api/milestones/[id] - Update milestone
 export async function PATCH(
@@ -9,9 +10,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -22,7 +25,7 @@ export async function PATCH(
       with: { goal: true },
     });
 
-    if (!milestone || milestone.goal.userId !== userId) {
+    if (!milestone || milestone.goal.userId !== user.id) {
       return Response.json({ error: "Milestone not found" }, { status: 404 });
     }
 
@@ -49,9 +52,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     // Get milestone with goal to verify ownership
@@ -60,7 +65,7 @@ export async function DELETE(
       with: { goal: true },
     });
 
-    if (!milestone || milestone.goal.userId !== userId) {
+    if (!milestone || milestone.goal.userId !== user.id) {
       return Response.json({ error: "Milestone not found" }, { status: 404 });
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { journalEntries } from "@/db/schema";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 import { eq, and } from "drizzle-orm";
 
 // PATCH /api/journal/[id] - Update journal entry
@@ -9,9 +10,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -22,7 +25,7 @@ export async function PATCH(
         ...body,
         updatedAt: new Date(),
       })
-      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, userId)))
+      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -42,14 +45,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const [deleted] = await db
       .delete(journalEntries)
-      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, userId)))
+      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, user.id)))
       .returning();
 
     if (!deleted) {

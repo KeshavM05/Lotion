@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 import { eq } from "drizzle-orm";
 
 // GET /api/user/memory - Get user's AI memory
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const user = await db.query.users.findFirst({
@@ -30,9 +33,11 @@ export async function GET(request: NextRequest) {
 // PATCH /api/user/memory - Update user's AI memory
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();

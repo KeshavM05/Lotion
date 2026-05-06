@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm uninstall:*)",
       "Bash(npm install:*)",
-      "Bash(git add src/app/\\\\\\(dashboard\\\\\\)/goals/[id]/page.tsx src/db/schema.ts package.json)"
+      "Bash(git add src/app/\\\\\\(dashboard\\\\\\)/goals/[id]/page.tsx src/db/schema.ts package.json)",
+      "Bash(node batch-update-auth.js)",
+      "Bash(git add -A)"
     ]
   }
 }

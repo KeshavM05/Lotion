@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { calendarEvents } from "@/db/schema";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 import { eq, and } from "drizzle-orm";
 
 // PATCH /api/events/[id] - Update event
@@ -9,9 +10,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -23,7 +26,7 @@ export async function PATCH(
         start: body.start ? new Date(body.start) : undefined,
         end: body.end ? new Date(body.end) : undefined,
       })
-      .where(and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, userId)))
+      .where(and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -43,14 +46,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const [deleted] = await db
       .delete(calendarEvents)
-      .where(and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, userId)))
+      .where(and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, user.id)))
       .returning();
 
     if (!deleted) {

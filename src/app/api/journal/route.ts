@@ -1,18 +1,21 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { journalEntries } from "@/db/schema";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 import { eq } from "drizzle-orm";
 
 // GET /api/journal - Get all journal entries for user
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const entries = await db.query.journalEntries.findMany({
-      where: eq(journalEntries.userId, userId),
+      where: eq(journalEntries.userId, user.id),
       orderBy: (journalEntries, { desc }) => [desc(journalEntries.createdAt)],
     });
 
@@ -26,9 +29,11 @@ export async function GET(request: NextRequest) {
 // POST /api/journal - Create new journal entry
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -41,7 +46,7 @@ export async function POST(request: NextRequest) {
     const [entry] = await db
       .insert(journalEntries)
       .values({
-        userId,
+        userId: user.id,
         content,
         mood: mood || null,
         linkedGoalIds: linkedGoalIds || [],

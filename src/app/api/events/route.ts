@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { calendarEvents } from "@/db/schema";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 // GET /api/events - Get calendar events for user (with optional date range)
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -19,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (startDate && endDate) {
       events = await db.query.calendarEvents.findMany({
         where: and(
-          eq(calendarEvents.userId, userId),
+          eq(calendarEvents.userId, user.id),
           gte(calendarEvents.start, new Date(startDate)),
           lte(calendarEvents.end, new Date(endDate))
         ),
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       events = await db.query.calendarEvents.findMany({
-        where: eq(calendarEvents.userId, userId),
+        where: eq(calendarEvents.userId, user.id),
         orderBy: (calendarEvents, { desc }) => [desc(calendarEvents.start)],
       });
     }
@@ -42,9 +45,11 @@ export async function GET(request: NextRequest) {
 // POST /api/events - Create new event
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
     const [event] = await db
       .insert(calendarEvents)
       .values({
-        userId,
+        userId: user.id,
         title,
         description: description || "",
         start: new Date(start),
