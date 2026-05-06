@@ -36,7 +36,7 @@ export default function DashboardPage() {
       <header className="mb-12">
         <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Dashboard</h2>
         <p className="text-on-secondary-container font-['Space_Grotesk'] tracking-wide">
-          Welcome back. Your celestial alignment is high today.
+          Welcome back. Ready to be productive today.
         </p>
       </header>
 
