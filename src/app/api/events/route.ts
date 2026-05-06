@@ -1,0 +1,77 @@
+import { NextRequest } from "next/server";
+import { db } from "@/db";
+import { calendarEvents } from "@/db/schema";
+import { eq, and, gte, lte } from "drizzle-orm";
+
+// GET /api/events - Get calendar events for user (with optional date range)
+export async function GET(request: NextRequest) {
+  try {
+    const userId = request.headers.get("x-user-id");
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("start");
+    const endDate = searchParams.get("end");
+
+    let events;
+    if (startDate && endDate) {
+      events = await db.query.calendarEvents.findMany({
+        where: and(
+          eq(calendarEvents.userId, userId),
+          gte(calendarEvents.start, new Date(startDate)),
+          lte(calendarEvents.end, new Date(endDate))
+        ),
+        orderBy: (calendarEvents, { asc }) => [asc(calendarEvents.start)],
+      });
+    } else {
+      events = await db.query.calendarEvents.findMany({
+        where: eq(calendarEvents.userId, userId),
+        orderBy: (calendarEvents, { desc }) => [desc(calendarEvents.start)],
+      });
+    }
+
+    return Response.json(events);
+  } catch (error) {
+    console.error("GET /api/events error:", error);
+    return Response.json({ error: "Failed to fetch events" }, { status: 500 });
+  }
+}
+
+// POST /api/events - Create new event
+export async function POST(request: NextRequest) {
+  try {
+    const userId = request.headers.get("x-user-id");
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { title, description, start, end, allDay, color, taskId, source } = body;
+
+    if (!title || !start || !end) {
+      return Response.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const [event] = await db
+      .insert(calendarEvents)
+      .values({
+        userId,
+        title,
+        description: description || "",
+        start: new Date(start),
+        end: new Date(end),
+        allDay: allDay || false,
+        color: color || "#8b5cf6",
+        taskId: taskId || null,
+        source: source || "local",
+      })
+      .returning();
+
+    return Response.json(event, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/events error:", error);
+    return Response.json({ error: "Failed to create event" }, { status: 500 });
+  }
+}
