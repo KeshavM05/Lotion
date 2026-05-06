@@ -4,14 +4,19 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useStore } from "@/lib/store";
 
 export function Header() {
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const store = useStore();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -22,11 +27,31 @@ export function Header() {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearch(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Search functionality
+  const searchResults = searchQuery.trim() ? {
+    goals: store.goals.filter(g =>
+      g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.description.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 3),
+    tasks: store.tasks.filter(t =>
+      t.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 3),
+    journal: store.journalEntries.filter(j =>
+      j.content.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 3),
+    events: store.events.filter(e =>
+      e.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 3),
+  } : null;
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,21 +62,98 @@ export function Header() {
 
   return (
     <header className="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8">
-      <div className="flex items-center gap-8">
-        <nav className="flex items-center gap-6">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="font-['Space_Grotesk'] font-medium text-sm text-[#C17A72] border-b-2 border-[#C17A72] pb-0.5 hover:text-[#C17A72]/80 transition-colors"
-          >
-            Focus Mode
-          </button>
-          <button
-            onClick={() => router.push('/coach')}
-            className="font-['Space_Grotesk'] font-medium text-sm text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors"
-          >
-            Insights
-          </button>
-        </nav>
+      <div className="flex-1 max-w-xl" ref={searchRef}>
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] text-lg">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Search goals, tasks, journal entries..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setShowSearch(true)}
+            className="w-full h-10 pl-10 pr-4 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C17A72]/50 focus:bg-white/10 transition-all font-['Space_Grotesk']"
+          />
+
+          {/* Search Results Dropdown */}
+          {showSearch && searchQuery.trim() && searchResults && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1F2D47] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-96 overflow-y-auto">
+              {searchResults.goals.length === 0 && searchResults.tasks.length === 0 && searchResults.journal.length === 0 && searchResults.events.length === 0 ? (
+                <div className="p-8 text-center text-[#9CA3AF] text-sm">
+                  No results found for "{searchQuery}"
+                </div>
+              ) : (
+                <>
+                  {searchResults.goals.length > 0 && (
+                    <SearchSection title="Goals" icon="auto_awesome_motion">
+                      {searchResults.goals.map(goal => (
+                        <SearchResult
+                          key={goal.id}
+                          title={goal.title}
+                          subtitle={goal.description}
+                          onClick={() => {
+                            router.push(`/goals/${goal.id}`);
+                            setShowSearch(false);
+                            setSearchQuery("");
+                          }}
+                        />
+                      ))}
+                    </SearchSection>
+                  )}
+                  {searchResults.tasks.length > 0 && (
+                    <SearchSection title="Tasks" icon="check_circle">
+                      {searchResults.tasks.map(task => (
+                        <SearchResult
+                          key={task.id}
+                          title={task.title}
+                          subtitle={task.completed ? "Completed" : "Active"}
+                          onClick={() => {
+                            router.push('/tasks');
+                            setShowSearch(false);
+                            setSearchQuery("");
+                          }}
+                        />
+                      ))}
+                    </SearchSection>
+                  )}
+                  {searchResults.journal.length > 0 && (
+                    <SearchSection title="Journal" icon="edit_note">
+                      {searchResults.journal.map(entry => (
+                        <SearchResult
+                          key={entry.id}
+                          title={new Date(entry.createdAt).toLocaleDateString()}
+                          subtitle={entry.content.slice(0, 60) + "..."}
+                          onClick={() => {
+                            router.push('/journal');
+                            setShowSearch(false);
+                            setSearchQuery("");
+                          }}
+                        />
+                      ))}
+                    </SearchSection>
+                  )}
+                  {searchResults.events.length > 0 && (
+                    <SearchSection title="Calendar" icon="calendar_today">
+                      {searchResults.events.map(event => (
+                        <SearchResult
+                          key={event.id}
+                          title={event.title}
+                          subtitle={new Date(event.start).toLocaleString()}
+                          onClick={() => {
+                            router.push('/calendar');
+                            setShowSearch(false);
+                            setSearchQuery("");
+                          }}
+                        />
+                      ))}
+                    </SearchSection>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-4">
         {/* Notifications */}
@@ -158,6 +260,30 @@ export function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+function SearchSection({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+  return (
+    <div className="border-b border-white/5 last:border-0">
+      <div className="px-4 py-2 flex items-center gap-2">
+        <span className="material-symbols-outlined text-[#C17A72] text-sm">{icon}</span>
+        <h4 className="text-xs font-['Space_Grotesk'] font-semibold text-[#9CA3AF] uppercase tracking-wider">{title}</h4>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function SearchResult({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full px-4 py-3 hover:bg-white/5 transition-colors text-left border-t border-white/5 first:border-0"
+    >
+      <p className="text-sm font-['Space_Grotesk'] text-white mb-1">{title}</p>
+      {subtitle && <p className="text-xs text-[#9CA3AF] line-clamp-1">{subtitle}</p>}
+    </button>
   );
 }
 
