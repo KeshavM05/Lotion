@@ -1,18 +1,25 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
-import { goals } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { goals, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { requireAuth } from "@/lib/auth-server";
 
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+
+    // Get our internal user ID from Supabase ID
+    const user = await db.query.users.findFirst({
+      where: eq(users.supabaseId, supabaseUserId),
+    });
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const userGoals = await db.query.goals.findMany({
-      where: eq(goals.userId, userId),
+      where: eq(goals.userId, user.id),
       orderBy: (goals, { desc }) => [desc(goals.createdAt)],
     });
 
@@ -26,9 +33,15 @@ export async function GET(request: NextRequest) {
 // POST /api/goals - Create new goal
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+
+    // Get our internal user ID from Supabase ID
+    const user = await db.query.users.findFirst({
+      where: eq(users.supabaseId, supabaseUserId),
+    });
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -41,7 +54,7 @@ export async function POST(request: NextRequest) {
     const [goal] = await db
       .insert(goals)
       .values({
-        userId,
+        userId: user.id,
         title,
         description: description || "",
         category,

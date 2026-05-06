@@ -3,6 +3,7 @@
  * Provides typed functions for all CRUD operations
  */
 
+import { supabase } from "./supabase";
 import type {
   Goal,
   Milestone,
@@ -14,47 +15,16 @@ import type {
 
 const API_BASE = "/api";
 
-// Temporary: For MVP, we'll use a hardcoded user ID
-// In production, this will come from Supabase auth session
-const getUserId = () => {
-  if (typeof window === "undefined") return null;
-  // For now, use a consistent test user ID stored in localStorage
-  let userId = localStorage.getItem("lotion_user_id");
-  if (!userId) {
-    userId = crypto.randomUUID();
-    localStorage.setItem("lotion_user_id", userId);
-  }
-  return userId;
-};
-
-// Initialize user in database (call once on app load)
-export const initializeUser = async () => {
-  const userId = getUserId();
-  if (!userId) return null;
-
-  try {
-    const response = await fetch(`${API_BASE}/user/init`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    if (!response.ok) throw new Error("Failed to initialize user");
-    return await response.json();
-  } catch (error) {
-    console.error("User initialization error:", error);
-    return null;
-  }
-};
-
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const userId = getUserId();
-  if (!userId) throw new Error("No user ID available");
+  // Get Supabase session token
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "x-user-id": userId,
+      "Authorization": `Bearer ${session.access_token}`,
       ...options.headers,
     },
   });

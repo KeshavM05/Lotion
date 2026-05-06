@@ -13,12 +13,20 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": ["ai", "life-coach", "goals", "calendar", "productivity", "next.js"],
+  "keywords": [
+    "ai",
+    "life-coach",
+    "goals",
+    "calendar",
+    "productivity",
+    "next.js"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1007.0",
     "@neondatabase/serverless": "^1.0.2",
+    "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
@@ -31,6 +39,6 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.34.0"
+    "drizzle-kit": "^0.30.1"
   }
 }

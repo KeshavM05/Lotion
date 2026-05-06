@@ -1,13 +1,42 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { QuickCaptureOverlay, useQuickCapture } from "@/components/ui/quick-capture";
 import { StoreProvider } from "@/lib/store";
+import { useAuth } from "@/lib/auth-context";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const { isOpen, close } = useQuickCapture();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth");
+    }
+  }, [user, loading, router]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: "var(--bg-primary)" }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-t-[#C17A72] border-[#1F2D47] rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[#9CA3AF] font-['Space_Grotesk']">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if no user
+  if (!user) {
+    return null;
+  }
 
   return (
     <>
