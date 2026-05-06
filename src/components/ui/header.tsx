@@ -36,28 +36,34 @@ export function Header() {
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-transparent flex justify-between items-center px-8">
+    <header className="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8">
       <div className="flex items-center gap-8">
-        <nav className="flex gap-6">
-          <button className="font-['Space_Grotesk'] font-medium text-sm text-[#C17A72] border-b border-[#C17A72] pb-1">
+        <nav className="flex items-center gap-6">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="font-['Space_Grotesk'] font-medium text-sm text-[#C17A72] border-b-2 border-[#C17A72] pb-0.5 hover:text-[#C17A72]/80 transition-colors"
+          >
             Focus Mode
           </button>
-          <button className="font-['Space_Grotesk'] font-medium text-sm text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors">
+          <button
+            onClick={() => router.push('/coach')}
+            className="font-['Space_Grotesk'] font-medium text-sm text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors"
+          >
             Insights
           </button>
         </nav>
       </div>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative cursor-pointer"
+            className="relative w-10 h-10 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors"
           >
-            <span className="material-symbols-outlined text-[#BEC6DF] opacity-80 hover:opacity-100 transition-opacity">
+            <span className="material-symbols-outlined text-xl text-[#BEC6DF] hover:text-white transition-colors">
               notifications
             </span>
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#C17A72] rounded-full shadow-[0_0_8px_#C17A72]"></div>
+            <div className="absolute top-2 right-2 w-2 h-2 bg-[#C17A72] rounded-full shadow-[0_0_8px_#C17A72]"></div>
           </button>
 
           {/* Notifications Dropdown */}
@@ -99,9 +105,11 @@ export function Header() {
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="w-8 h-8 rounded-full border border-white/10 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center text-xs font-bold text-white hover:scale-110 transition-transform"
+            className="w-10 h-10 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors"
           >
-            {userInitial}
+            <div className="w-8 h-8 rounded-full border border-white/10 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center text-xs font-bold text-white">
+              {userInitial}
+            </div>
           </button>
 
           {/* Profile Dropdown */}
