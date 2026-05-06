@@ -24,11 +24,26 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-50 flex flex-col py-6 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)]">
       {/* Logo */}
-      <div className="mb-8 px-4">
-        <h1 className="text-2xl font-serif italic text-[#F5F5F5]">Lotion</h1>
-        <p className="text-xs text-[#9CA3AF] font-body tracking-[0.2em] uppercase mt-1">
-          AI Coach
-        </p>
+      <div className="mb-10 px-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
+              <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                smart_toy
+              </span>
+            </div>
+            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse"></div>
+          </div>
+          <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight">
+            Lotion
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 ml-[52px]">
+          <div className="h-px flex-1 bg-gradient-to-r from-[#C17A72]/50 to-transparent"></div>
+          <p className="text-[10px] text-[#C17A72] font-['Space_Grotesk'] font-bold tracking-[0.15em] uppercase">
+            AI Life Coach
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}

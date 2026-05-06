@@ -22,12 +22,27 @@ export default function CoachPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
-          AI Coach
-        </h1>
-        <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
-          Your personal life coach. Ask anything about your goals, schedule, or strategy.
+      <div className="mb-8 relative">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_30px_rgba(193,122,114,0.4)]">
+              <span className="material-symbols-outlined text-white text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                smart_toy
+              </span>
+            </div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#C17A72] rounded-full animate-pulse shadow-[0_0_10px_rgba(193,122,114,0.8)]"></div>
+          </div>
+          <div>
+            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] leading-tight">
+              AI Life Coach
+            </h1>
+            <p className="text-xs text-[#C17A72] font-['Space_Grotesk'] font-semibold tracking-[0.15em] uppercase mt-1">
+              Powered by Claude
+            </p>
+          </div>
+        </div>
+        <p className="text-[#9CA3AF] font-['Space_Grotesk'] text-base max-w-2xl leading-relaxed">
+          An AI that knows your goals, schedule, and progress. Get personalized guidance, strategic advice, and accountability — all in one conversation.
         </p>
       </div>
 
@@ -35,36 +50,57 @@ export default function CoachPage() {
       <div className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto space-y-4">
           {messages.length === 0 && !isLoading && (
-            <div className="text-center py-20">
-              <div
-                className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-                style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                </svg>
+            <div className="text-center py-16">
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] blur-2xl opacity-40 animate-pulse"></div>
+                <div
+                  className="relative w-24 h-24 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] shadow-[0_0_40px_rgba(193,122,114,0.4)]"
+                >
+                  <span className="material-symbols-outlined text-white text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    psychology
+                  </span>
+                </div>
               </div>
-              <h2 className="text-xl mb-2" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-                What&apos;s on your mind?
+              <h2 className="text-3xl mb-3 text-white" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                Your AI Life Coach is Ready
               </h2>
-              <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
-                I know your goals, your calendar, and your progress. Let me help you move forward.
+              <p className="text-base mb-4 max-w-xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                I have full context on your goals, tasks, calendar, and journal entries. Ask me anything — from strategic planning to daily prioritization.
               </p>
+              <div className="flex items-center justify-center gap-2 mb-10 text-xs" style={{ color: "var(--text-muted)" }}>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <span>Context-Aware</span>
+                </div>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <span>Personalized</span>
+                </div>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <span>Always Learning</span>
+                </div>
+              </div>
 
-              <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+              <div className="grid grid-cols-2 gap-3 max-w-xl mx-auto">
                 {[
-                  "What should I focus on today?",
-                  "Help me plan this week",
-                  "How am I doing on my goals?",
-                  "I'm feeling overwhelmed",
+                  { q: "What should I focus on today?", icon: "target" },
+                  { q: "Help me plan this week", icon: "calendar_month" },
+                  { q: "How am I doing on my goals?", icon: "trending_up" },
+                  { q: "I'm feeling overwhelmed", icon: "psychology" },
                 ].map((suggestion) => (
                   <button
-                    key={suggestion}
-                    onClick={() => setInput(suggestion)}
-                    className="px-4 py-2 rounded-xl text-xs font-medium transition-all glass"
+                    key={suggestion.q}
+                    onClick={() => setInput(suggestion.q)}
+                    className="group px-5 py-4 rounded-xl text-sm font-medium transition-all text-left border border-white/10 hover:border-[#C17A72]/50 hover:bg-white/5"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {suggestion}
+                    <span className="material-symbols-outlined text-[#C17A72] text-lg mb-2 block">
+                      {suggestion.icon}
+                    </span>
+                    {suggestion.q}
                   </button>
                 ))}
               </div>
@@ -75,12 +111,11 @@ export default function CoachPage() {
             <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
                 <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
-                  style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}
+                  className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center flex-shrink-0 mr-3 mt-1 shadow-[0_0_15px_rgba(193,122,114,0.3)]"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                    <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
-                  </svg>
+                  <span className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    smart_toy
+                  </span>
                 </div>
               )}
               <div
@@ -99,11 +134,10 @@ export default function CoachPage() {
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 mt-1"
-                style={{ background: "var(--accent-glow)", border: "1px solid rgba(193,122,114,0.2)" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="ai-thinking">
-                  <path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" />
-                </svg>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center flex-shrink-0 mr-3 mt-1 shadow-[0_0_15px_rgba(193,122,114,0.3)]">
+                <span className="material-symbols-outlined text-white text-lg ai-thinking" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  smart_toy
+                </span>
               </div>
               <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: "20px 20px 20px 4px" }}>
                 <span className="ai-thinking inline-block" style={{ color: "var(--text-muted)" }}>Thinking...</span>

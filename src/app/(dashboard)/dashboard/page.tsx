@@ -45,29 +45,41 @@ export default function DashboardPage() {
         {/* Main Content Column */}
         <div className="col-span-12 lg:col-span-8 space-y-6">
           {/* AI Coach Featured Insight Card */}
-          <div className="glass-card p-8 rounded-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
-              <span className="material-symbols-outlined text-8xl text-[#C17A72]">flare</span>
+          <Link href="/coach" className="glass-card p-8 rounded-2xl relative overflow-hidden group block hover:border-[#C17A72]/40 transition-all duration-500 hover:shadow-[0_0_40px_rgba(193,122,114,0.15)]">
+            <div className="absolute top-0 right-0 w-32 h-32 opacity-10 group-hover:opacity-20 transition-opacity">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] blur-3xl rounded-full"></div>
             </div>
-            <div className="relative z-10 max-w-2xl">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-[#C17A72]">smart_toy</span>
-                <span className="font-label text-xs uppercase tracking-widest text-[#C17A72]">
-                  Personalized Insight
-                </span>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)] group-hover:shadow-[0_0_30px_rgba(193,122,114,0.5)] transition-shadow">
+                    <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      smart_toy
+                    </span>
+                  </div>
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse"></div>
+                </div>
+                <div>
+                  <span className="font-['Space_Grotesk'] text-xs uppercase tracking-[0.15em] text-[#C17A72] font-bold block">
+                    AI Life Coach
+                  </span>
+                  <span className="font-['Space_Grotesk'] text-[10px] text-[#9CA3AF] uppercase tracking-wider">
+                    Personalized Insight
+                  </span>
+                </div>
               </div>
-              <h3 className="text-3xl font-['Playfair_Display'] italic text-white mb-4">
+              <h3 className="text-3xl font-['Playfair_Display'] italic text-white mb-4 leading-snug">
                 "The quietest hours often hold the loudest truths. You've been most productive at 7:00 AM this week—try leaning into that stillness tomorrow."
               </h3>
-              <p className="text-[#BEC6DF] font-body leading-relaxed mb-6 opacity-80">
+              <p className="text-[#BEC6DF] font-['Space_Grotesk'] text-sm leading-relaxed mb-6">
                 Based on your recent journal entries and task completion patterns, your creative energy peaks when your environment is at its lowest frequency.
               </p>
-              <Link href="/coach" className="flex items-center gap-2 text-[#C17A72] font-label text-sm font-semibold hover:translate-x-1 transition-transform">
-                View Full Analysis
-                <span className="material-symbols-outlined text-sm">arrow_forward</span>
-              </Link>
+              <div className="flex items-center gap-2 text-[#C17A72] font-['Space_Grotesk'] text-sm font-semibold group-hover:gap-3 transition-all">
+                <span>Talk to Your Coach</span>
+                <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-3 gap-6">
