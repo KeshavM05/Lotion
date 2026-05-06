@@ -202,3 +202,9 @@ export const aiChatApi = {
     });
   },
 };
+
+// ─── User Initialization ─────────────────────────────────
+
+export const initializeUser = async (): Promise<void> => {
+  return apiRequest("/user/init", { method: "POST" });
+};

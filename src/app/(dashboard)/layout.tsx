@@ -1,28 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { QuickCaptureOverlay, useQuickCapture } from "@/components/ui/quick-capture";
-import { StoreProvider } from "@/lib/store";
+import { StoreProvider, useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
+import { initializeUser } from "@/lib/api-client";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { loadInitialData } = useStore();
   const { isOpen, close } = useQuickCapture();
+  const [initializing, setInitializing] = useState(true);
+
+  // Initialize user and load data
+  useEffect(() => {
+    if (!authLoading && user) {
+      const init = async () => {
+        try {
+          await initializeUser();
+          await loadInitialData();
+        } catch (error) {
+          console.error("Failed to initialize:", error);
+        } finally {
+          setInitializing(false);
+        }
+      };
+      init();
+    }
+  }, [user, authLoading, loadInitialData]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push("/auth");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   // Show loading state
-  if (loading) {
+  if (authLoading || initializing) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: "var(--bg-primary)" }}>
         <div className="text-center">

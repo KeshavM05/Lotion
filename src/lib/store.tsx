@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { goalsApi, tasksApi, milestonesApi, journalApi, eventsApi, aiMemoryApi } from "./api-client";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -118,26 +119,30 @@ interface StoreContextType {
   events: CalendarEvent[];
   chatMessages: ChatMessage[];
   aiMemory: string;
+  loading: boolean;
+
+  // Init
+  loadInitialData: () => Promise<void>;
 
   // Goals
-  addGoal: (goal: Omit<Goal, "id" | "createdAt" | "updatedAt">) => Goal;
-  updateGoal: (id: string, updates: Partial<Goal>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (goal: Omit<Goal, "id" | "createdAt" | "updatedAt">) => Promise<Goal>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
 
   // Milestones
-  addMilestone: (milestone: Omit<Milestone, "id" | "createdAt" | "completed" | "completedAt">) => Milestone;
-  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
-  deleteMilestone: (id: string) => void;
+  addMilestone: (milestone: Omit<Milestone, "id" | "createdAt" | "completed" | "completedAt">) => Promise<Milestone>;
+  updateMilestone: (id: string, updates: Partial<Milestone>) => Promise<void>;
+  deleteMilestone: (id: string) => Promise<void>;
 
   // Tasks
-  addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">) => Task;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
+  addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">) => Promise<Task>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
 
   // Events
-  addEvent: (event: Omit<CalendarEvent, "id" | "createdAt">) => CalendarEvent;
-  updateEvent: (id: string, updates: Partial<CalendarEvent>) => void;
-  deleteEvent: (id: string) => void;
+  addEvent: (event: Omit<CalendarEvent, "id" | "createdAt">) => Promise<CalendarEvent>;
+  updateEvent: (id: string, updates: Partial<CalendarEvent>) => Promise<void>;
+  deleteEvent: (id: string) => Promise<void>;
 
   // Chat
   addChatMessage: (message: Omit<ChatMessage, "id" | "createdAt">) => ChatMessage;
@@ -145,12 +150,12 @@ interface StoreContextType {
 
   // Journal
   journalEntries: JournalEntry[];
-  addJournalEntry: (entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => JournalEntry;
-  updateJournalEntry: (id: string, updates: Partial<JournalEntry>) => void;
-  deleteJournalEntry: (id: string) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => Promise<JournalEntry>;
+  updateJournalEntry: (id: string, updates: Partial<JournalEntry>) => Promise<void>;
+  deleteJournalEntry: (id: string) => Promise<void>;
 
   // AI Memory
-  setAiMemory: (memory: string) => void;
+  setAiMemory: (memory: string) => Promise<void>;
 
   // Computed
   getGoalProgress: (goalId: string) => number;
@@ -179,87 +184,269 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [aiMemory, setAiMemoryState] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+
+  // ─── Load Initial Data ───────────────────────────────────
+
+  const loadInitialData = useCallback(async () => {
+    if (initialized) return;
+
+    try {
+      setLoading(true);
+      const [goalsData, tasksData, journalData, eventsData, memoryData] = await Promise.all([
+        goalsApi.list(),
+        tasksApi.list(),
+        journalApi.list(),
+        eventsApi.list(),
+        aiMemoryApi.get(),
+      ]);
+
+      // Extract milestones from goals
+      const allMilestones: Milestone[] = [];
+      goalsData.forEach((goal: any) => {
+        if (goal.milestones && Array.isArray(goal.milestones)) {
+          allMilestones.push(...goal.milestones);
+        }
+      });
+
+      setGoals(goalsData);
+      setMilestones(allMilestones);
+      setTasks(tasksData);
+      setJournalEntries(journalData);
+      setEvents(eventsData);
+      setAiMemoryState(memoryData.memory || "");
+      setInitialized(true);
+    } catch (error) {
+      console.error("Failed to load initial data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [initialized]);
 
   // ─── Goals ───────────────────────────────────────────
 
-  const addGoal = useCallback((data: Omit<Goal, "id" | "createdAt" | "updatedAt">) => {
-    const now = new Date().toISOString();
-    const goal: Goal = { ...data, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    setGoals((prev) => [...prev, goal]);
-    return goal;
+  const addGoal = useCallback(async (data: Omit<Goal, "id" | "createdAt" | "updatedAt">) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempGoal: Goal = {
+      ...data,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setGoals((prev) => [...prev, tempGoal]);
+
+    try {
+      const savedGoal = await goalsApi.create(data);
+      setGoals((prev) => prev.map((g) => (g.id === tempId ? savedGoal : g)));
+      return savedGoal;
+    } catch (error) {
+      setGoals((prev) => prev.filter((g) => g.id !== tempId));
+      console.error("Failed to create goal:", error);
+      throw error;
+    }
   }, []);
 
-  const updateGoal = useCallback((id: string, updates: Partial<Goal>) => {
+  const updateGoal = useCallback(async (id: string, updates: Partial<Goal>) => {
+    const oldGoals = goals;
     setGoals((prev) =>
       prev.map((g) => (g.id === id ? { ...g, ...updates, updatedAt: new Date().toISOString() } : g))
     );
-  }, []);
 
-  const deleteGoal = useCallback((id: string) => {
+    try {
+      const updated = await goalsApi.update(id, updates);
+      setGoals((prev) => prev.map((g) => (g.id === id ? updated : g)));
+    } catch (error) {
+      setGoals(oldGoals);
+      console.error("Failed to update goal:", error);
+      throw error;
+    }
+  }, [goals]);
+
+  const deleteGoal = useCallback(async (id: string) => {
+    const oldGoals = goals;
+    const oldMilestones = milestones;
+    const oldTasks = tasks;
+    const oldMessages = chatMessages;
+
     setGoals((prev) => prev.filter((g) => g.id !== id));
     setMilestones((prev) => prev.filter((m) => m.goalId !== id));
     setTasks((prev) => prev.map((t) => (t.goalId === id ? { ...t, goalId: null, milestoneId: null } : t)));
     setChatMessages((prev) => prev.filter((m) => m.goalId !== id));
-  }, []);
+
+    try {
+      await goalsApi.delete(id);
+    } catch (error) {
+      setGoals(oldGoals);
+      setMilestones(oldMilestones);
+      setTasks(oldTasks);
+      setChatMessages(oldMessages);
+      console.error("Failed to delete goal:", error);
+      throw error;
+    }
+  }, [goals, milestones, tasks, chatMessages]);
 
   // ─── Milestones ──────────────────────────────────────
 
-  const addMilestone = useCallback((data: Omit<Milestone, "id" | "createdAt" | "completed" | "completedAt">) => {
-    const ms: Milestone = {
+  const addMilestone = useCallback(async (data: Omit<Milestone, "id" | "createdAt" | "completed" | "completedAt">) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempMilestone: Milestone = {
       ...data,
-      id: crypto.randomUUID(),
+      id: tempId,
       completed: false,
       completedAt: null,
       createdAt: new Date().toISOString(),
     };
-    setMilestones((prev) => [...prev, ms]);
-    return ms;
+    setMilestones((prev) => [...prev, tempMilestone]);
+
+    try {
+      const savedMilestone = await milestonesApi.create(data);
+      setMilestones((prev) => prev.map((m) => (m.id === tempId ? savedMilestone : m)));
+      return savedMilestone;
+    } catch (error) {
+      setMilestones((prev) => prev.filter((m) => m.id !== tempId));
+      console.error("Failed to create milestone:", error);
+      throw error;
+    }
   }, []);
 
-  const updateMilestone = useCallback((id: string, updates: Partial<Milestone>) => {
+  const updateMilestone = useCallback(async (id: string, updates: Partial<Milestone>) => {
+    const oldMilestones = milestones;
     setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
-  }, []);
 
-  const deleteMilestone = useCallback((id: string) => {
+    try {
+      const updated = await milestonesApi.update(id, updates);
+      setMilestones((prev) => prev.map((m) => (m.id === id ? updated : m)));
+    } catch (error) {
+      setMilestones(oldMilestones);
+      console.error("Failed to update milestone:", error);
+      throw error;
+    }
+  }, [milestones]);
+
+  const deleteMilestone = useCallback(async (id: string) => {
+    const oldMilestones = milestones;
+    const oldTasks = tasks;
+
     setMilestones((prev) => prev.filter((m) => m.id !== id));
     setTasks((prev) => prev.map((t) => (t.milestoneId === id ? { ...t, milestoneId: null } : t)));
-  }, []);
+
+    try {
+      await milestonesApi.delete(id);
+    } catch (error) {
+      setMilestones(oldMilestones);
+      setTasks(oldTasks);
+      console.error("Failed to delete milestone:", error);
+      throw error;
+    }
+  }, [milestones, tasks]);
 
   // ─── Tasks ───────────────────────────────────────────
 
-  const addTask = useCallback((data: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">) => {
-    const now = new Date().toISOString();
-    const task: Task = { ...data, id: crypto.randomUUID(), completed: false, completedAt: null, createdAt: now, updatedAt: now };
-    setTasks((prev) => [...prev, task]);
-    return task;
+  const addTask = useCallback(async (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempTask: Task = {
+      ...data,
+      id: tempId,
+      completed: false,
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setTasks((prev) => [...prev, tempTask]);
+
+    try {
+      const savedTask = await tasksApi.create(data);
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? savedTask : t)));
+      return savedTask;
+    } catch (error) {
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      console.error("Failed to create task:", error);
+      throw error;
+    }
   }, []);
 
-  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    const oldTasks = tasks;
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t))
     );
-  }, []);
 
-  const deleteTask = useCallback((id: string) => {
+    try {
+      const updated = await tasksApi.update(id, updates);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } catch (error) {
+      setTasks(oldTasks);
+      console.error("Failed to update task:", error);
+      throw error;
+    }
+  }, [tasks]);
+
+  const deleteTask = useCallback(async (id: string) => {
+    const oldTasks = tasks;
+    const oldEvents = events;
+
     setTasks((prev) => prev.filter((t) => t.id !== id));
     setEvents((prev) => prev.filter((e) => e.taskId !== id));
-  }, []);
+
+    try {
+      await tasksApi.delete(id);
+    } catch (error) {
+      setTasks(oldTasks);
+      setEvents(oldEvents);
+      console.error("Failed to delete task:", error);
+      throw error;
+    }
+  }, [tasks, events]);
 
   // ─── Events ──────────────────────────────────────────
 
-  const addEvent = useCallback((data: Omit<CalendarEvent, "id" | "createdAt">) => {
-    const event: CalendarEvent = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-    setEvents((prev) => [...prev, event]);
-    return event;
+  const addEvent = useCallback(async (data: Omit<CalendarEvent, "id" | "createdAt">) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempEvent: CalendarEvent = {
+      ...data,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+    };
+    setEvents((prev) => [...prev, tempEvent]);
+
+    try {
+      const savedEvent = await eventsApi.create(data);
+      setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
+      return savedEvent;
+    } catch (error) {
+      setEvents((prev) => prev.filter((e) => e.id !== tempId));
+      console.error("Failed to create event:", error);
+      throw error;
+    }
   }, []);
 
-  const updateEvent = useCallback((id: string, updates: Partial<CalendarEvent>) => {
+  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
+    const oldEvents = events;
     setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
-  }, []);
 
-  const deleteEvent = useCallback((id: string) => {
+    try {
+      const updated = await eventsApi.update(id, updates);
+      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    } catch (error) {
+      setEvents(oldEvents);
+      console.error("Failed to update event:", error);
+      throw error;
+    }
+  }, [events]);
+
+  const deleteEvent = useCallback(async (id: string) => {
+    const oldEvents = events;
     setEvents((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+
+    try {
+      await eventsApi.delete(id);
+    } catch (error) {
+      setEvents(oldEvents);
+      console.error("Failed to delete event:", error);
+      throw error;
+    }
+  }, [events]);
 
   // ─── Chat ────────────────────────────────────────────
 
@@ -276,28 +463,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Journal ─────────────────────────────────────────
 
-  const addJournalEntry = useCallback((data: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => {
-    const now = new Date().toISOString();
-    const entry: JournalEntry = { ...data, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    setJournalEntries((prev) => [entry, ...prev]);
-    return entry;
+  const addJournalEntry = useCallback(async (data: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempEntry: JournalEntry = {
+      ...data,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setJournalEntries((prev) => [tempEntry, ...prev]);
+
+    try {
+      const savedEntry = await journalApi.create(data);
+      setJournalEntries((prev) => prev.map((e) => (e.id === tempId ? savedEntry : e)));
+      return savedEntry;
+    } catch (error) {
+      setJournalEntries((prev) => prev.filter((e) => e.id !== tempId));
+      console.error("Failed to create journal entry:", error);
+      throw error;
+    }
   }, []);
 
-  const updateJournalEntry = useCallback((id: string, updates: Partial<JournalEntry>) => {
+  const updateJournalEntry = useCallback(async (id: string, updates: Partial<JournalEntry>) => {
+    const oldEntries = journalEntries;
     setJournalEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e))
     );
-  }, []);
 
-  const deleteJournalEntry = useCallback((id: string) => {
+    try {
+      const updated = await journalApi.update(id, updates);
+      setJournalEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    } catch (error) {
+      setJournalEntries(oldEntries);
+      console.error("Failed to update journal entry:", error);
+      throw error;
+    }
+  }, [journalEntries]);
+
+  const deleteJournalEntry = useCallback(async (id: string) => {
+    const oldEntries = journalEntries;
     setJournalEntries((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+
+    try {
+      await journalApi.delete(id);
+    } catch (error) {
+      setJournalEntries(oldEntries);
+      console.error("Failed to delete journal entry:", error);
+      throw error;
+    }
+  }, [journalEntries]);
 
   // ─── AI Memory ───────────────────────────────────────
 
-  const setAiMemory = useCallback((memory: string) => {
+  const setAiMemory = useCallback(async (memory: string) => {
+    const oldMemory = aiMemory;
     setAiMemoryState(memory);
-  }, []);
+
+    try {
+      await aiMemoryApi.update(memory);
+    } catch (error) {
+      setAiMemoryState(oldMemory);
+      console.error("Failed to update AI memory:", error);
+      throw error;
+    }
+  }, [aiMemory]);
 
   // ─── Computed ────────────────────────────────────────
 
@@ -426,7 +655,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory,
+        goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory, loading,
+        loadInitialData,
         addGoal, updateGoal, deleteGoal,
         addMilestone, updateMilestone, deleteMilestone,
         addTask, updateTask, deleteTask,
