@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 
 // PATCH /api/tasks/[id] - Update task
 export async function PATCH(
@@ -9,9 +10,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -26,7 +29,7 @@ export async function PATCH(
         completedAt: body.completed && !body.completedAt ? new Date() : body.completedAt ? new Date(body.completedAt) : undefined,
         updatedAt: new Date(),
       })
-      .where(and(eq(tasks.id, params.id), eq(tasks.userId, userId)))
+      .where(and(eq(tasks.id, params.id), eq(tasks.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -46,14 +49,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const [deleted] = await db
       .delete(tasks)
-      .where(and(eq(tasks.id, params.id), eq(tasks.userId, userId)))
+      .where(and(eq(tasks.id, params.id), eq(tasks.userId, user.id)))
       .returning();
 
     if (!deleted) {

@@ -53,3 +53,19 @@ export async function requireAuth(request: NextRequest): Promise<string> {
   }
   return userId;
 }
+
+/**
+ * Get internal user record from Supabase user ID
+ * Helper to avoid repeating this lookup in every route
+ */
+export async function getInternalUser(supabaseUserId: string) {
+  const { db } = await import("@/db");
+  const { users } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.supabaseId, supabaseUserId),
+  });
+
+  return user;
+}

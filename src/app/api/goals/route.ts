@@ -1,18 +1,14 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
-import { goals, users } from "@/db/schema";
+import { goals } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
   try {
     const supabaseUserId = await requireAuth(request);
-
-    // Get our internal user ID from Supabase ID
-    const user = await db.query.users.findFirst({
-      where: eq(users.supabaseId, supabaseUserId),
-    });
+    const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
@@ -34,11 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabaseUserId = await requireAuth(request);
-
-    // Get our internal user ID from Supabase ID
-    const user = await db.query.users.findFirst({
-      where: eq(users.supabaseId, supabaseUserId),
-    });
+    const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });

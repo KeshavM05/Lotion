@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { goals } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 
 // GET /api/goals/[id] - Get single goal
 export async function GET(
@@ -9,13 +10,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const goal = await db.query.goals.findFirst({
-      where: and(eq(goals.id, params.id), eq(goals.userId, userId)),
+      where: and(eq(goals.id, params.id), eq(goals.userId, user.id)),
       with: {
         milestones: {
           orderBy: (milestones, { asc }) => [asc(milestones.order)],
@@ -41,9 +44,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -55,7 +60,7 @@ export async function PATCH(
         targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
         updatedAt: new Date(),
       })
-      .where(and(eq(goals.id, params.id), eq(goals.userId, userId)))
+      .where(and(eq(goals.id, params.id), eq(goals.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -75,14 +80,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const [deleted] = await db
       .delete(goals)
-      .where(and(eq(goals.id, params.id), eq(goals.userId, userId)))
+      .where(and(eq(goals.id, params.id), eq(goals.userId, user.id)))
       .returning();
 
     if (!deleted) {

@@ -2,17 +2,20 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAuth, getInternalUser } from "@/lib/auth-server";
 
 // GET /api/tasks - Get all tasks for user
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const userTasks = await db.query.tasks.findMany({
-      where: eq(tasks.userId, userId),
+      where: eq(tasks.userId, user.id),
       orderBy: (tasks, { desc }) => [desc(tasks.createdAt)],
     });
 
@@ -26,9 +29,11 @@ export async function GET(request: NextRequest) {
 // POST /api/tasks - Create new task
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseUserId = await requireAuth(request);
+    const user = await getInternalUser(supabaseUserId);
+
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
     const [task] = await db
       .insert(tasks)
       .values({
-        userId,
+        userId: user.id,
         title,
         description: description || "",
         status: status || "todo",
