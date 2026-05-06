@@ -91,14 +91,8 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Calendar</h1>
-          <p className="text-[#9CA3AF] font-['JetBrains_Mono'] text-xs uppercase tracking-widest">
-            {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} — {new Date(currentDate.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-          </p>
-        </div>
+      {/* Navigation */}
+      <div className="mb-6 flex justify-end items-center">
         <div className="flex gap-2">
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
