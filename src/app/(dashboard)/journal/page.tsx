@@ -86,16 +86,9 @@ export default function JournalPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
-              Journal
-            </h1>
-            <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
-              Reflect on your day. Your entries help the AI coach understand you better.
-            </p>
-          </div>
+          <h1 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Journal</h1>
           {!isWriting && (
             <button onClick={startNew} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">
               + New Entry

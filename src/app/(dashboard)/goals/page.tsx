@@ -101,13 +101,8 @@ export default function GoalsPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-        <div>
-          <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-4">Vision Board</h2>
-          <p className="text-[#9CA3AF] max-w-xl font-['Space_Grotesk'] text-lg leading-relaxed">
-            Define your vision and let AI help you achieve it. Your goals, intelligently organized.
-          </p>
-        </div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Vision Board</h2>
         <div className="flex gap-3">
           <button
             onClick={openCreate}

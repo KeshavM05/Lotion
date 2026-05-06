@@ -100,14 +100,9 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Tasks</h1>
-            <p className="text-[#9CA3AF] font-['Space_Grotesk'] tracking-wide">
-              Organize and prioritize your action items
-            </p>
-          </div>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Tasks</h1>
           <button onClick={openCreate} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">+ Add Task</button>
         </div>
         <div className="flex gap-2">

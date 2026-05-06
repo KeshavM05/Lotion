@@ -33,9 +33,9 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Dashboard Header */}
-      <header className="mb-12">
-        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Dashboard</h2>
-        <p className="text-on-secondary-container font-['Space_Grotesk'] tracking-wide">
+      <header className="mb-8">
+        <h2 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5] mb-1">Dashboard</h2>
+        <p className="text-[#9CA3AF] text-sm">
           Welcome back. Ready to be productive today.
         </p>
       </header>
