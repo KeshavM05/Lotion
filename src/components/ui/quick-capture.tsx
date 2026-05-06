@@ -74,24 +74,36 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, mode, text, isSaving]);
 
-  function handleSaveText() {
+  async function handleSaveText() {
     if (!text.trim() || isSaving) return;
     setIsSaving(true);
-    store.addJournalEntry({ content: text.trim(), mood: null, linkedGoalIds: [] });
-    setSaved(true);
-    setTimeout(() => onClose(), 600);
+    try {
+      await store.addJournalEntry({ content: text.trim(), mood: null, linkedGoalIds: [] });
+      setSaved(true);
+      setTimeout(() => onClose(), 600);
+    } catch (error) {
+      console.error("Failed to save journal entry:", error);
+      alert("Failed to save. Please try again.");
+      setIsSaving(false);
+    }
   }
 
-  function handleStopVoice() {
+  async function handleStopVoice() {
     setIsRecording(false);
     setIsSaving(true);
-    store.addJournalEntry({
-      content: `[Voice capture - ${formatTime(recordingTime)}] (Transcription pending)`,
-      mood: null,
-      linkedGoalIds: [],
-    });
-    setSaved(true);
-    setTimeout(() => onClose(), 600);
+    try {
+      await store.addJournalEntry({
+        content: `[Voice capture - ${formatTime(recordingTime)}] (Transcription pending)`,
+        mood: null,
+        linkedGoalIds: [],
+      });
+      setSaved(true);
+      setTimeout(() => onClose(), 600);
+    } catch (error) {
+      console.error("Failed to save voice capture:", error);
+      alert("Failed to save. Please try again.");
+      setIsSaving(false);
+    }
   }
 
   function formatTime(s: number) {

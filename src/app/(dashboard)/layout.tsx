@@ -60,14 +60,18 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex-1 relative">
+        <div className="flex-1 flex flex-col relative">
           <Header />
           {/* Background Bloom Elements */}
           <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#C17A72]/5 blur-[120px] rounded-full -z-10"></div>
           <div className="fixed bottom-[10%] left-[5%] w-[300px] h-[300px] bg-[#BEC6DF]/5 blur-[100px] rounded-full -z-10"></div>
-          <main className="ml-64 pt-24 pb-12 px-12 overflow-auto h-full">{children}</main>
+          <main className="flex-1 overflow-y-auto pt-20 pb-8 px-8 ml-64">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
         </div>
       </div>
       <CommandPalette />

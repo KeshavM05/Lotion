@@ -14,6 +14,7 @@ export default function GoalsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [filterCategory, setFilterCategory] = useState<GoalCategory | "all">("all");
+  const [loading, setLoading] = useState(false);
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -42,29 +43,52 @@ export default function GoalsPage() {
     setModalOpen(true);
   }
 
-  function handleSave() {
-    if (!formTitle.trim()) return;
-    const data = {
-      title: formTitle.trim(),
-      description: formDescription.trim(),
-      category: formCategory,
-      priority: formPriority,
-      targetDate: formTargetDate ? new Date(formTargetDate).toISOString() : null,
-      color: CATEGORY_COLORS[formCategory],
-      status: "active" as const,
-    };
-    if (editingGoal) {
-      store.updateGoal(editingGoal.id, data);
-    } else {
-      store.addGoal(data);
+  async function handleSave() {
+    if (!formTitle.trim() || loading) return;
+
+    setLoading(true);
+    try {
+      const data = {
+        title: formTitle.trim(),
+        description: formDescription.trim(),
+        category: formCategory,
+        priority: formPriority,
+        targetDate: formTargetDate ? new Date(formTargetDate).toISOString() : null,
+        color: CATEGORY_COLORS[formCategory],
+        status: "active" as const,
+      };
+
+      if (editingGoal) {
+        await store.updateGoal(editingGoal.id, data);
+      } else {
+        await store.addGoal(data);
+      }
+
+      setModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save goal:", error);
+      alert("Failed to save goal. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setModalOpen(false);
   }
 
-  function handleDelete() {
-    if (editingGoal) {
-      store.deleteGoal(editingGoal.id);
+  async function handleDelete() {
+    if (!editingGoal || loading) return;
+
+    if (!confirm("Are you sure you want to delete this goal? This will also remove all associated milestones and unlink tasks.")) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await store.deleteGoal(editingGoal.id);
       setModalOpen(false);
+    } catch (error) {
+      console.error("Failed to delete goal:", error);
+      alert("Failed to delete goal. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -307,12 +331,13 @@ export default function GoalsPage() {
             {editingGoal ? (
               <button
                 onClick={handleDelete}
-                className="px-3 py-2 text-sm rounded-lg transition-colors"
+                disabled={loading}
+                className="px-3 py-2 text-sm rounded-lg transition-colors disabled:opacity-50"
                 style={{ color: "var(--danger)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(248,113,113,0.1)")}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "rgba(248,113,113,0.1)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                Delete Goal
+                {loading ? "Deleting..." : "Delete Goal"}
               </button>
             ) : (
               <div />
@@ -320,15 +345,20 @@ export default function GoalsPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-sm rounded-lg transition-colors"
+                disabled={loading}
+                className="px-4 py-2 text-sm rounded-lg transition-colors disabled:opacity-50"
                 style={{ color: "var(--text-secondary)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 Cancel
               </button>
-              <button onClick={handleSave} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
-                {editingGoal ? "Save" : "Create Goal"}
+              <button
+                onClick={handleSave}
+                disabled={loading || !formTitle.trim()}
+                className="btn-glow px-5 py-2 rounded-xl text-sm font-medium disabled:opacity-50"
+              >
+                {loading ? "Saving..." : (editingGoal ? "Save" : "Create Goal")}
               </button>
             </div>
           </div>
