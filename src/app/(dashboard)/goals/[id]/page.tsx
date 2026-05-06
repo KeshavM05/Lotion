@@ -108,11 +108,12 @@ export default function GoalDetailPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-8 py-6 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-2 mb-3">
+      <div className="mb-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 mb-4">
           <Link
             href="/goals"
-            className="text-xs font-medium transition-colors"
+            className="text-xs font-['Space_Grotesk'] font-medium tracking-wide transition-colors"
             style={{ color: "var(--text-muted)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
@@ -120,12 +121,13 @@ export default function GoalDetailPage() {
             Vision Board
           </Link>
           <span style={{ color: "var(--text-muted)" }}>/</span>
-          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{goal.title}</span>
+          <span className="text-xs font-['Space_Grotesk']" style={{ color: "var(--text-secondary)" }}>{goal.title}</span>
         </div>
 
-        <div className="flex items-start justify-between">
+        {/* Header content */}
+        <div className="flex items-start justify-between mb-6">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-3">
               <span
                 className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md"
                 style={{ background: `${goal.color}15`, color: goal.color }}
@@ -136,33 +138,34 @@ export default function GoalDetailPage() {
                 {PRIORITY_LABELS[goal.priority]}
               </span>
             </div>
-            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
               {goal.title}
             </h1>
             {goal.description && (
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{goal.description}</p>
+              <p className="text-[#9CA3AF] font-['Space_Grotesk']">{goal.description}</p>
             )}
           </div>
-          <ProgressRing progress={progress} size={72} strokeWidth={4} color={goal.color}>
+          <ProgressRing progress={progress} size={80} strokeWidth={4} color={goal.color}>
             <span className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>{progress}%</span>
           </ProgressRing>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-5">
+        <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              className="px-4 py-2 rounded-lg text-xs font-['Space_Grotesk'] font-medium tracking-wide transition-all"
               style={{
                 background: activeTab === tab.key ? "var(--accent-soft)" : "transparent",
                 color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
+                border: `1px solid ${activeTab === tab.key ? "rgba(193,122,114,0.3)" : "transparent"}`,
               }}
             >
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="ml-1.5 text-xs" style={{ opacity: 0.6 }}>{tab.count}</span>
+                <span className="ml-1.5" style={{ opacity: 0.6 }}>{tab.count}</span>
               )}
             </button>
           ))}
