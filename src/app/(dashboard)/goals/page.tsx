@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useStore, type Goal, type GoalCategory, type Priority, CATEGORY_COLORS, CATEGORY_LABELS, PRIORITY_LABELS } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { usePageHeader } from "@/lib/page-header-context";
 
 const CATEGORIES: GoalCategory[] = ["career", "business", "finance", "personal", "health", "creative"];
 const PRIORITIES: Priority[] = ["low", "medium", "high", "critical"];
 
 export default function GoalsPage() {
   const store = useStore();
+  const { setPageControls } = usePageHeader();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [filterCategory, setFilterCategory] = useState<GoalCategory | "all">("all");
@@ -98,48 +100,55 @@ export default function GoalsPage() {
     : activeGoals.filter((g) => g.category === filterCategory);
   const completedGoals = store.goals.filter((g) => g.status === "completed");
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Filters & Actions */}
-      <div className="flex items-center justify-between gap-6 mb-10 overflow-x-auto pb-4">
-        <div className="flex flex-wrap gap-4">
+  // Set header controls
+  useEffect(() => {
+    setPageControls(
+      <div className="flex items-center justify-between w-full">
+        {/* Category Filters */}
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilterCategory("all")}
-            className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
+            className={`px-4 py-1.5 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
               filterCategory === "all"
-                ? "border-tertiary text-tertiary bg-tertiary/5"
-                : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
+                ? "border-[#C17A72] text-[#C17A72] bg-[#C17A72]/10"
+                : "border-white/10 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
             }`}
           >
-            All Goals
+            All
           </button>
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setFilterCategory(cat)}
-              className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
+              className={`px-4 py-1.5 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
                 filterCategory === cat
-                  ? "border-tertiary text-tertiary bg-tertiary/5"
-                  : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
+                  ? "border-[#C17A72] text-[#C17A72] bg-[#C17A72]/10"
+                  : "border-white/10 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
               }`}
             >
               {CATEGORY_LABELS[cat]}
             </button>
           ))}
         </div>
-        <div className="flex gap-3 flex-shrink-0">
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={openCreate}
-            className="btn-glow px-6 py-2.5 rounded-xl text-sm font-medium"
+            className="btn-glow px-4 py-1.5 rounded-xl text-sm font-medium flex items-center gap-1.5"
           >
-            + New Goal
-          </button>
-          <button className="glass-card px-6 py-2.5 rounded-xl text-sm font-medium border-white/10 text-[#9CA3AF] hover:text-[#F5F5F5] hover:border-white/20 transition-all">
-            Milestones
+            <span className="material-symbols-outlined text-base">add</span>
+            New Goal
           </button>
         </div>
       </div>
+    );
 
+    return () => setPageControls(null);
+  }, [filterCategory, setPageControls]);
+
+  return (
+    <div className="flex flex-col h-full">
       {/* Goals Grid */}
       <div className="flex-1 overflow-auto">
         {filteredGoals.length === 0 ? (
