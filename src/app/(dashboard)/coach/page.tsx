@@ -149,7 +149,7 @@ export default function CoachPage() {
       </div>
 
       {/* Input - Fixed at bottom */}
-      <div className="fixed bottom-0 left-64 right-0 pt-4 pb-4 border-t bg-[#0F1729]" style={{ borderColor: "var(--border)" }}>
+      <div className="fixed bottom-0 left-64 right-0 pt-8 pb-4 bg-gradient-to-t from-[#0F1729] via-[#0F1729] to-transparent">
         <div className="max-w-2xl mx-auto flex gap-3 px-8">
           <input
             type="text"
