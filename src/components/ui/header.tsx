@@ -73,7 +73,7 @@ export function Header() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setShowSearch(true)}
-            className="w-full h-10 pl-10 pr-4 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C17A72]/50 focus:bg-white/10 transition-all font-['Space_Grotesk']"
+            className="w-full h-10 pl-10 pr-4 bg-[#1F2D47]/50 backdrop-blur-sm border border-white/5 rounded-lg text-sm text-white placeholder-[#9CA3AF]/60 focus:outline-none focus:border-[#C17A72]/30 focus:bg-[#1F2D47]/70 transition-all font-['Space_Grotesk']"
           />
 
           {/* Search Results Dropdown */}
