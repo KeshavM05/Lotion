@@ -65,21 +65,23 @@ export function Header() {
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className={`fixed top-0 right-0 ${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8 transition-all duration-300`}>
-      {/* Page-specific controls or search */}
-      {pageControls ? (
+    <header className={`fixed top-0 right-0 ${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8 gap-6 transition-all duration-300`}>
+      {/* Page-specific controls */}
+      {pageControls && (
         <div className="flex-1 flex items-center">
           {pageControls}
         </div>
-      ) : (
-        <div className="flex-1 max-w-xl" ref={searchRef}>
+      )}
+
+      {/* Search bar - always visible, smaller when page controls present */}
+      <div className={`${pageControls ? 'w-64' : 'flex-1 max-w-xl'}`} ref={searchRef}>
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] text-lg">
             search
           </span>
           <input
             type="text"
-            placeholder="Search goals, tasks, journal entries..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setShowSearch(true)}
@@ -165,7 +167,7 @@ export function Header() {
           )}
         </div>
       </div>
-      )}
+
       <div className="flex items-center gap-4">
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>
