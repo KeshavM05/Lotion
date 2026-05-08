@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useStore } from "@/lib/store";
 import { useSidebar } from "@/lib/sidebar-context";
+import { usePageHeader } from "@/lib/page-header-context";
 
 export function Header() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const store = useStore();
   const { collapsed } = useSidebar();
+  const { pageControls } = usePageHeader();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -64,7 +66,13 @@ export function Header() {
 
   return (
     <header className={`fixed top-0 right-0 ${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8 transition-all duration-300`}>
-      <div className="flex-1 max-w-xl" ref={searchRef}>
+      {/* Page-specific controls or search */}
+      {pageControls ? (
+        <div className="flex-1 flex items-center">
+          {pageControls}
+        </div>
+      ) : (
+        <div className="flex-1 max-w-xl" ref={searchRef}>
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] text-lg">
             search
@@ -157,6 +165,7 @@ export function Header() {
           )}
         </div>
       </div>
+      )}
       <div className="flex items-center gap-4">
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>

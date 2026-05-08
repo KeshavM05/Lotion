@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useStore, type CalendarEvent } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from "@/lib/utils";
+import { usePageHeader } from "@/lib/page-header-context";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -66,6 +67,7 @@ function TaskItem({ task, store }: { task: any; store: any }) {
 
 export default function CalendarPage() {
   const store = useStore();
+  const { setPageControls } = usePageHeader();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,6 +86,66 @@ export default function CalendarPage() {
     }, 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
+
+  // Set header controls
+  useEffect(() => {
+    setPageControls(
+      <div className="flex items-center justify-between w-full">
+        {/* Month/Year Display */}
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-['Playfair_Display'] text-white">
+            {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigateDate("prev")}
+              className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_left</span>
+            </button>
+            <button
+              onClick={() => navigateDate("today")}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium border border-white/10 text-[#F5F5F5] hover:bg-white/5 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => navigateDate("next")}
+              className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        {/* View Mode Switcher */}
+        <div className="flex items-center gap-2">
+          {(["day", "week", "month"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                viewMode === mode
+                  ? "bg-[#C17A72] text-white"
+                  : "border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+          <button
+            onClick={() => openCreate()}
+            className="ml-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#C17A72] text-white hover:bg-[#C17A72]/90 transition-colors flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-base">add</span>
+            New Event
+          </button>
+        </div>
+      </div>
+    );
+
+    return () => setPageControls(null);
+  }, [currentDate, viewMode, setPageControls]);
 
   // Scroll to current time on mount
   useEffect(() => {
@@ -181,7 +243,7 @@ export default function CalendarPage() {
     };
   }
 
-  function navigateDate(direction: "prev" | "next" | "today") {
+  const navigateDate = (direction: "prev" | "next" | "today") => {
     if (direction === "today") {
       setCurrentDate(new Date());
     } else {
@@ -195,7 +257,7 @@ export default function CalendarPage() {
       }
       setCurrentDate(d);
     }
-  }
+  };
 
   // Get current time position for indicator
   function getCurrentTimePosition() {
@@ -271,60 +333,6 @@ export default function CalendarPage() {
 
       {/* Calendar */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Calendar Header */}
-        <div className="mb-6 flex items-center justify-between">
-          {/* Month/Year Display */}
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-['Playfair_Display'] text-white">
-              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigateDate("prev")}
-                className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
-              >
-                <span className="material-symbols-outlined text-lg">chevron_left</span>
-              </button>
-              <button
-                onClick={() => navigateDate("today")}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium border border-white/10 text-[#F5F5F5] hover:bg-white/5 transition-colors"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => navigateDate("next")}
-                className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
-              >
-                <span className="material-symbols-outlined text-lg">chevron_right</span>
-              </button>
-            </div>
-          </div>
-
-          {/* View Mode Switcher */}
-          <div className="flex items-center gap-2">
-            {(["day", "week", "month"] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
-                  viewMode === mode
-                    ? "bg-[#C17A72] text-white"
-                    : "border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-            <button
-              onClick={() => openCreate()}
-              className="ml-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-[#C17A72] text-white hover:bg-[#C17A72]/90 transition-colors flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-base">add</span>
-              New Event
-            </button>
-          </div>
-        </div>
-
         {/* Calendar Grid */}
         <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col">
           {viewMode === "week" && (
