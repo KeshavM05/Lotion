@@ -7,6 +7,7 @@ import { Header } from "@/components/ui/header";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { QuickCaptureOverlay, useQuickCapture } from "@/components/ui/quick-capture";
 import { StoreProvider, useStore } from "@/lib/store";
+import { SidebarProvider, useSidebar } from "@/lib/sidebar-context";
 import { useAuth } from "@/lib/auth-context";
 import { initializeUser } from "@/lib/api-client";
 
@@ -15,6 +16,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { loadInitialData } = useStore();
   const { isOpen, close } = useQuickCapture();
+  const { collapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
 
   // Initialize user and load data
@@ -67,7 +69,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           {/* Background Bloom Elements */}
           <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#C17A72]/5 blur-[120px] rounded-full -z-10"></div>
           <div className="fixed bottom-[10%] left-[5%] w-[300px] h-[300px] bg-[#BEC6DF]/5 blur-[100px] rounded-full -z-10"></div>
-          <main className="flex-1 overflow-y-auto pt-20 pb-8 px-8 ml-64">
+          <main className={`flex-1 overflow-y-auto pt-20 pb-8 px-8 transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
@@ -89,7 +91,9 @@ export default function DashboardLayout({
 }) {
   return (
     <StoreProvider>
-      <DashboardInner>{children}</DashboardInner>
+      <SidebarProvider>
+        <DashboardInner>{children}</DashboardInner>
+      </SidebarProvider>
     </StoreProvider>
   );
 }
