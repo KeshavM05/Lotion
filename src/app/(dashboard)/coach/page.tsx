@@ -22,69 +22,69 @@ export default function CoachPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-8 relative">
-        <div className="flex items-center gap-4 mb-3">
+      <div className="mb-6 relative flex-shrink-0">
+        <div className="flex items-center gap-3 mb-2">
           <div className="relative">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_30px_rgba(193,122,114,0.4)]">
-              <span className="material-symbols-outlined text-white text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
+              <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                 smart_toy
               </span>
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#C17A72] rounded-full animate-pulse shadow-[0_0_10px_rgba(193,122,114,0.8)]"></div>
+            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse shadow-[0_0_8px_rgba(193,122,114,0.8)]"></div>
           </div>
           <div>
-            <h1 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] leading-tight">
+            <h1 className="text-3xl font-['Playfair_Display'] text-[#F5F5F5] leading-tight">
               AI Life Coach
             </h1>
-            <p className="text-xs text-[#C17A72] font-['Space_Grotesk'] font-semibold tracking-[0.15em] uppercase mt-1">
+            <p className="text-[10px] text-[#C17A72] font-['Space_Grotesk'] font-semibold tracking-[0.15em] uppercase mt-0.5">
               Powered by Claude
             </p>
           </div>
         </div>
-        <p className="text-[#9CA3AF] font-['Space_Grotesk'] text-base max-w-2xl leading-relaxed">
-          An AI that knows your goals, schedule, and progress. Get personalized guidance, strategic advice, and accountability — all in one conversation.
+        <p className="text-[#9CA3AF] font-['Space_Grotesk'] text-sm max-w-2xl leading-relaxed">
+          AI with full context on your goals, schedule, and progress. Get personalized guidance and accountability.
         </p>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-h-0">
         <div className="max-w-2xl mx-auto space-y-4">
           {messages.length === 0 && !isLoading && (
-            <div className="text-center py-16">
-              <div className="relative w-24 h-24 mx-auto mb-6">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] blur-2xl opacity-40 animate-pulse"></div>
+            <div className="text-center py-8">
+              <div className="relative w-16 h-16 mx-auto mb-4">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] blur-xl opacity-40 animate-pulse"></div>
                 <div
-                  className="relative w-24 h-24 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] shadow-[0_0_40px_rgba(193,122,114,0.4)]"
+                  className="relative w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] shadow-[0_0_30px_rgba(193,122,114,0.4)]"
                 >
-                  <span className="material-symbols-outlined text-white text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  <span className="material-symbols-outlined text-white text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                     psychology
                   </span>
                 </div>
               </div>
-              <h2 className="text-3xl mb-3 text-white" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2 className="text-2xl mb-2 text-white" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Your AI Life Coach is Ready
               </h2>
-              <p className="text-base mb-4 max-w-xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                I have full context on your goals, tasks, calendar, and journal entries. Ask me anything — from strategic planning to daily prioritization.
+              <p className="text-sm mb-3 max-w-lg mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                Full context on your goals, tasks, calendar, and journal. Ask me anything.
               </p>
-              <div className="flex items-center justify-center gap-2 mb-10 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div className="flex items-center justify-center gap-2 mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-[#C17A72] rounded-full"></div>
                   <span>Context-Aware</span>
                 </div>
                 <span>•</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-[#C17A72] rounded-full"></div>
                   <span>Personalized</span>
                 </div>
                 <span>•</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-[#C17A72] rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-[#C17A72] rounded-full"></div>
                   <span>Always Learning</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 max-w-xl mx-auto">
+              <div className="grid grid-cols-2 gap-2.5 max-w-lg mx-auto">
                 {[
                   { q: "What should I focus on today?", icon: "target" },
                   { q: "Help me plan this week", icon: "calendar_month" },
@@ -94,10 +94,10 @@ export default function CoachPage() {
                   <button
                     key={suggestion.q}
                     onClick={() => setInput(suggestion.q)}
-                    className="group px-5 py-4 rounded-xl text-sm font-medium transition-all text-left border border-white/10 hover:border-[#C17A72]/50 hover:bg-white/5"
+                    className="group px-4 py-3 rounded-xl text-xs font-medium transition-all text-left border border-white/10 hover:border-[#C17A72]/50 hover:bg-white/5"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    <span className="material-symbols-outlined text-[#C17A72] text-lg mb-2 block">
+                    <span className="material-symbols-outlined text-[#C17A72] text-base mb-1.5 block">
                       {suggestion.icon}
                     </span>
                     {suggestion.q}
@@ -149,7 +149,7 @@ export default function CoachPage() {
       </div>
 
       {/* Input */}
-      <div className="pt-4 border-t mt-6" style={{ borderColor: "var(--border)" }}>
+      <div className="flex-shrink-0 sticky bottom-0 pt-4 pb-2 border-t mt-4 bg-[#060E1F]/95 backdrop-blur-xl" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-2xl mx-auto flex gap-3">
           <input
             type="text"
