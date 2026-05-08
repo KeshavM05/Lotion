@@ -100,47 +100,44 @@ export default function GoalsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header Section */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Vision Board</h2>
-        <div className="flex gap-3">
+      {/* Filters & Actions */}
+      <div className="flex items-center justify-between gap-6 mb-10 overflow-x-auto pb-4">
+        <div className="flex flex-wrap gap-4">
           <button
-            onClick={openCreate}
-            className="glass-card px-6 py-2 rounded-full text-sm font-medium border-tertiary/20 text-tertiary hover:bg-tertiary/10 transition-all"
-          >
-            + New Goal
-          </button>
-          <button className="px-6 py-2 rounded-full text-sm font-medium text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors">
-            Milestones
-          </button>
-        </div>
-      </div>
-
-      {/* Category Filters */}
-      <div className="flex flex-wrap gap-4 mb-10 overflow-x-auto pb-4">
-        <button
-          onClick={() => setFilterCategory("all")}
-          className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
-            filterCategory === "all"
-              ? "border-tertiary text-tertiary bg-tertiary/5"
-              : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
-          }`}
-        >
-          All Goals
-        </button>
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilterCategory(cat)}
+            onClick={() => setFilterCategory("all")}
             className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
-              filterCategory === cat
+              filterCategory === "all"
                 ? "border-tertiary text-tertiary bg-tertiary/5"
                 : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
             }`}
           >
-            {CATEGORY_LABELS[cat]}
+            All Goals
           </button>
-        ))}
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              className={`px-6 py-2 rounded-full text-sm font-['Space_Grotesk'] tracking-wide border transition-all ${
+                filterCategory === cat
+                  ? "border-tertiary text-tertiary bg-tertiary/5"
+                  : "border-white/5 text-[#9CA3AF] hover:border-white/20 hover:text-[#F5F5F5]"
+              }`}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-3 flex-shrink-0">
+          <button
+            onClick={openCreate}
+            className="btn-glow px-6 py-2.5 rounded-xl text-sm font-medium"
+          >
+            + New Goal
+          </button>
+          <button className="glass-card px-6 py-2.5 rounded-xl text-sm font-medium border-white/10 text-[#9CA3AF] hover:text-[#F5F5F5] hover:border-white/20 transition-all">
+            Milestones
+          </button>
+        </div>
       </div>
 
       {/* Goals Grid */}
