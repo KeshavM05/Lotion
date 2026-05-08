@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { useStore, type CalendarEvent } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from "@/lib/utils";
@@ -10,14 +10,81 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOUR_HEIGHT = 64;
 const COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
 
+// Helper Components
+function TaskSection({ title, count, icon, color, children }: { title: string; count: number; icon: string; color: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="material-symbols-outlined text-sm" style={{ color }}>
+          {icon}
+        </span>
+        <h4 className="text-xs font-['Space_Grotesk'] font-semibold text-[#9CA3AF] uppercase tracking-wider">
+          {title}
+        </h4>
+        <span className="text-[10px] text-[#9CA3AF]">({count})</span>
+      </div>
+      <div className="space-y-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TaskItem({ task, store }: { task: any; store: any }) {
+  return (
+    <div className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors group">
+      <button
+        onClick={() => store.updateTask(task.id, { completed: !task.completed })}
+        className="mt-0.5 flex-shrink-0"
+      >
+        <span
+          className={`material-symbols-outlined text-base transition-colors ${
+            task.completed ? 'text-[#C17A72]' : 'text-[#9CA3AF] hover:text-[#C17A72]'
+          }`}
+          style={task.completed ? { fontVariationSettings: "'FILL' 1" } : {}}
+        >
+          {task.completed ? 'check_circle' : 'radio_button_unchecked'}
+        </span>
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-['Space_Grotesk'] ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}>
+          {task.title}
+        </p>
+        {task.deadline && (
+          <p className="text-[10px] text-[#9CA3AF] mt-0.5">
+            {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   const store = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [taskSidebarCollapsed, setTaskSidebarCollapsed] = useState(false);
 
   const weekDates = getWeekDates(currentDate);
   const today = new Date();
+
+  // Task organization
+  const overdueTasks = store.tasks.filter(t => !t.completed && t.deadline && new Date(t.deadline) < today);
+  const todayTasks = store.tasks.filter(t => !t.completed && t.deadline && isSameDay(new Date(t.deadline), today));
+  const tomorrowTasks = store.tasks.filter(t => {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return !t.completed && t.deadline && isSameDay(new Date(t.deadline), tomorrow);
+  });
+  const upcomingTasks = store.tasks.filter(t => {
+    if (!t.deadline || t.completed) return false;
+    const deadline = new Date(t.deadline);
+    const twoDaysOut = new Date(today);
+    twoDaysOut.setDate(twoDaysOut.getDate() + 2);
+    return deadline > twoDaysOut;
+  });
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -90,9 +157,72 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Navigation */}
-      <div className="mb-6 flex justify-end items-center">
+    <div className="flex h-full gap-4">
+      {/* Task Sidebar */}
+      <div
+        className={`flex-shrink-0 transition-all duration-300 ${taskSidebarCollapsed ? 'w-16' : 'w-80'} flex flex-col`}
+      >
+        <div className="glass-card rounded-2xl p-4 h-full overflow-hidden flex flex-col">
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between mb-4">
+            {!taskSidebarCollapsed && (
+              <h3 className="text-lg font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Tasks</h3>
+            )}
+            <button
+              onClick={() => setTaskSidebarCollapsed(!taskSidebarCollapsed)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">
+                {taskSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
+              </span>
+            </button>
+          </div>
+
+          {/* Task Lists */}
+          {!taskSidebarCollapsed && (
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {/* Overdue */}
+              {overdueTasks.length > 0 && (
+                <TaskSection title="Overdue" count={overdueTasks.length} icon="error" color="#ef4444">
+                  {overdueTasks.map(task => (
+                    <TaskItem key={task.id} task={task} store={store} />
+                  ))}
+                </TaskSection>
+              )}
+
+              {/* Due Today */}
+              <TaskSection title="Due today" count={todayTasks.length} icon="today" color="#f59e0b">
+                {todayTasks.map(task => (
+                  <TaskItem key={task.id} task={task} store={store} />
+                ))}
+              </TaskSection>
+
+              {/* Due Tomorrow */}
+              {tomorrowTasks.length > 0 && (
+                <TaskSection title="Due tomorrow" count={tomorrowTasks.length} icon="event" color="#3b82f6">
+                  {tomorrowTasks.map(task => (
+                    <TaskItem key={task.id} task={task} store={store} />
+                  ))}
+                </TaskSection>
+              )}
+
+              {/* Upcoming */}
+              {upcomingTasks.length > 0 && (
+                <TaskSection title="Upcoming" count={upcomingTasks.length} icon="schedule" color="#9CA3AF">
+                  {upcomingTasks.slice(0, 5).map(task => (
+                    <TaskItem key={task.id} task={task} store={store} />
+                  ))}
+                </TaskSection>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Calendar */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Navigation */}
+        <div className="mb-6 flex justify-end items-center">
         <div className="flex gap-2">
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
@@ -115,9 +245,9 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="flex-1 overflow-auto">
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] min-w-[800px]">
+        {/* Grid */}
+        <div className="flex-1 overflow-auto">
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] min-w-[800px]">
           {/* Day headers */}
           <div className="sticky top-0 z-20 border-b" style={{ background: "var(--bg-primary)", borderColor: "var(--border)" }} />
           {weekDates.map((date, i) => {
@@ -188,10 +318,10 @@ export default function CalendarPage() {
               ))}
             </div>
           ))}
+          </div>
         </div>
-      </div>
 
-      {/* Modal */}
+        {/* Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingEvent ? "Edit Event" : "New Event"}>
         <div className="flex flex-col gap-4">
           <input
@@ -251,6 +381,7 @@ export default function CalendarPage() {
           </div>
         </div>
       </Modal>
+      </div>
     </div>
   );
 }
