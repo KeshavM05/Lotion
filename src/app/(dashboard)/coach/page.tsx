@@ -47,8 +47,8 @@ export default function CoachPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <div className="flex-1 overflow-auto min-h-0 mb-20">
+        <div className="max-w-2xl mx-auto space-y-4 pb-4">
           {messages.length === 0 && !isLoading && (
             <div className="text-center py-8">
               <div className="relative w-16 h-16 mx-auto mb-4">
@@ -148,9 +148,9 @@ export default function CoachPage() {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 pt-4 border-t mt-4" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-2xl mx-auto flex gap-3">
+      {/* Input - Fixed at bottom */}
+      <div className="fixed bottom-0 left-64 right-0 pt-4 pb-4 border-t bg-[#0F1729]" style={{ borderColor: "var(--border)" }}>
+        <div className="max-w-2xl mx-auto flex gap-3 px-8">
           <input
             type="text"
             placeholder="Ask your AI coach anything..."
