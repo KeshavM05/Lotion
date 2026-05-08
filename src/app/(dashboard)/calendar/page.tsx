@@ -76,6 +76,11 @@ export default function CalendarPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Drag-to-create state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
+  const [dragEnd, setDragEnd] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
+
   const weekDates = getWeekDates(currentDate);
   const today = new Date();
 
@@ -133,13 +138,6 @@ export default function CalendarPage() {
               {mode}
             </button>
           ))}
-          <button
-            onClick={() => openCreate()}
-            className="ml-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#C17A72] text-white hover:bg-[#C17A72]/90 transition-colors flex items-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            New Event
-          </button>
         </div>
       </div>
     );
@@ -179,18 +177,6 @@ export default function CalendarPage() {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [formColor, setFormColor] = useState("#8b5cf6");
-
-  function openCreate(start?: Date) {
-    const s = start || new Date();
-    const e = new Date(s.getTime() + 60 * 60 * 1000);
-    setEditingEvent(null);
-    setFormTitle("");
-    setFormDescription("");
-    setFormStart(toLocalDatetimeString(s));
-    setFormEnd(toLocalDatetimeString(e));
-    setFormColor("#8b5cf6");
-    setModalOpen(true);
-  }
 
   function openEdit(event: CalendarEvent) {
     setEditingEvent(event);
@@ -258,6 +244,84 @@ export default function CalendarPage() {
       setCurrentDate(d);
     }
   };
+
+  // Drag-to-create handlers
+  function handleDragStart(date: Date, hour: number, e: React.MouseEvent) {
+    // Prevent text selection
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = Math.round((y / HOUR_HEIGHT) * 60);
+    setIsDragging(true);
+    setDragStart({ date, hour, minutes });
+    setDragEnd({ date, hour, minutes });
+  }
+
+  function handleDragMove(date: Date, hour: number, e: React.MouseEvent) {
+    if (!isDragging || !dragStart) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = Math.round((y / HOUR_HEIGHT) * 60);
+    setDragEnd({ date, hour, minutes });
+  }
+
+  function handleDragEnd() {
+    if (!isDragging || !dragStart || !dragEnd) return;
+    setIsDragging(false);
+
+    // Calculate start and end times
+    const startMinutes = dragStart.hour * 60 + dragStart.minutes;
+    const endMinutes = dragEnd.hour * 60 + dragEnd.minutes;
+
+    const start = new Date(dragStart.date);
+    start.setHours(Math.floor(Math.min(startMinutes, endMinutes) / 60));
+    start.setMinutes(Math.min(startMinutes, endMinutes) % 60);
+    start.setSeconds(0);
+    start.setMilliseconds(0);
+
+    const end = new Date(dragEnd.date);
+    end.setHours(Math.floor(Math.max(startMinutes, endMinutes) / 60));
+    end.setMinutes(Math.max(startMinutes, endMinutes) % 60);
+    end.setSeconds(0);
+    end.setMilliseconds(0);
+
+    // Ensure minimum 30 minutes
+    if (end.getTime() - start.getTime() < 30 * 60 * 1000) {
+      end.setTime(start.getTime() + 30 * 60 * 1000);
+    }
+
+    setDragStart(null);
+    setDragEnd(null);
+    openCreate(start, end);
+  }
+
+  function openCreate(start?: Date, end?: Date) {
+    const s = start || new Date();
+    const e = end || new Date(s.getTime() + 60 * 60 * 1000);
+    setEditingEvent(null);
+    setFormTitle("");
+    setFormDescription("");
+    setFormStart(toLocalDatetimeString(s));
+    setFormEnd(toLocalDatetimeString(e));
+    setFormColor("#8b5cf6");
+    setModalOpen(true);
+  }
+
+  // Get drag preview style
+  function getDragPreviewStyle() {
+    if (!isDragging || !dragStart || !dragEnd) return null;
+
+    const startMinutes = dragStart.hour * 60 + dragStart.minutes;
+    const endMinutes = dragEnd.hour * 60 + dragEnd.minutes;
+    const top = Math.min(startMinutes, endMinutes);
+    const bottom = Math.max(startMinutes, endMinutes);
+    const height = Math.max(bottom - top, 30); // Minimum 30 minutes
+
+    return {
+      top: `${(top / 60) * HOUR_HEIGHT}px`,
+      height: `${(height / 60) * HOUR_HEIGHT}px`,
+    };
+  }
 
   // Get current time position for indicator
   function getCurrentTimePosition() {
@@ -369,8 +433,8 @@ export default function CalendarPage() {
               </div>
 
               {/* Time Grid */}
-              <div className="flex-1 overflow-auto" ref={scrollRef}>
-                <div className="relative min-h-full">
+              <div className="flex-1 overflow-auto" ref={scrollRef} onMouseUp={handleDragEnd} onMouseLeave={handleDragEnd}>
+                <div className="relative min-h-full select-none">
                   <div className="grid grid-cols-[60px_repeat(7,1fr)]">
                     {HOURS.map((hour) => (
                       <div key={`row-${hour}`} className="contents">
@@ -387,13 +451,10 @@ export default function CalendarPage() {
                         {weekDates.map((date, dayIdx) => (
                           <div
                             key={`cell-${hour}-${dayIdx}`}
-                            className="relative border-r border-t border-white/5 last:border-r-0 hover:bg-[#C17A72]/5 transition-colors cursor-pointer group"
+                            className="relative border-r border-t border-white/5 last:border-r-0 hover:bg-[#C17A72]/5 transition-colors cursor-crosshair group"
                             style={{ height: HOUR_HEIGHT }}
-                            onClick={() => {
-                              const d = new Date(date);
-                              d.setHours(hour, 0, 0, 0);
-                              openCreate(d);
-                            }}
+                            onMouseDown={(e) => handleDragStart(date, hour, e)}
+                            onMouseMove={(e) => handleDragMove(date, hour, e)}
                           >
                             {/* 30-minute line */}
                             <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
@@ -435,6 +496,20 @@ export default function CalendarPage() {
                         <div className="absolute left-0 w-full h-[2px] bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
                         <div className="absolute left-14 w-3 h-3 rounded-full bg-[#ef4444] -mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Drag Preview */}
+                  {isDragging && dragStart && getDragPreviewStyle() && (
+                    <div
+                      className="absolute pointer-events-none z-20"
+                      style={{
+                        ...getDragPreviewStyle(),
+                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, dragStart.date)) * (100 / 7))}%`,
+                        width: `${100 / 7}%`,
+                      }}
+                    >
+                      <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
                     </div>
                   )}
                 </div>
