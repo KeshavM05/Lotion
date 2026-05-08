@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useStore, type CalendarEvent } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from "@/lib/utils";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const HOUR_HEIGHT = 64;
+const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const HOUR_HEIGHT = 60;
 const COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+
+type ViewMode = "day" | "week" | "month";
 
 // Helper Components
 function TaskSection({ title, count, icon, color, children }: { title: string; count: number; icon: string; color: string; children: React.ReactNode }) {
@@ -63,12 +67,33 @@ function TaskItem({ task, store }: { task: any; store: any }) {
 export default function CalendarPage() {
   const store = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [taskSidebarCollapsed, setTaskSidebarCollapsed] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekDates = getWeekDates(currentDate);
   const today = new Date();
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
+
+  // Scroll to current time on mount
+  useEffect(() => {
+    if (scrollRef.current && isSameDay(currentDate, today)) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const scrollTo = (currentHour - 2) * HOUR_HEIGHT; // Scroll to 2 hours before current time
+      scrollRef.current.scrollTop = Math.max(0, scrollTo);
+    }
+  }, []);
 
   // Task organization
   const overdueTasks = store.tasks.filter(t => !t.completed && t.deadline && new Date(t.deadline) < today);
@@ -148,13 +173,38 @@ export default function CalendarPage() {
     const end = new Date(event.end);
     const startMin = start.getHours() * 60 + start.getMinutes();
     const endMin = end.getHours() * 60 + end.getMinutes();
-    const duration = Math.max(endMin - startMin, 15);
+    const duration = Math.max(endMin - startMin, 30);
     return {
       top: `${(startMin / 60) * HOUR_HEIGHT}px`,
       height: `${(duration / 60) * HOUR_HEIGHT}px`,
       backgroundColor: event.color,
     };
   }
+
+  function navigateDate(direction: "prev" | "next" | "today") {
+    if (direction === "today") {
+      setCurrentDate(new Date());
+    } else {
+      const d = new Date(currentDate);
+      if (viewMode === "day") {
+        d.setDate(d.getDate() + (direction === "next" ? 1 : -1));
+      } else if (viewMode === "week") {
+        d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
+      } else {
+        d.setMonth(d.getMonth() + (direction === "next" ? 1 : -1));
+      }
+      setCurrentDate(d);
+    }
+  }
+
+  // Get current time position for indicator
+  function getCurrentTimePosition() {
+    const now = currentTime;
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    return (minutes / 60) * HOUR_HEIGHT;
+  }
+
+  const shouldShowTimeIndicator = viewMode === "week" && weekDates.some(date => isSameDay(date, today));
 
   return (
     <div className="flex h-full gap-4">
@@ -221,166 +271,242 @@ export default function CalendarPage() {
 
       {/* Calendar */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Navigation */}
-        <div className="mb-6 flex justify-end items-center">
-        <div className="flex gap-2">
-          <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
-            className="p-2 rounded-lg hover:bg-white/5 text-[#9CA3AF]"
-          >
-            <span className="material-symbols-outlined">chevron_left</span>
-          </button>
-          <button
-            onClick={() => setCurrentDate(new Date())}
-            className="px-4 py-2 rounded-lg hover:bg-white/5 text-[#F5F5F5] font-medium border border-white/10"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }}
-            className="p-2 rounded-lg hover:bg-white/5 text-[#9CA3AF]"
-          >
-            <span className="material-symbols-outlined">chevron_right</span>
-          </button>
-        </div>
-      </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-[60px_repeat(7,1fr)] min-w-[800px]">
-          {/* Day headers */}
-          <div className="sticky top-0 z-20 border-b" style={{ background: "var(--bg-primary)", borderColor: "var(--border)" }} />
-          {weekDates.map((date, i) => {
-            const isToday = isSameDay(date, today);
-            return (
-              <div
-                key={i}
-                className="sticky top-0 z-20 border-b border-l px-2 py-3 text-center"
-                style={{ background: "var(--bg-primary)", borderColor: "var(--border)" }}
+        {/* Calendar Header */}
+        <div className="mb-6 flex items-center justify-between">
+          {/* Month/Year Display */}
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-['Playfair_Display'] text-white">
+              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigateDate("prev")}
+                className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
               >
-                <div className="text-[10px] uppercase tracking-wider" style={{ color: isToday ? "var(--accent)" : "var(--text-muted)" }}>
-                  {DAYS[date.getDay()]}
-                </div>
-                <div
-                  className={`text-lg font-semibold mt-0.5 ${isToday ? "w-8 h-8 rounded-full flex items-center justify-center mx-auto" : ""}`}
-                  style={{
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    background: isToday ? "var(--accent)" : "transparent",
-                    color: isToday ? "white" : "var(--text-primary)",
-                  }}
-                >
-                  {date.getDate()}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Time slots */}
-          {HOURS.map((hour) => (
-            <div key={`row-${hour}`} className="contents">
-              <div
-                className="text-[10px] text-right pr-3 -mt-2 relative"
-                style={{ height: HOUR_HEIGHT, color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
+              </button>
+              <button
+                onClick={() => navigateDate("today")}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium border border-white/10 text-[#F5F5F5] hover:bg-white/5 transition-colors"
               >
-                {hour === 0 ? "" : `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`}
-              </div>
-              {weekDates.map((date, dayIdx) => (
-                <div
-                  key={`cell-${hour}-${dayIdx}`}
-                  className="border-l border-b relative cursor-pointer transition-colors"
-                  style={{ height: HOUR_HEIGHT, borderColor: "var(--border)" }}
-                  onClick={() => {
-                    const d = new Date(date);
-                    d.setHours(hour, 0, 0, 0);
-                    openCreate(d);
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(193, 122, 114, 0.03)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  {hour === 0 &&
-                    getEventsForDay(date).map((event) => (
-                      <div
-                        key={event.id}
-                        className="absolute left-1 right-1 rounded-lg px-2.5 py-1.5 text-white text-xs font-medium overflow-hidden cursor-pointer z-10 transition-shadow"
-                        style={{
-                          ...getEventStyle(event),
-                          boxShadow: `0 2px 8px ${event.color}40`,
-                        }}
-                        onClick={(e) => { e.stopPropagation(); openEdit(event); }}
-                        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 16px ${event.color}60`)}
-                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `0 2px 8px ${event.color}40`)}
-                      >
-                        <div className="truncate font-semibold">{event.title}</div>
-                        <div className="text-[10px] opacity-75 mt-0.5">{formatTime(new Date(event.start))}</div>
-                      </div>
-                    ))}
-                </div>
-              ))}
-            </div>
-          ))}
-          </div>
-        </div>
-
-        {/* Modal */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingEvent ? "Edit Event" : "New Event"}>
-        <div className="flex flex-col gap-4">
-          <input
-            type="text"
-            placeholder="Event title"
-            value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            autoFocus
-            className="input-glass text-base"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          />
-          <textarea
-            placeholder="Description (optional)"
-            value={formDescription}
-            onChange={(e) => setFormDescription(e.target.value)}
-            rows={2}
-            className="input-glass resize-none"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Start</label>
-              <input type="datetime-local" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input-glass w-full" />
-            </div>
-            <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>End</label>
-              <input type="datetime-local" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input-glass w-full" />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs mb-2 block" style={{ color: "var(--text-muted)" }}>Color</label>
-            <div className="flex gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setFormColor(c)}
-                  className="w-7 h-7 rounded-full transition-all"
-                  style={{
-                    backgroundColor: c,
-                    transform: formColor === c ? "scale(1.15)" : "scale(1)",
-                    boxShadow: formColor === c ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${c}` : "none",
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center justify-between pt-2">
-            {editingEvent ? (
-              <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-lg" style={{ color: "var(--danger)" }}>Delete</button>
-            ) : <div />}
-            <div className="flex gap-2">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-              <button onClick={handleSave} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
-                {editingEvent ? "Save" : "Create"}
+                Today
+              </button>
+              <button
+                onClick={() => navigateDate("next")}
+                className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
               </button>
             </div>
           </div>
+
+          {/* View Mode Switcher */}
+          <div className="flex items-center gap-2">
+            {(["day", "week", "month"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                  viewMode === mode
+                    ? "bg-[#C17A72] text-white"
+                    : "border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+            <button
+              onClick={() => openCreate()}
+              className="ml-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-[#C17A72] text-white hover:bg-[#C17A72]/90 transition-colors flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              New Event
+            </button>
+          </div>
         </div>
-      </Modal>
+
+        {/* Calendar Grid */}
+        <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col">
+          {viewMode === "week" && (
+            <>
+              {/* Week View */}
+              <div className="border-b border-white/10">
+                <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+                  {/* Empty corner */}
+                  <div className="h-16 border-r border-white/5"></div>
+                  {/* Day headers */}
+                  {weekDates.map((date, i) => {
+                    const isToday = isSameDay(date, today);
+                    return (
+                      <div
+                        key={i}
+                        className="h-16 border-r border-white/5 last:border-r-0 px-3 flex flex-col items-center justify-center"
+                      >
+                        <div className={`text-xs uppercase tracking-wider font-medium ${isToday ? 'text-[#C17A72]' : 'text-[#9CA3AF]'}`}>
+                          {DAYS_SHORT[date.getDay()]}
+                        </div>
+                        <div
+                          className={`text-2xl font-['Playfair_Display'] mt-1 ${
+                            isToday
+                              ? "w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center"
+                              : "text-[#F5F5F5]"
+                          }`}
+                        >
+                          {date.getDate()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time Grid */}
+              <div className="flex-1 overflow-auto" ref={scrollRef}>
+                <div className="relative min-h-full">
+                  <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+                    {HOURS.map((hour) => (
+                      <div key={`row-${hour}`} className="contents">
+                        {/* Time label */}
+                        <div
+                          className="relative border-r border-white/5 text-right pr-3 py-2"
+                          style={{ height: HOUR_HEIGHT }}
+                        >
+                          <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
+                            {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                          </div>
+                        </div>
+                        {/* Day columns */}
+                        {weekDates.map((date, dayIdx) => (
+                          <div
+                            key={`cell-${hour}-${dayIdx}`}
+                            className="relative border-r border-t border-white/5 last:border-r-0 hover:bg-[#C17A72]/5 transition-colors cursor-pointer group"
+                            style={{ height: HOUR_HEIGHT }}
+                            onClick={() => {
+                              const d = new Date(date);
+                              d.setHours(hour, 0, 0, 0);
+                              openCreate(d);
+                            }}
+                          >
+                            {/* 30-minute line */}
+                            <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
+
+                            {/* Events for this hour */}
+                            {hour === 0 &&
+                              getEventsForDay(date).map((event) => (
+                                <div
+                                  key={event.id}
+                                  className="absolute left-1 right-1 rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden cursor-pointer z-10 hover:z-20 shadow-lg border border-white/10"
+                                  style={{
+                                    ...getEventStyle(event),
+                                    boxShadow: `0 2px 8px ${event.color}60`,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEdit(event);
+                                  }}
+                                >
+                                  <div className="font-semibold truncate">{event.title}</div>
+                                  <div className="text-[10px] opacity-90 mt-0.5">
+                                    {formatTime(new Date(event.start))}
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Current Time Indicator */}
+                  {shouldShowTimeIndicator && (
+                    <div
+                      className="absolute left-0 right-0 z-30 pointer-events-none"
+                      style={{ top: `${getCurrentTimePosition()}px` }}
+                    >
+                      <div className="relative">
+                        <div className="absolute left-0 w-full h-[2px] bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                        <div className="absolute left-14 w-3 h-3 rounded-full bg-[#ef4444] -mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {viewMode === "day" && (
+            <div className="flex-1 flex items-center justify-center text-[#9CA3AF]">
+              <p>Day view coming soon...</p>
+            </div>
+          )}
+
+          {viewMode === "month" && (
+            <div className="flex-1 flex items-center justify-center text-[#9CA3AF]">
+              <p>Month view coming soon...</p>
+            </div>
+          )}
+        </div>
+
+        {/* Modal */}
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingEvent ? "Edit Event" : "New Event"}>
+          <div className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Event title"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              autoFocus
+              className="input-glass text-base"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            />
+            <textarea
+              placeholder="Description (optional)"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              rows={2}
+              className="input-glass resize-none"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Start</label>
+                <input type="datetime-local" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input-glass w-full" />
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>End</label>
+                <input type="datetime-local" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input-glass w-full" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs mb-2 block" style={{ color: "var(--text-muted)" }}>Color</label>
+              <div className="flex gap-2">
+                {COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setFormColor(c)}
+                    className="w-7 h-7 rounded-full transition-all"
+                    style={{
+                      backgroundColor: c,
+                      transform: formColor === c ? "scale(1.15)" : "scale(1)",
+                      boxShadow: formColor === c ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${c}` : "none",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              {editingEvent ? (
+                <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-lg" style={{ color: "var(--danger)" }}>Delete</button>
+              ) : <div />}
+              <div className="flex gap-2">
+                <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button onClick={handleSave} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
+                  {editingEvent ? "Save" : "Create"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );
