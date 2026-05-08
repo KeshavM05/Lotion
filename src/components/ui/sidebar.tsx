@@ -11,7 +11,6 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: "calendar_today" },
   { href: "/coach", label: "AI Coach", icon: "smart_toy" },
   { href: "/journal", label: "Journal", icon: "edit_note" },
-  { href: "/tasks", label: "Tasks", icon: "check_circle" },
   { href: "/memory", label: "AI Memory", icon: "psychology" },
 ];
 
@@ -21,7 +20,6 @@ export function Sidebar() {
   const { collapsed, setCollapsed } = useSidebar();
 
   const activeGoals = store.goals.filter((g) => g.status === "active").length;
-  const activeTasks = store.tasks.filter((t) => !t.completed).length;
 
   return (
     <aside className={`fixed left-0 top-0 h-screen ${collapsed ? 'w-20' : 'w-64'} bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-50 flex flex-col py-6 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)] transition-all duration-300`}>
@@ -67,9 +65,7 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
-          const count =
-            item.href === "/goals" ? activeGoals :
-            item.href === "/tasks" ? activeTasks : 0;
+          const count = item.href === "/goals" ? activeGoals : 0;
 
           return (
             <Link
