@@ -149,7 +149,7 @@ export default function CoachPage() {
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 sticky bottom-0 pt-4 pb-2 border-t mt-4 bg-[#060E1F]/95 backdrop-blur-xl" style={{ borderColor: "var(--border)" }}>
+      <div className="flex-shrink-0 pt-4 border-t mt-4" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-2xl mx-auto flex gap-3">
           <input
             type="text"
