@@ -840,14 +840,296 @@ export default function CalendarPage() {
           )}
 
           {viewMode === "day" && (
-            <div className="flex-1 flex items-center justify-center text-[#9CA3AF]">
-              <p>Day view coming soon...</p>
-            </div>
+            <>
+              {/* Day View Header */}
+              <div className="border-b border-white/10">
+                <div className="h-16 px-3 flex items-center justify-center border-r border-white/5">
+                  <div>
+                    <div className={`text-xs uppercase tracking-wider font-medium ${
+                      isSameDay(currentDate, today) ? 'text-[#C17A72]' : 'text-[#9CA3AF]'
+                    }`}>
+                      {DAYS_SHORT[currentDate.getDay()]}
+                    </div>
+                    <div
+                      className={`text-2xl font-['Playfair_Display'] mt-1 ${
+                        isSameDay(currentDate, today)
+                          ? "w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center mx-auto"
+                          : "text-[#F5F5F5] text-center"
+                      }`}
+                    >
+                      {currentDate.getDate()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Day View Grid */}
+              <div
+                className="flex-1 overflow-auto"
+                ref={scrollRef}
+                onMouseUp={() => {
+                  handleDragEnd();
+                  handleEventDragEnd();
+                  handleResizeEnd();
+                }}
+                onMouseLeave={() => {
+                  handleDragEnd();
+                  handleEventDragEnd();
+                  handleResizeEnd();
+                }}
+              >
+                <div className="relative min-h-full select-none">
+                  <div className="grid grid-cols-[60px_1fr]">
+                    {HOURS.map((hour) => (
+                      <div key={`row-${hour}`} className="contents">
+                        {/* Time label */}
+                        <div
+                          className="relative border-r border-white/5 text-right pr-3 py-2"
+                          style={{ height: HOUR_HEIGHT }}
+                        >
+                          <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
+                            {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                          </div>
+                        </div>
+                        {/* Day column */}
+                        <div
+                          key={`cell-${hour}`}
+                          className="relative border-r border-t border-white/5 hover:bg-[#C17A72]/5 transition-colors cursor-crosshair group"
+                          style={{ height: HOUR_HEIGHT }}
+                          onMouseDown={(e) => {
+                            if (!draggingEvent && !resizingEvent) {
+                              handleDragStart(currentDate, hour, e);
+                            }
+                          }}
+                          onMouseMove={(e) => {
+                            if (isDragging) {
+                              handleDragMove(currentDate, hour, e);
+                            } else if (draggingEvent) {
+                              handleEventDragMove(currentDate, hour, e);
+                            } else if (resizingEvent) {
+                              handleResizeMove(currentDate, hour, e);
+                            }
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => handleTaskDrop(currentDate, hour, e)}
+                        >
+                          {/* 30-minute line */}
+                          <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
+
+                          {/* Events for this hour */}
+                          {hour === 0 &&
+                            (() => {
+                              const dayEvents = getEventsForDay(currentDate);
+                              return dayEvents.map((event) => {
+                                const isDragging = draggingEvent?.id === event.id;
+                                const isResizing = resizingEvent?.id === event.id;
+                                const layout = getEventLayout(event, dayEvents);
+                                return (
+                                  <div
+                                    key={event.id}
+                                    className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border border-white/10 group ${
+                                      isDragging ? 'opacity-50' : ''
+                                    } ${isResizing ? 'select-none' : 'cursor-move'}`}
+                                    style={{
+                                      ...getEventStyle(event),
+                                      left: layout.left,
+                                      right: layout.right,
+                                      width: layout.width,
+                                      zIndex: layout.zIndex,
+                                      boxShadow: `0 2px 8px ${event.color}60`,
+                                    }}
+                                    onMouseDown={(e) => {
+                                      const target = e.target as HTMLElement;
+                                      if (target.classList.contains('resize-handle')) return;
+                                      handleEventDragStart(event, e);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isDragging && !isResizing) {
+                                        setQuickViewEvent(event);
+                                        setQuickViewAnchor(e.currentTarget as HTMLElement);
+                                      }
+                                    }}
+                                  >
+                                    <div
+                                      className="resize-handle absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t-lg"
+                                      onMouseDown={(e) => handleResizeStart(event, 'top', e)}
+                                    />
+                                    <div className="font-semibold truncate">{event.title}</div>
+                                    <div className="text-[10px] opacity-90 mt-0.5">
+                                      {formatTime(new Date(event.start))}
+                                    </div>
+                                    <div
+                                      className="resize-handle absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b-lg"
+                                      onMouseDown={(e) => handleResizeStart(event, 'bottom', e)}
+                                    />
+                                  </div>
+                                );
+                              });
+                            })()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Current Time Indicator for Day View */}
+                  {isSameDay(currentDate, today) && (
+                    <div
+                      className="absolute left-0 right-0 z-30 pointer-events-none"
+                      style={{ top: `${getCurrentTimePosition()}px` }}
+                    >
+                      <div className="relative">
+                        <div className="absolute left-0 w-full h-[2px] bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                        <div className="absolute left-14 w-3 h-3 rounded-full bg-[#ef4444] -mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Drag Preview for Day View */}
+                  {isDragging && dragStart && getDragPreviewStyle() && isSameDay(dragStart.date, currentDate) && (
+                    <div
+                      className="absolute pointer-events-none z-20"
+                      style={{
+                        ...getDragPreviewStyle(),
+                        left: '60px',
+                        right: '0',
+                      }}
+                    >
+                      <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
+                    </div>
+                  )}
+
+                  {/* Event Drag Preview for Day View */}
+                  {draggingEvent && eventDragPosition && isSameDay(eventDragPosition.date, currentDate) && (
+                    <div
+                      className="absolute pointer-events-none z-30"
+                      style={{
+                        top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
+                        left: '60px',
+                        right: '0',
+                        height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
+                      }}
+                    >
+                      <div
+                        className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
+                        style={{
+                          backgroundColor: `${draggingEvent.color}40`,
+                          borderColor: draggingEvent.color,
+                        }}
+                      >
+                        <div className="truncate">{draggingEvent.title}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
           {viewMode === "month" && (
-            <div className="flex-1 flex items-center justify-center text-[#9CA3AF]">
-              <p>Month view coming soon...</p>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Month View Header - Days of Week */}
+              <div className="grid grid-cols-7 border-b border-white/10">
+                {DAYS_SHORT.map((day) => (
+                  <div
+                    key={day}
+                    className="px-3 py-3 text-center text-xs uppercase tracking-wider font-medium text-[#9CA3AF] border-r border-white/5 last:border-r-0"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Month View Grid */}
+              <div className="flex-1 overflow-auto">
+                <div className="grid grid-cols-7 auto-rows-fr min-h-full">
+                  {(() => {
+                    // Get first day of month
+                    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                    // Get last day of month
+                    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+                    // Calculate start date (beginning of week containing first day)
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                    // Calculate end date (end of week containing last day)
+                    const endDate = new Date(lastDay);
+                    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
+
+                    // Generate array of dates
+                    const days = [];
+                    const current = new Date(startDate);
+                    while (current <= endDate) {
+                      days.push(new Date(current));
+                      current.setDate(current.getDate() + 1);
+                    }
+
+                    return days.map((date) => {
+                      const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                      const isToday = isSameDay(date, today);
+                      const dayEvents = getEventsForDay(date);
+
+                      return (
+                        <div
+                          key={date.toISOString()}
+                          className={`min-h-[120px] border-r border-b border-white/5 last:border-r-0 p-2 hover:bg-white/5 transition-colors ${
+                            !isCurrentMonth ? 'bg-white/[0.02]' : ''
+                          }`}
+                          onClick={() => {
+                            setCurrentDate(date);
+                            setViewMode('day');
+                          }}
+                        >
+                          {/* Date number */}
+                          <div className="flex items-center justify-between mb-1">
+                            <div
+                              className={`text-sm font-['JetBrains_Mono'] ${
+                                isToday
+                                  ? 'w-6 h-6 rounded-full bg-[#C17A72] text-white flex items-center justify-center text-xs'
+                                  : isCurrentMonth
+                                  ? 'text-[#F5F5F5]'
+                                  : 'text-[#6B7280]'
+                              }`}
+                            >
+                              {date.getDate()}
+                            </div>
+                          </div>
+
+                          {/* Events */}
+                          <div className="space-y-1">
+                            {dayEvents.slice(0, 3).map((event) => (
+                              <div
+                                key={event.id}
+                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{
+                                  backgroundColor: `${event.color}40`,
+                                  borderLeft: `2px solid ${event.color}`,
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setQuickViewEvent(event);
+                                  setQuickViewAnchor(e.currentTarget as HTMLElement);
+                                }}
+                              >
+                                <span className="font-medium text-white">
+                                  {!event.allDay && formatTime(new Date(event.start)) + ' '}
+                                  {event.title}
+                                </span>
+                              </div>
+                            ))}
+                            {dayEvents.length > 3 && (
+                              <div className="text-[10px] text-[#9CA3AF] px-1.5">
+                                +{dayEvents.length - 3} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
           )}
         </div>
