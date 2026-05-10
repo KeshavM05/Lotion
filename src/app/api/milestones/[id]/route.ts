@@ -7,7 +7,7 @@ import { requireAuth, getInternalUser } from "@/lib/auth-server";
 // PATCH /api/milestones/[id] - Update milestone
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -17,11 +17,12 @@ export async function PATCH(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     // Get milestone with goal to verify ownership
     const milestone = await db.query.milestones.findFirst({
-      where: eq(milestones.id, params.id),
+      where: eq(milestones.id, id),
       with: { goal: true },
     });
 
@@ -36,7 +37,7 @@ export async function PATCH(
         targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
         completedAt: body.completed && !body.completedAt ? new Date() : body.completedAt ? new Date(body.completedAt) : undefined,
       })
-      .where(eq(milestones.id, params.id))
+      .where(eq(milestones.id, id))
       .returning();
 
     return Response.json(updated);
@@ -49,7 +50,7 @@ export async function PATCH(
 // DELETE /api/milestones/[id] - Delete milestone
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -59,9 +60,11 @@ export async function DELETE(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
+
     // Get milestone with goal to verify ownership
     const milestone = await db.query.milestones.findFirst({
-      where: eq(milestones.id, params.id),
+      where: eq(milestones.id, id),
       with: { goal: true },
     });
 
@@ -69,7 +72,7 @@ export async function DELETE(
       return Response.json({ error: "Milestone not found" }, { status: 404 });
     }
 
-    await db.delete(milestones).where(eq(milestones.id, params.id));
+    await db.delete(milestones).where(eq(milestones.id, id));
 
     return Response.json({ success: true });
   } catch (error) {

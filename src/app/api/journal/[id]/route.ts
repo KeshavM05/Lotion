@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 // PATCH /api/journal/[id] - Update journal entry
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -17,6 +17,7 @@ export async function PATCH(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     const [updated] = await db
@@ -25,7 +26,7 @@ export async function PATCH(
         ...body,
         updatedAt: new Date(),
       })
-      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, user.id)))
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -42,7 +43,7 @@ export async function PATCH(
 // DELETE /api/journal/[id] - Delete journal entry
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -52,9 +53,11 @@ export async function DELETE(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
+
     const [deleted] = await db
       .delete(journalEntries)
-      .where(and(eq(journalEntries.id, params.id), eq(journalEntries.userId, user.id)))
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, user.id)))
       .returning();
 
     if (!deleted) {

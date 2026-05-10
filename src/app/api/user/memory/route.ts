@@ -14,15 +14,6 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { aiMemory: true },
-    });
-
-    if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
     return Response.json({ memory: user.aiMemory || "" });
   } catch (error) {
     console.error("GET /api/user/memory error:", error);
@@ -53,7 +44,7 @@ export async function PATCH(request: NextRequest) {
         aiMemory: memory,
         updatedAt: new Date(),
       })
-      .where(eq(users.id, userId))
+      .where(eq(users.id, user.id))
       .returning({ aiMemory: users.aiMemory });
 
     if (!updated) {

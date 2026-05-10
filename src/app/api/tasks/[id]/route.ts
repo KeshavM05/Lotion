@@ -7,7 +7,7 @@ import { requireAuth, getInternalUser } from "@/lib/auth-server";
 // PATCH /api/tasks/[id] - Update task
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -17,6 +17,7 @@ export async function PATCH(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     const [updated] = await db
@@ -29,7 +30,7 @@ export async function PATCH(
         completedAt: body.completed && !body.completedAt ? new Date() : body.completedAt ? new Date(body.completedAt) : undefined,
         updatedAt: new Date(),
       })
-      .where(and(eq(tasks.id, params.id), eq(tasks.userId, user.id)))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -46,7 +47,7 @@ export async function PATCH(
 // DELETE /api/tasks/[id] - Delete task
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -56,9 +57,11 @@ export async function DELETE(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
+
     const [deleted] = await db
       .delete(tasks)
-      .where(and(eq(tasks.id, params.id), eq(tasks.userId, user.id)))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
       .returning();
 
     if (!deleted) {

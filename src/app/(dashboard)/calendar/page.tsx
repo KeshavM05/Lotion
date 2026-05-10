@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useStore, type CalendarEvent } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
+import { EventQuickView } from "@/components/ui/event-quick-view";
 import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from "@/lib/utils";
 import { usePageHeader } from "@/lib/page-header-context";
 
@@ -35,9 +36,16 @@ function TaskSection({ title, count, icon, color, children }: { title: string; c
   );
 }
 
-function TaskItem({ task, store }: { task: any; store: any }) {
+function TaskItem({ task, store, onDragStart, onDragEnd }: { task: any; store: any; onDragStart: (task: any, e: React.DragEvent) => void; onDragEnd: () => void }) {
   return (
-    <div className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors group">
+    <div
+      draggable={!task.completed}
+      onDragStart={(e) => onDragStart(task, e)}
+      onDragEnd={onDragEnd}
+      className={`flex items-start gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors group ${
+        !task.completed ? 'cursor-grab active:cursor-grabbing' : ''
+      }`}
+    >
       <button
         onClick={() => store.updateTask(task.id, { completed: !task.completed })}
         className="mt-0.5 flex-shrink-0"
@@ -61,6 +69,11 @@ function TaskItem({ task, store }: { task: any; store: any }) {
           </p>
         )}
       </div>
+      {!task.completed && (
+        <span className="material-symbols-outlined text-sm text-[#9CA3AF] opacity-0 group-hover:opacity-100 transition-opacity">
+          drag_indicator
+        </span>
+      )}
     </div>
   );
 }
@@ -76,10 +89,28 @@ export default function CalendarPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Quick view state
+  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
+  const [quickViewAnchor, setQuickViewAnchor] = useState<HTMLElement | null>(null);
+
   // Drag-to-create state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
+
+  // Event drag-to-move state
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [eventDragOffset, setEventDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [eventDragPosition, setEventDragPosition] = useState<{ date: Date; time: number } | null>(null);
+
+  // Event resize state
+  const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
+  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
+  const [resizeOriginalStart, setResizeOriginalStart] = useState<Date | null>(null);
+  const [resizeOriginalEnd, setResizeOriginalEnd] = useState<Date | null>(null);
+
+  // Task drag state
+  const [draggingTask, setDraggingTask] = useState<any | null>(null);
 
   const weekDates = getWeekDates(currentDate);
   const today = new Date();
@@ -229,6 +260,69 @@ export default function CalendarPage() {
     };
   }
 
+  // Check if two events overlap
+  function eventsOverlap(event1: CalendarEvent, event2: CalendarEvent) {
+    const start1 = new Date(event1.start).getTime();
+    const end1 = new Date(event1.end).getTime();
+    const start2 = new Date(event2.start).getTime();
+    const end2 = new Date(event2.end).getTime();
+    return start1 < end2 && start2 < end1;
+  }
+
+  // Calculate event layout for overlapping events
+  function getEventLayout(event: CalendarEvent, dayEvents: CalendarEvent[]) {
+    // Find all events that overlap with this event
+    const overlapping = dayEvents.filter(e =>
+      e.id !== event.id && eventsOverlap(event, e)
+    );
+
+    if (overlapping.length === 0) {
+      return { left: '0.25rem', right: '0.25rem', zIndex: 10 };
+    }
+
+    // Sort all overlapping events including current by start time
+    const allEvents = [event, ...overlapping].sort((a, b) =>
+      new Date(a.start).getTime() - new Date(b.start).getTime()
+    );
+
+    // Calculate columns
+    const columns: CalendarEvent[][] = [];
+    for (const evt of allEvents) {
+      let placed = false;
+      for (const column of columns) {
+        const lastInColumn = column[column.length - 1];
+        if (!eventsOverlap(evt, lastInColumn)) {
+          column.push(evt);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        columns.push([evt]);
+      }
+    }
+
+    // Find which column this event is in
+    let columnIndex = 0;
+    for (let i = 0; i < columns.length; i++) {
+      if (columns[i].some(e => e.id === event.id)) {
+        columnIndex = i;
+        break;
+      }
+    }
+
+    const totalColumns = columns.length;
+    const width = `calc(${100 / totalColumns}% - 0.5rem)`;
+    const left = `calc(${(columnIndex * 100) / totalColumns}% + 0.25rem)`;
+
+    return {
+      left,
+      width,
+      right: 'auto',
+      zIndex: 10 + columnIndex,
+    };
+  }
+
   const navigateDate = (direction: "prev" | "next" | "today") => {
     if (direction === "today") {
       setCurrentDate(new Date());
@@ -293,6 +387,151 @@ export default function CalendarPage() {
     setDragStart(null);
     setDragEnd(null);
     openCreate(start, end);
+  }
+
+  // Event drag-to-move handlers
+  function handleEventDragStart(event: CalendarEvent, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDraggingEvent(event);
+    const eventEl = e.currentTarget.getBoundingClientRect();
+    setEventDragOffset({
+      x: e.clientX - eventEl.left,
+      y: e.clientY - eventEl.top,
+    });
+  }
+
+  function handleEventDragMove(date: Date, hour: number, e: React.MouseEvent) {
+    if (!draggingEvent) return;
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
+
+    setEventDragPosition({
+      date,
+      time: minutes,
+    });
+  }
+
+  function handleEventDragEnd() {
+    if (!draggingEvent || !eventDragPosition) {
+      setDraggingEvent(null);
+      setEventDragPosition(null);
+      return;
+    }
+
+    // Calculate duration
+    const originalStart = new Date(draggingEvent.start);
+    const originalEnd = new Date(draggingEvent.end);
+    const duration = originalEnd.getTime() - originalStart.getTime();
+
+    // Create new start time
+    const newStart = new Date(eventDragPosition.date);
+    newStart.setHours(Math.floor(eventDragPosition.time / 60));
+    newStart.setMinutes(eventDragPosition.time % 60);
+    newStart.setSeconds(0);
+    newStart.setMilliseconds(0);
+
+    // Create new end time (maintain duration)
+    const newEnd = new Date(newStart.getTime() + duration);
+
+    // Update event
+    store.updateEvent(draggingEvent.id, {
+      start: newStart.toISOString(),
+      end: newEnd.toISOString(),
+    });
+
+    setDraggingEvent(null);
+    setEventDragPosition(null);
+  }
+
+  // Event resize handlers
+  function handleResizeStart(event: CalendarEvent, edge: 'top' | 'bottom', e: React.MouseEvent) {
+    e.stopPropagation();
+    setResizingEvent(event);
+    setResizeEdge(edge);
+    setResizeOriginalStart(new Date(event.start));
+    setResizeOriginalEnd(new Date(event.end));
+  }
+
+  function handleResizeMove(date: Date, hour: number, e: React.MouseEvent) {
+    if (!resizingEvent || !resizeEdge || !resizeOriginalStart || !resizeOriginalEnd) return;
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
+
+    const newTime = new Date(date);
+    newTime.setHours(Math.floor(minutes / 60));
+    newTime.setMinutes(minutes % 60);
+    newTime.setSeconds(0);
+    newTime.setMilliseconds(0);
+
+    if (resizeEdge === 'top') {
+      // Ensure minimum 15 minutes
+      if (resizeOriginalEnd.getTime() - newTime.getTime() >= 15 * 60 * 1000) {
+        store.updateEvent(resizingEvent.id, {
+          start: newTime.toISOString(),
+        });
+      }
+    } else {
+      // Ensure minimum 15 minutes
+      if (newTime.getTime() - resizeOriginalStart.getTime() >= 15 * 60 * 1000) {
+        store.updateEvent(resizingEvent.id, {
+          end: newTime.toISOString(),
+        });
+      }
+    }
+  }
+
+  function handleResizeEnd() {
+    setResizingEvent(null);
+    setResizeEdge(null);
+    setResizeOriginalStart(null);
+    setResizeOriginalEnd(null);
+  }
+
+  // Task drag handlers
+  function handleTaskDragStart(task: any, e: React.DragEvent) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+    setDraggingTask(task);
+  }
+
+  function handleTaskDragEnd() {
+    setDraggingTask(null);
+  }
+
+  function handleTaskDrop(date: Date, hour: number, e: React.DragEvent) {
+    e.preventDefault();
+    if (!draggingTask) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
+
+    const start = new Date(date);
+    start.setHours(Math.floor(minutes / 60));
+    start.setMinutes(minutes % 60);
+    start.setSeconds(0);
+    start.setMilliseconds(0);
+
+    // Default 1-hour duration
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    // Create event from task
+    store.addEvent({
+      title: draggingTask.title,
+      description: `Task: ${draggingTask.title}`,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      color: '#10b981',
+      allDay: false,
+      taskId: draggingTask.id,
+      source: 'local',
+    });
+
+    setDraggingTask(null);
   }
 
   function openCreate(start?: Date, end?: Date) {
@@ -361,7 +600,7 @@ export default function CalendarPage() {
               {overdueTasks.length > 0 && (
                 <TaskSection title="Overdue" count={overdueTasks.length} icon="error" color="#ef4444">
                   {overdueTasks.map(task => (
-                    <TaskItem key={task.id} task={task} store={store} />
+                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
                   ))}
                 </TaskSection>
               )}
@@ -369,7 +608,7 @@ export default function CalendarPage() {
               {/* Due Today */}
               <TaskSection title="Due today" count={todayTasks.length} icon="today" color="#f59e0b">
                 {todayTasks.map(task => (
-                  <TaskItem key={task.id} task={task} store={store} />
+                  <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
                 ))}
               </TaskSection>
 
@@ -377,7 +616,7 @@ export default function CalendarPage() {
               {tomorrowTasks.length > 0 && (
                 <TaskSection title="Due tomorrow" count={tomorrowTasks.length} icon="event" color="#3b82f6">
                   {tomorrowTasks.map(task => (
-                    <TaskItem key={task.id} task={task} store={store} />
+                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
                   ))}
                 </TaskSection>
               )}
@@ -386,7 +625,7 @@ export default function CalendarPage() {
               {upcomingTasks.length > 0 && (
                 <TaskSection title="Upcoming" count={upcomingTasks.length} icon="schedule" color="#9CA3AF">
                   {upcomingTasks.slice(0, 5).map(task => (
-                    <TaskItem key={task.id} task={task} store={store} />
+                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
                   ))}
                 </TaskSection>
               )}
@@ -433,7 +672,20 @@ export default function CalendarPage() {
               </div>
 
               {/* Time Grid */}
-              <div className="flex-1 overflow-auto" ref={scrollRef} onMouseUp={handleDragEnd} onMouseLeave={handleDragEnd}>
+              <div
+                className="flex-1 overflow-auto"
+                ref={scrollRef}
+                onMouseUp={() => {
+                  handleDragEnd();
+                  handleEventDragEnd();
+                  handleResizeEnd();
+                }}
+                onMouseLeave={() => {
+                  handleDragEnd();
+                  handleEventDragEnd();
+                  handleResizeEnd();
+                }}
+              >
                 <div className="relative min-h-full select-none">
                   <div className="grid grid-cols-[60px_repeat(7,1fr)]">
                     {HOURS.map((hour) => (
@@ -453,33 +705,80 @@ export default function CalendarPage() {
                             key={`cell-${hour}-${dayIdx}`}
                             className="relative border-r border-t border-white/5 last:border-r-0 hover:bg-[#C17A72]/5 transition-colors cursor-crosshair group"
                             style={{ height: HOUR_HEIGHT }}
-                            onMouseDown={(e) => handleDragStart(date, hour, e)}
-                            onMouseMove={(e) => handleDragMove(date, hour, e)}
+                            onMouseDown={(e) => {
+                              if (!draggingEvent && !resizingEvent) {
+                                handleDragStart(date, hour, e);
+                              }
+                            }}
+                            onMouseMove={(e) => {
+                              if (isDragging) {
+                                handleDragMove(date, hour, e);
+                              } else if (draggingEvent) {
+                                handleEventDragMove(date, hour, e);
+                              } else if (resizingEvent) {
+                                handleResizeMove(date, hour, e);
+                              }
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleTaskDrop(date, hour, e)}
                           >
                             {/* 30-minute line */}
                             <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
 
                             {/* Events for this hour */}
                             {hour === 0 &&
-                              getEventsForDay(date).map((event) => (
-                                <div
-                                  key={event.id}
-                                  className="absolute left-1 right-1 rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden cursor-pointer z-10 hover:z-20 shadow-lg border border-white/10"
-                                  style={{
-                                    ...getEventStyle(event),
-                                    boxShadow: `0 2px 8px ${event.color}60`,
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEdit(event);
-                                  }}
-                                >
-                                  <div className="font-semibold truncate">{event.title}</div>
-                                  <div className="text-[10px] opacity-90 mt-0.5">
-                                    {formatTime(new Date(event.start))}
-                                  </div>
-                                </div>
-                              ))}
+                              (() => {
+                                const dayEvents = getEventsForDay(date);
+                                return dayEvents.map((event) => {
+                                  const isDragging = draggingEvent?.id === event.id;
+                                  const isResizing = resizingEvent?.id === event.id;
+                                  const layout = getEventLayout(event, dayEvents);
+                                  return (
+                                    <div
+                                      key={event.id}
+                                      className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border border-white/10 group ${
+                                        isDragging ? 'opacity-50' : ''
+                                      } ${isResizing ? 'select-none' : 'cursor-move'}`}
+                                      style={{
+                                        ...getEventStyle(event),
+                                        left: layout.left,
+                                        right: layout.right,
+                                        width: layout.width,
+                                        zIndex: layout.zIndex,
+                                        boxShadow: `0 2px 8px ${event.color}60`,
+                                      }}
+                                      onMouseDown={(e) => {
+                                        // Check if clicking on resize handle
+                                        const target = e.target as HTMLElement;
+                                        if (target.classList.contains('resize-handle')) return;
+                                        handleEventDragStart(event, e);
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isDragging && !isResizing) {
+                                          setQuickViewEvent(event);
+                                          setQuickViewAnchor(e.currentTarget as HTMLElement);
+                                        }
+                                      }}
+                                    >
+                                      {/* Top resize handle */}
+                                      <div
+                                        className="resize-handle absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t-lg"
+                                        onMouseDown={(e) => handleResizeStart(event, 'top', e)}
+                                      />
+                                      <div className="font-semibold truncate">{event.title}</div>
+                                      <div className="text-[10px] opacity-90 mt-0.5">
+                                        {formatTime(new Date(event.start))}
+                                      </div>
+                                      {/* Bottom resize handle */}
+                                      <div
+                                        className="resize-handle absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b-lg"
+                                        onMouseDown={(e) => handleResizeStart(event, 'bottom', e)}
+                                      />
+                                    </div>
+                                  );
+                                });
+                              })()}
                           </div>
                         ))}
                       </div>
@@ -510,6 +809,29 @@ export default function CalendarPage() {
                       }}
                     >
                       <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
+                    </div>
+                  )}
+
+                  {/* Event Drag Preview */}
+                  {draggingEvent && eventDragPosition && (
+                    <div
+                      className="absolute pointer-events-none z-30"
+                      style={{
+                        top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
+                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, eventDragPosition.date)) * (100 / 7))}%`,
+                        width: `${100 / 7}%`,
+                        height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
+                      }}
+                    >
+                      <div
+                        className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
+                        style={{
+                          backgroundColor: `${draggingEvent.color}40`,
+                          borderColor: draggingEvent.color,
+                        }}
+                      >
+                        <div className="truncate">{draggingEvent.title}</div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -591,6 +913,33 @@ export default function CalendarPage() {
           </div>
         </Modal>
       </div>
+
+      {/* Quick View */}
+      <EventQuickView
+        event={quickViewEvent}
+        isOpen={!!quickViewEvent}
+        onClose={() => {
+          setQuickViewEvent(null);
+          setQuickViewAnchor(null);
+        }}
+        onEdit={() => {
+          if (quickViewEvent) {
+            openEdit(quickViewEvent);
+            setQuickViewEvent(null);
+            setQuickViewAnchor(null);
+          }
+        }}
+        onDelete={() => {
+          if (quickViewEvent) {
+            if (confirm("Are you sure you want to delete this event?")) {
+              store.deleteEvent(quickViewEvent.id);
+              setQuickViewEvent(null);
+              setQuickViewAnchor(null);
+            }
+          }
+        }}
+        anchorElement={quickViewAnchor}
+      />
     </div>
   );
 }

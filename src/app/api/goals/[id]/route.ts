@@ -7,7 +7,7 @@ import { requireAuth, getInternalUser } from "@/lib/auth-server";
 // GET /api/goals/[id] - Get single goal
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -17,8 +17,10 @@ export async function GET(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
+
     const goal = await db.query.goals.findFirst({
-      where: and(eq(goals.id, params.id), eq(goals.userId, user.id)),
+      where: and(eq(goals.id, id), eq(goals.userId, user.id)),
       with: {
         milestones: {
           orderBy: (milestones, { asc }) => [asc(milestones.order)],
@@ -41,7 +43,7 @@ export async function GET(
 // PATCH /api/goals/[id] - Update goal
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -51,6 +53,7 @@ export async function PATCH(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     const [updated] = await db
@@ -60,7 +63,7 @@ export async function PATCH(
         targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
         updatedAt: new Date(),
       })
-      .where(and(eq(goals.id, params.id), eq(goals.userId, user.id)))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.id)))
       .returning();
 
     if (!updated) {
@@ -77,7 +80,7 @@ export async function PATCH(
 // DELETE /api/goals/[id] - Delete goal
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabaseUserId = await requireAuth(request);
@@ -87,9 +90,11 @@ export async function DELETE(
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
+
     const [deleted] = await db
       .delete(goals)
-      .where(and(eq(goals.id, params.id), eq(goals.userId, user.id)))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.id)))
       .returning();
 
     if (!deleted) {
