@@ -196,6 +196,64 @@ function PreferencesSection() {
             </div>
           </div>
 
+          {/* Calendar Settings */}
+          <div className="border-t border-white/10 pt-6">
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Calendar Settings</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time Format</label>
+                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                  <option value="12h">12-hour (9:00 AM)</option>
+                  <option value="24h">24-hour (09:00)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Week Start Day</label>
+                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                  <option value="sunday">Sunday</option>
+                  <option value="monday">Monday</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Default Event Duration</label>
+                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                  <option value="90">1.5 hours</option>
+                  <option value="120">2 hours</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time Slot Interval</label>
+                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Auto-schedule Settings */}
+          <div className="border-t border-white/10 pt-6">
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Auto-schedule</h4>
+            <div className="space-y-3">
+              <ToggleOption
+                label="Auto-decline conflicts"
+                description="Automatically decline meetings that conflict with existing events"
+              />
+              <ToggleOption
+                label="Smart buffer time"
+                description="Add 5-minute buffers between back-to-back meetings"
+              />
+              <ToggleOption
+                label="Respect work hours"
+                description="Only schedule tasks within your configured work hours"
+              />
+            </div>
+          </div>
+
           {/* Calendar Integration */}
           <div className="border-t border-white/10 pt-6">
             <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Calendar Integration</h4>

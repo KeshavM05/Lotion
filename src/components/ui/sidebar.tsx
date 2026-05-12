@@ -9,6 +9,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/goals", label: "Vision Board", icon: "auto_awesome_motion" },
   { href: "/calendar", label: "Calendar", icon: "calendar_today" },
+  { href: "/focus", label: "Focus Mode", icon: "radio_button_unchecked" },
   { href: "/coach", label: "AI Coach", icon: "smart_toy" },
   { href: "/journal", label: "Journal", icon: "edit_note" },
   { href: "/memory", label: "AI Memory", icon: "psychology" },

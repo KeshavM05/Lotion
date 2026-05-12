@@ -9,6 +9,7 @@ import { useEffect } from "react";
 
 type FilterTab = "all" | "today" | "upcoming" | "completed";
 type ViewMode = "list" | "board";
+type ProjectFilter = "all" | string; // "all" or goalId
 
 const PRIORITY_DOTS: Record<Priority, string> = {
   critical: "#ef4444",
@@ -25,6 +26,8 @@ export default function TasksPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
+  const [showProjects, setShowProjects] = useState(true);
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -80,12 +83,23 @@ export default function TasksPage() {
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
   const filtered = store.tasks.filter((t) => {
+    // Apply tab filter
+    let tabMatch = false;
     switch (activeTab) {
-      case "all": return !t.completed;
-      case "today": return !t.completed && t.deadline && new Date(t.deadline) <= todayEnd;
-      case "upcoming": return !t.completed && t.deadline && new Date(t.deadline) > todayEnd;
-      case "completed": return t.completed;
+      case "all": tabMatch = !t.completed; break;
+      case "today": tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd; break;
+      case "upcoming": tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd; break;
+      case "completed": tabMatch = t.completed; break;
     }
+    if (!tabMatch) return false;
+
+    // Apply project filter
+    if (projectFilter === "unassigned") {
+      return !t.goalId;
+    } else if (projectFilter !== "all") {
+      return t.goalId === projectFilter;
+    }
+    return true;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -125,8 +139,19 @@ export default function TasksPage() {
           ))}
         </div>
 
-        {/* View Mode & Add Button */}
+        {/* View Mode, Projects Toggle & Add Button */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowProjects(!showProjects)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showProjects
+                ? "bg-[#C17A72]/20 text-[#C17A72]"
+                : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+            }`}
+            title="Toggle projects sidebar"
+          >
+            <span className="material-symbols-outlined text-sm">folder</span>
+          </button>
           <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
             <button
               onClick={() => setViewMode("list")}
@@ -158,7 +183,7 @@ export default function TasksPage() {
     );
 
     return () => setPageControls(null);
-  }, [activeTab, viewMode, tabs, setPageControls]);
+  }, [activeTab, viewMode, showProjects, tabs, setPageControls]);
 
   // Drag handlers for board view
   function handleDragStart(task: Task, e: React.DragEvent) {
@@ -183,9 +208,90 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* List View */}
-      {viewMode === "list" && (
+    <div className="flex gap-6 h-full">
+      {/* Projects Sidebar */}
+      {showProjects && (
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Projects
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Filter by goal</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {/* All Projects */}
+            <button
+              onClick={() => setProjectFilter("all")}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === "all"
+                  ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
+                  : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">inbox</span>
+                <span className="text-xs font-medium">All Tasks</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {store.tasks.filter((t) => !t.completed).length}
+              </span>
+            </button>
+
+            {/* Unassigned */}
+            <button
+              onClick={() => setProjectFilter("unassigned")}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === "unassigned"
+                  ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
+                  : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">radio_button_unchecked</span>
+                <span className="text-xs font-medium">No Project</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {store.tasks.filter((t) => !t.completed && !t.goalId).length}
+              </span>
+            </button>
+
+            <div className="h-px bg-white/5 my-2" />
+
+            {/* Goals as Projects */}
+            {store.goals.filter((g) => g.status === "active").map((goal) => {
+              const taskCount = store.tasks.filter((t) => !t.completed && t.goalId === goal.id).length;
+              return (
+                <button
+                  key={goal.id}
+                  onClick={() => setProjectFilter(goal.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors group ${
+                    projectFilter === goal.id
+                      ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
+                      : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: goal.color }}
+                    />
+                    <span className="text-xs font-medium truncate">{goal.title}</span>
+                  </div>
+                  <span className="text-xs font-['JetBrains_Mono'] ml-2 flex-shrink-0">
+                    {taskCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* List View */}
+        {viewMode === "list" && (
         <div className="flex-1 overflow-auto">
           {sorted.length === 0 ? (
             <div className="text-center py-20 text-[#9CA3AF]">
@@ -355,6 +461,7 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingTask ? "Edit Task" : "New Task"}>
