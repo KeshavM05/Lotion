@@ -146,6 +146,26 @@ export function EventQuickView({
           </span>
         </div>
 
+        {/* Recurrence */}
+        {event.isRecurring && (
+          <div className="flex items-center gap-2 text-sm text-[#C17A72] mb-3 bg-[#C17A72]/10 rounded-lg px-3 py-2">
+            <span className="material-symbols-outlined text-base">refresh</span>
+            <span className="capitalize">
+              Repeats{" "}
+              {event.recurrenceInterval && event.recurrenceInterval > 1
+                ? `every ${event.recurrenceInterval} `
+                : ""}
+              {event.recurrenceFrequency || "weekly"}
+              {event.recurrenceEndDate &&
+                ` until ${new Date(event.recurrenceEndDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}`}
+            </span>
+          </div>
+        )}
+
         {/* Description */}
         {event.description && (
           <div className="mb-3 pb-3 border-b border-white/5">

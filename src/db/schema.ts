@@ -18,6 +18,7 @@ export const goalCategoryEnum = pgEnum("goal_category", ["career", "business", "
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 export const moodEnum = pgEnum("mood", ["great", "good", "okay", "bad", "terrible"]);
 export const eventSourceEnum = pgEnum("event_source", ["local", "google", "outlook"]);
+export const recurrenceFrequencyEnum = pgEnum("recurrence_frequency", ["daily", "weekly", "monthly", "yearly"]);
 
 // Users
 export const users = pgTable("users", {
@@ -100,6 +101,12 @@ export const calendarEvents = pgTable("calendar_events", {
   color: text("color").default("#8b5cf6"),
   source: eventSourceEnum("source").default("local").notNull(),
   googleEventId: text("google_event_id"),
+  // Recurrence fields
+  isRecurring: boolean("is_recurring").default(false).notNull(),
+  recurrenceFrequency: recurrenceFrequencyEnum("recurrence_frequency"),
+  recurrenceInterval: integer("recurrence_interval").default(1),
+  recurrenceEndDate: timestamp("recurrence_end_date"),
+  recurrenceDaysOfWeek: jsonb("recurrence_days_of_week").$type<number[]>(), // 0=Sun, 1=Mon, etc
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

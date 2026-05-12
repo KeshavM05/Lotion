@@ -208,6 +208,11 @@ export default function CalendarPage() {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [formColor, setFormColor] = useState("#8b5cf6");
+  const [formIsRecurring, setFormIsRecurring] = useState(false);
+  const [formRecurrenceFrequency, setFormRecurrenceFrequency] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
+  const [formRecurrenceInterval, setFormRecurrenceInterval] = useState(1);
+  const [formRecurrenceEndDate, setFormRecurrenceEndDate] = useState("");
+  const [formRecurrenceDaysOfWeek, setFormRecurrenceDaysOfWeek] = useState<number[]>([]);
 
   function openEdit(event: CalendarEvent) {
     setEditingEvent(event);
@@ -216,18 +221,32 @@ export default function CalendarPage() {
     setFormStart(toLocalDatetimeString(new Date(event.start)));
     setFormEnd(toLocalDatetimeString(new Date(event.end)));
     setFormColor(event.color);
+    setFormIsRecurring(event.isRecurring || false);
+    setFormRecurrenceFrequency(event.recurrenceFrequency || "weekly");
+    setFormRecurrenceInterval(event.recurrenceInterval || 1);
+    setFormRecurrenceEndDate(event.recurrenceEndDate ? new Date(event.recurrenceEndDate).toISOString().split('T')[0] : "");
+    setFormRecurrenceDaysOfWeek(event.recurrenceDaysOfWeek || []);
     setModalOpen(true);
   }
 
   function handleSave() {
     if (!formTitle.trim()) return;
-    const data = {
+    const data: any = {
       title: formTitle.trim(),
       description: formDescription.trim(),
       start: new Date(formStart).toISOString(),
       end: new Date(formEnd).toISOString(),
       color: formColor,
+      isRecurring: formIsRecurring,
     };
+
+    if (formIsRecurring) {
+      data.recurrenceFrequency = formRecurrenceFrequency;
+      data.recurrenceInterval = formRecurrenceInterval;
+      data.recurrenceEndDate = formRecurrenceEndDate ? new Date(formRecurrenceEndDate).toISOString() : null;
+      data.recurrenceDaysOfWeek = formRecurrenceFrequency === "weekly" ? formRecurrenceDaysOfWeek : [];
+    }
+
     if (editingEvent) {
       store.updateEvent(editingEvent.id, data);
     } else {
@@ -1181,6 +1200,103 @@ export default function CalendarPage() {
                 ))}
               </div>
             </div>
+
+            {/* Recurrence Section */}
+            <div className="border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  Repeat
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFormIsRecurring(!formIsRecurring)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    formIsRecurring ? "bg-[#C17A72]" : "bg-white/10"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      formIsRecurring ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {formIsRecurring && (
+                <div className="space-y-3 pl-1">
+                  {/* Frequency & Interval */}
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs mb-1 block text-[#9CA3AF]">Every</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formRecurrenceInterval}
+                        onChange={(e) => setFormRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="input-glass w-full text-sm"
+                      />
+                    </div>
+                    <div className="flex-[2]">
+                      <label className="text-xs mb-1 block text-[#9CA3AF]">Frequency</label>
+                      <select
+                        value={formRecurrenceFrequency}
+                        onChange={(e) => setFormRecurrenceFrequency(e.target.value as any)}
+                        className="input-glass w-full text-sm cursor-pointer"
+                      >
+                        <option value="daily">Day(s)</option>
+                        <option value="weekly">Week(s)</option>
+                        <option value="monthly">Month(s)</option>
+                        <option value="yearly">Year(s)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Days of Week (only for weekly) */}
+                  {formRecurrenceFrequency === "weekly" && (
+                    <div>
+                      <label className="text-xs mb-2 block text-[#9CA3AF]">Repeat on</label>
+                      <div className="flex gap-1">
+                        {DAYS_SHORT.map((day, index) => {
+                          const isSelected = formRecurrenceDaysOfWeek.includes(index);
+                          return (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => {
+                                setFormRecurrenceDaysOfWeek(
+                                  isSelected
+                                    ? formRecurrenceDaysOfWeek.filter((d) => d !== index)
+                                    : [...formRecurrenceDaysOfWeek, index].sort()
+                                );
+                              }}
+                              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                isSelected
+                                  ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
+                                  : "bg-white/5 text-[#9CA3AF] hover:bg-white/10"
+                              }`}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* End Date */}
+                  <div>
+                    <label className="text-xs mb-1 block text-[#9CA3AF]">End date (optional)</label>
+                    <input
+                      type="date"
+                      value={formRecurrenceEndDate}
+                      onChange={(e) => setFormRecurrenceEndDate(e.target.value)}
+                      className="input-glass w-full text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between pt-2">
               {editingEvent ? (
                 <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-lg" style={{ color: "var(--danger)" }}>Delete</button>

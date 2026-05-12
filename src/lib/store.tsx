@@ -89,6 +89,11 @@ export interface CalendarEvent {
   color: string;
   taskId: string | null;
   source: "local" | "google" | "outlook";
+  isRecurring?: boolean;
+  recurrenceFrequency?: "daily" | "weekly" | "monthly" | "yearly";
+  recurrenceInterval?: number;
+  recurrenceEndDate?: string | null;
+  recurrenceDaysOfWeek?: number[]; // 0=Sun, 1=Mon, etc
   createdAt: string;
 }
 
