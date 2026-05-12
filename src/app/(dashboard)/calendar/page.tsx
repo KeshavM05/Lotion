@@ -818,12 +818,12 @@ export default function CalendarPage() {
                   )}
 
                   {/* Drag Preview */}
-                  {isDragging && dragStart && getDragPreviewStyle() && (
+                  {isDragging && dragStart && dragEnd && getDragPreviewStyle() && (
                     <div
                       className="absolute pointer-events-none z-20"
                       style={{
                         ...getDragPreviewStyle(),
-                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, dragStart.date)) * (100 / 7))}%`,
+                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, dragEnd.date)) * (100 / 7))}%`,
                         width: `${100 / 7}%`,
                       }}
                     >
