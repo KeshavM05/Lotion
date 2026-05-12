@@ -370,14 +370,6 @@ export default function CalendarPage() {
     setDragEnd({ date, hour, minutes });
   }
 
-  function handleDragMove(date: Date, hour: number, e: React.MouseEvent) {
-    if (!isDragging || !dragStart) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = Math.round((y / HOUR_HEIGHT) * 60);
-    setDragEnd({ date, hour, minutes });
-  }
-
   function handleDragEnd() {
     if (!isDragging || !dragStart || !dragEnd) return;
     setIsDragging(false);
@@ -704,6 +696,35 @@ export default function CalendarPage() {
                   handleEventDragEnd();
                   handleResizeEnd();
                 }}
+                onMouseMove={(e) => {
+                  if (isDragging || draggingEvent || resizingEvent) {
+                    const scrollContainer = scrollRef.current;
+                    if (!scrollContainer) return;
+
+                    const rect = scrollContainer.getBoundingClientRect();
+                    const x = e.clientX - rect.left + scrollContainer.scrollLeft;
+                    const y = e.clientY - rect.top + scrollContainer.scrollTop;
+
+                    // Calculate which day column (skip 60px time column)
+                    if (x > 60) {
+                      const columnWidth = (rect.width - 60) / 7;
+                      const dayIndex = Math.floor((x - 60) / columnWidth);
+                      if (dayIndex >= 0 && dayIndex < 7) {
+                        const date = weekDates[dayIndex];
+                        const hour = Math.floor(y / HOUR_HEIGHT);
+                        const minutes = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60);
+
+                        if (isDragging && dragStart) {
+                          setDragEnd({ date, hour, minutes });
+                        } else if (draggingEvent) {
+                          handleEventDragMove(date, hour, e);
+                        } else if (resizingEvent) {
+                          handleResizeMove(date, hour, e);
+                        }
+                      }
+                    }
+                  }
+                }}
               >
                 <div className="relative min-h-full select-none">
                   <div className="grid grid-cols-[60px_repeat(7,1fr)]">
@@ -727,15 +748,6 @@ export default function CalendarPage() {
                             onMouseDown={(e) => {
                               if (!draggingEvent && !resizingEvent) {
                                 handleDragStart(date, hour, e);
-                              }
-                            }}
-                            onMouseMove={(e) => {
-                              if (isDragging) {
-                                handleDragMove(date, hour, e);
-                              } else if (draggingEvent) {
-                                handleEventDragMove(date, hour, e);
-                              } else if (resizingEvent) {
-                                handleResizeMove(date, hour, e);
                               }
                             }}
                             onDragOver={(e) => e.preventDefault()}
@@ -896,6 +908,26 @@ export default function CalendarPage() {
                   handleEventDragEnd();
                   handleResizeEnd();
                 }}
+                onMouseMove={(e) => {
+                  if (isDragging || draggingEvent || resizingEvent) {
+                    const scrollContainer = scrollRef.current;
+                    if (!scrollContainer) return;
+
+                    const rect = scrollContainer.getBoundingClientRect();
+                    const y = e.clientY - rect.top + scrollContainer.scrollTop;
+
+                    const hour = Math.floor(y / HOUR_HEIGHT);
+                    const minutes = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60);
+
+                    if (isDragging && dragStart) {
+                      setDragEnd({ date: currentDate, hour, minutes });
+                    } else if (draggingEvent) {
+                      handleEventDragMove(currentDate, hour, e);
+                    } else if (resizingEvent) {
+                      handleResizeMove(currentDate, hour, e);
+                    }
+                  }
+                }}
               >
                 <div className="relative min-h-full select-none">
                   <div className="grid grid-cols-[60px_1fr]">
@@ -918,15 +950,6 @@ export default function CalendarPage() {
                           onMouseDown={(e) => {
                             if (!draggingEvent && !resizingEvent) {
                               handleDragStart(currentDate, hour, e);
-                            }
-                          }}
-                          onMouseMove={(e) => {
-                            if (isDragging) {
-                              handleDragMove(currentDate, hour, e);
-                            } else if (draggingEvent) {
-                              handleEventDragMove(currentDate, hour, e);
-                            } else if (resizingEvent) {
-                              handleResizeMove(currentDate, hour, e);
                             }
                           }}
                           onDragOver={(e) => e.preventDefault()}
