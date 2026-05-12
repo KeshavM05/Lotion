@@ -4,8 +4,11 @@ import { useState } from "react";
 import { useStore, type Task, type Priority, type TaskStatus, PRIORITY_LABELS, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { formatRelativeDate } from "@/lib/utils";
+import { usePageHeader } from "@/lib/page-header-context";
+import { useEffect } from "react";
 
 type FilterTab = "all" | "today" | "upcoming" | "completed";
+type ViewMode = "list" | "board";
 
 const PRIORITY_DOTS: Record<Priority, string> = {
   critical: "#ef4444",
@@ -16,9 +19,12 @@ const PRIORITY_DOTS: Record<Priority, string> = {
 
 export default function TasksPage() {
   const store = useStore();
+  const { setPageControls } = usePageHeader();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -97,111 +103,258 @@ export default function TasksPage() {
     { key: "completed", label: "Done", count: store.tasks.filter((t) => t.completed).length },
   ];
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Tasks</h1>
-          <button onClick={openCreate} className="btn-glow px-5 py-2.5 rounded-xl text-sm font-medium">+ Add Task</button>
-        </div>
+  // Set page header controls
+  useEffect(() => {
+    setPageControls(
+      <div className="flex items-center justify-between w-full">
+        {/* Tabs */}
         <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="px-4 py-2 rounded-lg text-xs font-['Space_Grotesk'] font-medium tracking-wide transition-all"
-              style={{
-                background: activeTab === tab.key ? "var(--accent-soft)" : "transparent",
-                color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
-                border: `1px solid ${activeTab === tab.key ? "rgba(193,122,114,0.3)" : "transparent"}`,
-              }}
+              className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === tab.key
+                  ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
+                  : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+              }`}
             >
               {tab.label}
-              {tab.count > 0 && <span className="ml-1.5" style={{ opacity: 0.6 }}>{tab.count}</span>}
+              {tab.count > 0 && <span className="ml-1.5 opacity-60">{tab.count}</span>}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-auto">
-        {sorted.length === 0 ? (
-          <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>
-            <svg width="40" height="40" className="mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.4 }}>
-              <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
-            <p className="text-sm" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "var(--text-secondary)" }}>
-              {activeTab === "completed" ? "No completed tasks" : "No tasks yet"}
-            </p>
+        {/* View Mode & Add Button */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                viewMode === "list"
+                  ? "bg-[#C17A72] text-white"
+                  : "text-[#9CA3AF] hover:text-white"
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">view_list</span>
+            </button>
+            <button
+              onClick={() => setViewMode("board")}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                viewMode === "board"
+                  ? "bg-[#C17A72] text-white"
+                  : "text-[#9CA3AF] hover:text-white"
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">view_kanban</span>
+            </button>
           </div>
-        ) : (
-          <div className="space-y-1 max-w-3xl">
-            {sorted.map((task) => {
-              const goal = task.goalId ? store.goals.find((g) => g.id === task.goalId) : null;
-              const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+          <button onClick={openCreate} className="btn-glow px-4 py-2 rounded-xl text-sm font-medium">
+            <span className="material-symbols-outlined text-base mr-1">add</span>
+            New Task
+          </button>
+        </div>
+      </div>
+    );
+
+    return () => setPageControls(null);
+  }, [activeTab, viewMode, tabs, setPageControls]);
+
+  // Drag handlers for board view
+  function handleDragStart(task: Task, e: React.DragEvent) {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedTask(task);
+  }
+
+  function handleDragEnd() {
+    setDraggedTask(null);
+  }
+
+  function handleDrop(newStatus: TaskStatus, e: React.DragEvent) {
+    e.preventDefault();
+    if (!draggedTask) return;
+
+    store.updateTask(draggedTask.id, {
+      status: newStatus,
+      completed: newStatus === "done",
+      completedAt: newStatus === "done" ? new Date().toISOString() : null,
+    });
+    setDraggedTask(null);
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* List View */}
+      {viewMode === "list" && (
+        <div className="flex-1 overflow-auto">
+          {sorted.length === 0 ? (
+            <div className="text-center py-20 text-[#9CA3AF]">
+              <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">task_alt</span>
+              <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF]">
+                {activeTab === "completed" ? "No completed tasks" : "No tasks yet"}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1 max-w-3xl">
+              {sorted.map((task) => {
+                const goal = task.goalId ? store.goals.find((g) => g.id === task.goalId) : null;
+                const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
+                    onClick={() => openEdit(task)}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleComplete(task); }}
+                      className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+                      style={{
+                        borderColor: task.completed ? "#C17A72" : "rgba(255,255,255,0.1)",
+                        background: task.completed ? "#C17A72" : "transparent",
+                      }}
+                    >
+                      {task.completed && (
+                        <span className="material-symbols-outlined text-xs text-white" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm ${task.completed ? "line-through text-[#9CA3AF]" : "text-[#F5F5F5]"}`}>
+                        {task.title}
+                      </span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {goal && (
+                          <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
+                            <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
+                            {goal.title}
+                          </span>
+                        )}
+                        {task.deadline && (
+                          <span className={`text-[10px] ${overdue ? "text-[#ef4444]" : "text-[#9CA3AF]"}`}>
+                            {formatRelativeDate(task.deadline)}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
+                          {task.durationMinutes}m
+                        </span>
+                        {task.scheduledStart && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
+                            Scheduled
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PRIORITY_DOTS[task.priority] }} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); store.deleteTask(task.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Board View */}
+      {viewMode === "board" && (
+        <div className="flex-1 overflow-auto">
+          <div className="grid grid-cols-3 gap-4 h-full">
+            {(["todo", "in_progress", "done"] as const).map((status) => {
+              const statusTasks = store.tasks.filter((t) => t.status === status);
+              const statusLabels: Record<typeof status, string> = { todo: "To Do", in_progress: "In Progress", done: "Done" };
+              const statusColors: Record<typeof status, string> = { todo: "#6B7280", in_progress: "#f59e0b", done: "#10b981" };
 
               return (
                 <div
-                  key={task.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors"
-                  onClick={() => openEdit(task)}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  key={status}
+                  className="flex flex-col glass-card rounded-2xl overflow-hidden"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDrop(status, e)}
                 >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleComplete(task); }}
-                    className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
-                    style={{
-                      borderColor: task.completed ? "var(--accent)" : "var(--border)",
-                      background: task.completed ? "var(--accent)" : "transparent",
-                    }}
-                  >
-                    {task.completed && (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm" style={{
-                      color: task.completed ? "var(--text-muted)" : "var(--text-primary)",
-                      textDecoration: task.completed ? "line-through" : "none",
-                    }}>{task.title}</span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {goal && (
-                        <span className="flex items-center gap-1 text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
-                          {goal.title}
-                        </span>
-                      )}
-                      {task.deadline && (
-                        <span className="text-[10px]" style={{ color: overdue ? "var(--danger)" : "var(--text-muted)" }}>
-                          {formatRelativeDate(task.deadline)}
-                        </span>
-                      )}
-                      <span className="text-[10px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        {task.durationMinutes}m
+                  {/* Column Header */}
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: statusColors[status] }} />
+                        <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5]">
+                          {statusLabels[status]}
+                        </h3>
+                      </div>
+                      <span className="text-xs text-[#9CA3AF] font-['JetBrains_Mono']">
+                        {statusTasks.length}
                       </span>
-                      {task.scheduledStart && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-                          Scheduled
-                        </span>
-                      )}
                     </div>
                   </div>
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PRIORITY_DOTS[task.priority] }} />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); store.deleteTask(task.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                  </button>
+
+                  {/* Column Tasks */}
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {statusTasks.length === 0 ? (
+                      <div className="text-center py-8 text-[#6B7280] text-xs">
+                        No tasks
+                      </div>
+                    ) : (
+                      statusTasks.map((task) => {
+                        const goal = task.goalId ? store.goals.find((g) => g.id === task.goalId) : null;
+                        const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+                        const isDragging = draggedTask?.id === task.id;
+
+                        return (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(task, e)}
+                            onDragEnd={handleDragEnd}
+                            className={`glass-card rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all ${
+                              isDragging ? "opacity-50" : "hover:bg-white/[0.02]"
+                            }`}
+                            onClick={() => openEdit(task)}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h4 className="text-sm text-[#F5F5F5] font-medium flex-1">
+                                {task.title}
+                              </h4>
+                              <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: PRIORITY_DOTS[task.priority] }} />
+                            </div>
+
+                            {task.description && (
+                              <p className="text-xs text-[#9CA3AF] mb-2 line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {goal && (
+                                <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-white/5 text-[#9CA3AF]">
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: goal.color }} />
+                                  {goal.title}
+                                </span>
+                              )}
+                              {task.deadline && (
+                                <span className={`text-[10px] px-2 py-1 rounded ${
+                                  overdue ? "bg-red-500/20 text-red-400" : "bg-white/5 text-[#9CA3AF]"
+                                }`}>
+                                  {formatRelativeDate(task.deadline)}
+                                </span>
+                              )}
+                              <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-[#9CA3AF] font-['JetBrains_Mono']">
+                                {task.durationMinutes}m
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingTask ? "Edit Task" : "New Task"}>
