@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useStore, type Task, type Priority, type TaskStatus, PRIORITY_LABELS, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/store";
+import { useStore, type Task, type Priority, type TaskStatus, type EnergyLevel, type TimePreference, PRIORITY_LABELS, ENERGY_LABELS, TIME_PREFERENCE_LABELS } from "@/lib/store";
 import { Modal } from "@/components/ui/modal";
 import { formatRelativeDate } from "@/lib/utils";
 import { usePageHeader } from "@/lib/page-header-context";
@@ -29,6 +29,12 @@ export default function TasksPage() {
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
   const [showProjects, setShowProjects] = useState(true);
 
+  // Advanced filters
+  const [filterEnergy, setFilterEnergy] = useState<EnergyLevel | "all">("all");
+  const [filterTimePreference, setFilterTimePreference] = useState<TimePreference | "all">("all");
+  const [filterTag, setFilterTag] = useState<string>("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
   // Form
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -36,11 +42,16 @@ export default function TasksPage() {
   const [formDuration, setFormDuration] = useState(30);
   const [formDeadline, setFormDeadline] = useState("");
   const [formGoalId, setFormGoalId] = useState("");
+  const [formEnergyLevel, setFormEnergyLevel] = useState<EnergyLevel>("medium");
+  const [formTimePreference, setFormTimePreference] = useState<TimePreference>("anytime");
+  const [formTags, setFormTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   function openCreate() {
     setEditingTask(null);
     setFormTitle(""); setFormDescription(""); setFormPriority("medium");
     setFormDuration(30); setFormDeadline(""); setFormGoalId("");
+    setFormEnergyLevel("medium"); setFormTimePreference("anytime"); setFormTags([]);
     setModalOpen(true);
   }
 
@@ -48,6 +59,9 @@ export default function TasksPage() {
     setEditingTask(task);
     setFormTitle(task.title); setFormDescription(task.description);
     setFormPriority(task.priority); setFormDuration(task.durationMinutes);
+    setFormEnergyLevel(task.energyLevel || "medium");
+    setFormTimePreference(task.timePreference || "anytime");
+    setFormTags(task.tags || []);
     setFormDeadline(task.deadline ? task.deadline.split("T")[0] : "");
     setFormGoalId(task.goalId || "");
     setModalOpen(true);
@@ -62,6 +76,9 @@ export default function TasksPage() {
       durationMinutes: formDuration,
       deadline: formDeadline ? new Date(formDeadline).toISOString() : null,
       goalId: formGoalId || null,
+      energyLevel: formEnergyLevel,
+      timePreference: formTimePreference,
+      tags: formTags,
     };
     if (editingTask) {
       store.updateTask(editingTask.id, data);
@@ -95,10 +112,24 @@ export default function TasksPage() {
 
     // Apply project filter
     if (projectFilter === "unassigned") {
-      return !t.goalId;
+      if (t.goalId) return false;
     } else if (projectFilter !== "all") {
-      return t.goalId === projectFilter;
+      if (t.goalId !== projectFilter) return false;
     }
+
+    // Apply advanced filters
+    if (filterEnergy !== "all" && t.energyLevel !== filterEnergy) {
+      return false;
+    }
+    if (filterTimePreference !== "all" && t.timePreference !== filterTimePreference) {
+      return false;
+    }
+    if (filterTag !== "all") {
+      if (!t.tags || !t.tags.includes(filterTag)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -109,6 +140,9 @@ export default function TasksPage() {
     const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return da - db;
   });
+
+  // Get all unique tags
+  const allTags = Array.from(new Set(store.tasks.flatMap((t) => t.tags || [])));
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
     { key: "all", label: "All", count: store.tasks.filter((t) => !t.completed).length },
@@ -139,8 +173,19 @@ export default function TasksPage() {
           ))}
         </div>
 
-        {/* View Mode, Projects Toggle & Add Button */}
+        {/* View Mode, Filters, Projects Toggle & Add Button */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showAdvancedFilters || filterEnergy !== "all" || filterTimePreference !== "all" || filterTag !== "all"
+                ? "bg-[#C17A72]/20 text-[#C17A72]"
+                : "text-[#9CA3AF] hover:text-white hover:bg-white/5"
+            }`}
+            title="Advanced filters"
+          >
+            <span className="material-symbols-outlined text-sm">filter_list</span>
+          </button>
           <button
             onClick={() => setShowProjects(!showProjects)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -183,7 +228,7 @@ export default function TasksPage() {
     );
 
     return () => setPageControls(null);
-  }, [activeTab, viewMode, showProjects, tabs, setPageControls]);
+  }, [activeTab, viewMode, showProjects, showAdvancedFilters, filterEnergy, filterTimePreference, filterTag, tabs, setPageControls]);
 
   // Drag handlers for board view
   function handleDragStart(task: Task, e: React.DragEvent) {
@@ -284,6 +329,86 @@ export default function TasksPage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Filters Sidebar */}
+      {showAdvancedFilters && (
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Advanced Filters
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Refine your task list</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Energy Level Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Energy Level</label>
+              <select
+                value={filterEnergy}
+                onChange={(e) => setFilterEnergy(e.target.value as EnergyLevel | "all")}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Levels</option>
+                {(["low", "medium", "high"] as EnergyLevel[]).map((level) => (
+                  <option key={level} value={level}>
+                    {ENERGY_LABELS[level]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Time Preference Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Time Preference</label>
+              <select
+                value={filterTimePreference}
+                onChange={(e) => setFilterTimePreference(e.target.value as TimePreference | "all")}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Times</option>
+                {(["morning", "afternoon", "evening", "anytime"] as TimePreference[]).map((time) => (
+                  <option key={time} value={time}>
+                    {TIME_PREFERENCE_LABELS[time]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tag Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Tag</label>
+              <select
+                value={filterTag}
+                onChange={(e) => setFilterTag(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Tags</option>
+                {allTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(filterEnergy !== "all" || filterTimePreference !== "all" || filterTag !== "all") && (
+              <button
+                onClick={() => {
+                  setFilterEnergy("all");
+                  setFilterTimePreference("all");
+                  setFilterTag("all");
+                }}
+                className="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">clear</span>
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -508,6 +633,93 @@ export default function TasksPage() {
               </select>
             </div>
           )}
+
+          {/* Advanced Fields */}
+          <div className="border-t border-white/10 pt-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Energy Level</label>
+                <select
+                  value={formEnergyLevel}
+                  onChange={(e) => setFormEnergyLevel(e.target.value as EnergyLevel)}
+                  className="input-glass w-full"
+                >
+                  {(["low", "medium", "high"] as EnergyLevel[]).map((level) => (
+                    <option key={level} value={level}>
+                      {ENERGY_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Time Preference</label>
+                <select
+                  value={formTimePreference}
+                  onChange={(e) => setFormTimePreference(e.target.value as TimePreference)}
+                  className="input-glass w-full"
+                >
+                  {(["morning", "afternoon", "evening", "anytime"] as TimePreference[]).map((time) => (
+                    <option key={time} value={time}>
+                      {TIME_PREFERENCE_LABELS[time]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Tags</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-[#C17A72]/20 text-[#C17A72] rounded text-xs"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setFormTags(formTags.filter((t) => t !== tag))}
+                      className="hover:text-white transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-xs">close</span>
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && tagInput.trim()) {
+                      e.preventDefault();
+                      if (!formTags.includes(tagInput.trim())) {
+                        setFormTags([...formTags, tagInput.trim()]);
+                      }
+                      setTagInput("");
+                    }
+                  }}
+                  placeholder="Add tag..."
+                  className="input-glass flex-1 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tagInput.trim() && !formTags.includes(tagInput.trim())) {
+                      setFormTags([...formTags, tagInput.trim()]);
+                      setTagInput("");
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors text-xs"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between pt-2">
             {editingTask ? (
               <button onClick={() => { store.deleteTask(editingTask.id); setModalOpen(false); }}

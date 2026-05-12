@@ -19,6 +19,8 @@ export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 export const moodEnum = pgEnum("mood", ["great", "good", "okay", "bad", "terrible"]);
 export const eventSourceEnum = pgEnum("event_source", ["local", "google", "outlook"]);
 export const recurrenceFrequencyEnum = pgEnum("recurrence_frequency", ["daily", "weekly", "monthly", "yearly"]);
+export const energyLevelEnum = pgEnum("energy_level", ["low", "medium", "high"]);
+export const timePreferenceEnum = pgEnum("time_preference", ["morning", "afternoon", "evening", "anytime"]);
 
 // Users
 export const users = pgTable("users", {
@@ -82,6 +84,10 @@ export const tasks = pgTable("tasks", {
   scheduledEnd: timestamp("scheduled_end"),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completed_at"),
+  // Advanced filtering fields
+  energyLevel: energyLevelEnum("energy_level").default("medium"),
+  timePreference: timePreferenceEnum("time_preference").default("anytime"),
+  tags: jsonb("tags").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

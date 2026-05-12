@@ -10,6 +10,8 @@ export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type GoalStatus = "active" | "paused" | "completed" | "abandoned";
 export type GoalCategory = "career" | "business" | "finance" | "personal" | "health" | "creative";
 export type ChatRole = "user" | "assistant";
+export type EnergyLevel = "low" | "medium" | "high";
+export type TimePreference = "morning" | "afternoon" | "evening" | "anytime";
 
 export const CATEGORY_COLORS: Record<GoalCategory, string> = {
   career: "#C17A72",
@@ -34,6 +36,19 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   medium: "Medium",
   high: "High",
   critical: "Critical",
+};
+
+export const ENERGY_LABELS: Record<EnergyLevel, string> = {
+  low: "Low Energy",
+  medium: "Medium Energy",
+  high: "High Energy",
+};
+
+export const TIME_PREFERENCE_LABELS: Record<TimePreference, string> = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  anytime: "Anytime",
 };
 
 export interface Goal {
@@ -75,6 +90,9 @@ export interface Task {
   scheduledEnd: string | null;
   completed: boolean;
   completedAt: string | null;
+  energyLevel?: EnergyLevel;
+  timePreference?: TimePreference;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
