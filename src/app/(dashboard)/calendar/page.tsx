@@ -89,6 +89,12 @@ export default function CalendarPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Task creation state
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskFormTitle, setTaskFormTitle] = useState("");
+  const [taskFormDeadline, setTaskFormDeadline] = useState("");
+  const [taskFormEnergy, setTaskFormEnergy] = useState<"high" | "medium" | "low">("medium");
+
   // Quick view state
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [quickViewAnchor, setQuickViewAnchor] = useState<HTMLElement | null>(null);
@@ -260,6 +266,30 @@ export default function CalendarPage() {
       store.addEvent({ ...data, allDay: false, taskId: null, source: "local" });
     }
     setModalOpen(false);
+  }
+
+  function handleSaveTask() {
+    if (!taskFormTitle.trim()) return;
+    
+    store.addTask({
+      title: taskFormTitle.trim(),
+      description: "",
+      status: "todo",
+      priority: "medium",
+      goalId: null,
+      milestoneId: null,
+      durationMinutes: 30,
+      deadline: taskFormDeadline ? new Date(taskFormDeadline).toISOString() : null,
+      scheduledStart: null,
+      scheduledEnd: null,
+      energyLevel: taskFormEnergy,
+      timePreference: "anytime",
+      tags: [],
+    });
+    
+    setTaskModalOpen(false);
+    setTaskFormTitle("");
+    setTaskFormDeadline("");
   }
 
   function handleDelete() {
@@ -641,6 +671,14 @@ export default function CalendarPage() {
                   ))}
                 </TaskSection>
               )}
+              {/* Add Task Button */}
+              <button
+                onClick={() => setTaskModalOpen(true)}
+                className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-white/20 text-[#9CA3AF] hover:text-white hover:border-white/40 hover:bg-white/5 transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">add</span>
+                <span className="text-sm font-medium">Add Task</span>
+              </button>
             </div>
           )}
         </div>
@@ -1329,6 +1367,54 @@ export default function CalendarPage() {
                 <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
                 <button onClick={handleSave} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
                   {editingEvent ? "Save" : "Create"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Task Modal */}
+        <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title="New Task">
+          <div className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Task title"
+              value={taskFormTitle}
+              onChange={(e) => setTaskFormTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveTask()}
+              autoFocus
+              className="input-glass text-base"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            />
+            
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Deadline</label>
+              <input 
+                type="date" 
+                value={taskFormDeadline} 
+                onChange={(e) => setTaskFormDeadline(e.target.value)} 
+                className="input-glass w-full" 
+              />
+            </div>
+
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Energy Required</label>
+              <select 
+                value={taskFormEnergy}
+                onChange={(e) => setTaskFormEnergy(e.target.value as any)}
+                className="input-glass w-full text-sm"
+              >
+                <option value="high">High Energy</option>
+                <option value="medium">Medium Energy</option>
+                <option value="low">Low Energy</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <div className="flex gap-2">
+                <button onClick={() => setTaskModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button onClick={handleSaveTask} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
+                  Create Task
                 </button>
               </div>
             </div>
