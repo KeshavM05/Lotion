@@ -384,7 +384,7 @@ export default function CalendarPage() {
     start.setSeconds(0);
     start.setMilliseconds(0);
 
-    const end = new Date(dragEnd.date);
+    const end = new Date(dragStart.date);
     end.setHours(Math.floor(Math.max(startMinutes, endMinutes) / 60));
     end.setMinutes(Math.max(startMinutes, endMinutes) % 60);
     end.setSeconds(0);
@@ -411,16 +411,13 @@ export default function CalendarPage() {
     });
   }
 
-  function handleEventDragMove(date: Date, hour: number, e: React.MouseEvent) {
+  function handleEventDragMove(date: Date, hour: number, minutes: number) {
     if (!draggingEvent) return;
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
+    const totalMinutes = hour * 60 + minutes;
 
     setEventDragPosition({
       date,
-      time: minutes,
+      time: totalMinutes,
     });
   }
 
@@ -465,16 +462,13 @@ export default function CalendarPage() {
     setResizeOriginalEnd(new Date(event.end));
   }
 
-  function handleResizeMove(date: Date, hour: number, e: React.MouseEvent) {
+  function handleResizeMove(date: Date, hour: number, minutes: number) {
     if (!resizingEvent || !resizeEdge || !resizeOriginalStart || !resizeOriginalEnd) return;
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
+    const totalMinutes = hour * 60 + minutes;
 
     const newTime = new Date(date);
-    newTime.setHours(Math.floor(minutes / 60));
-    newTime.setMinutes(minutes % 60);
+    newTime.setHours(Math.floor(totalMinutes / 60));
+    newTime.setMinutes(totalMinutes % 60);
     newTime.setSeconds(0);
     newTime.setMilliseconds(0);
 
@@ -715,11 +709,11 @@ export default function CalendarPage() {
                         const minutes = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60);
 
                         if (isDragging && dragStart) {
-                          setDragEnd({ date, hour, minutes });
+                          setDragEnd({ date: dragStart.date, hour, minutes });
                         } else if (draggingEvent) {
-                          handleEventDragMove(date, hour, e);
+                          handleEventDragMove(date, hour, minutes);
                         } else if (resizingEvent) {
-                          handleResizeMove(date, hour, e);
+                          handleResizeMove(date, hour, minutes);
                         }
                       }
                     }
@@ -835,8 +829,8 @@ export default function CalendarPage() {
                       className="absolute pointer-events-none z-20"
                       style={{
                         ...getDragPreviewStyle(),
-                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, dragEnd.date)) * (100 / 7))}%`,
-                        width: `${100 / 7}%`,
+                        left: `calc(60px + ${weekDates.findIndex(d => isSameDay(d, dragEnd.date))} * ((100% - 60px) / 7))`,
+                        width: `calc((100% - 60px) / 7)`,
                       }}
                     >
                       <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
@@ -849,8 +843,8 @@ export default function CalendarPage() {
                       className="absolute pointer-events-none z-30"
                       style={{
                         top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
-                        left: `${60 + (weekDates.findIndex(d => isSameDay(d, eventDragPosition.date)) * (100 / 7))}%`,
-                        width: `${100 / 7}%`,
+                        left: `calc(60px + ${weekDates.findIndex(d => isSameDay(d, eventDragPosition.date))} * ((100% - 60px) / 7))`,
+                        width: `calc((100% - 60px) / 7)`,
                         height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
                       }}
                     >
@@ -922,9 +916,9 @@ export default function CalendarPage() {
                     if (isDragging && dragStart) {
                       setDragEnd({ date: currentDate, hour, minutes });
                     } else if (draggingEvent) {
-                      handleEventDragMove(currentDate, hour, e);
+                      handleEventDragMove(currentDate, hour, minutes);
                     } else if (resizingEvent) {
-                      handleResizeMove(currentDate, hour, e);
+                      handleResizeMove(currentDate, hour, minutes);
                     }
                   }
                 }}
