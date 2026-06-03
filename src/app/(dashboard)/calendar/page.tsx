@@ -156,6 +156,13 @@ export default function CalendarPage() {
 
         {/* View Mode Switcher */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => store.autoSchedule()}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-[#8b5cf6] to-[#ec4899] text-white shadow-lg hover:shadow-xl transition-all mr-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+            Auto-Schedule
+          </button>
           {(["day", "week", "month"] as ViewMode[]).map((mode) => (
             <button
               key={mode}

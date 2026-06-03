@@ -82,6 +82,10 @@ export const tasks = pgTable("tasks", {
   deadline: timestamp("deadline"),
   scheduledStart: timestamp("scheduled_start"),
   scheduledEnd: timestamp("scheduled_end"),
+  isAutoScheduled: boolean("is_auto_scheduled").default(false).notNull(),
+  scheduleLocked: boolean("schedule_locked").default(false).notNull(),
+  scheduleScore: integer("schedule_score"),
+  lastScheduled: timestamp("last_scheduled"),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completed_at"),
   // Advanced filtering fields
@@ -107,6 +111,7 @@ export const calendarEvents = pgTable("calendar_events", {
   color: text("color").default("#8b5cf6"),
   source: eventSourceEnum("source").default("local").notNull(),
   googleEventId: text("google_event_id"),
+  outlookEventId: text("outlook_event_id"),
   // Recurrence fields
   isRecurring: boolean("is_recurring").default(false).notNull(),
   recurrenceFrequency: recurrenceFrequencyEnum("recurrence_frequency"),
@@ -141,13 +146,53 @@ export const journalEntries = pgTable("journal_entries", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Auto Schedule Settings
+export const autoScheduleSettings = pgTable("auto_schedule_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  workDays: jsonb("work_days").$type<number[]>().default([1, 2, 3, 4, 5]), // Mon-Fri
+  workHourStart: integer("work_hour_start").default(9).notNull(), // 9 AM
+  workHourEnd: integer("work_hour_end").default(17).notNull(), // 5 PM
+  highEnergyStart: integer("high_energy_start").default(9),
+  highEnergyEnd: integer("high_energy_end").default(12),
+  mediumEnergyStart: integer("medium_energy_start").default(13),
+  mediumEnergyEnd: integer("medium_energy_end").default(15),
+  lowEnergyStart: integer("low_energy_start").default(15),
+  lowEnergyEnd: integer("low_energy_end").default(17),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// OAuth Connections (For Google/Outlook Calendar Sync)
+export const oauthConnections = pgTable("oauth_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // 'google' | 'outlook'
+  providerAccountId: text("provider_account_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   goals: many(goals),
   tasks: many(tasks),
   calendarEvents: many(calendarEvents),
   chatMessages: many(chatMessages),
   journalEntries: many(journalEntries),
+  autoScheduleSettings: one(autoScheduleSettings, {
+    fields: [users.id],
+    references: [autoScheduleSettings.userId],
+  }),
+  oauthConnections: many(oauthConnections),
 }));
 
 export const goalsRelations = relations(goals, ({ one, many }) => ({
