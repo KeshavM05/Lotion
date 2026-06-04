@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-import { goalsApi, tasksApi, milestonesApi, journalApi, eventsApi, aiMemoryApi } from "./api-client";
+import { goalsApi, tasksApi, taskListsApi, milestonesApi, journalApi, eventsApi, aiMemoryApi } from "./api-client";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -84,6 +84,7 @@ export interface Task {
   priority: Priority;
   goalId: string | null;
   milestoneId: string | null;
+  listId: string | null;
   durationMinutes: number;
   deadline: string | null;
   scheduledStart: string | null;
@@ -95,6 +96,15 @@ export interface Task {
   tags?: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskList {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  order: number;
+  createdAt: string;
 }
 
 export interface CalendarEvent {
@@ -139,6 +149,7 @@ interface StoreContextType {
   goals: Goal[];
   milestones: Milestone[];
   tasks: Task[];
+  taskLists: TaskList[];
   events: CalendarEvent[];
   chatMessages: ChatMessage[];
   aiMemory: string;
@@ -161,6 +172,11 @@ interface StoreContextType {
   addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">) => Promise<Task>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+
+  // Task Lists
+  addTaskList: (list: Omit<TaskList, "id" | "createdAt">) => Promise<TaskList>;
+  updateTaskList: (id: string, updates: Partial<TaskList>) => Promise<void>;
+  deleteTaskList: (id: string) => Promise<void>;
 
   // Events
   addEvent: (event: Omit<CalendarEvent, "id" | "createdAt">) => Promise<CalendarEvent>;
@@ -203,6 +219,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -217,9 +234,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      const [goalsData, tasksData, journalData, eventsData, memoryData] = await Promise.all([
+      const [goalsData, tasksData, taskListsData, journalData, eventsData, memoryData] = await Promise.all([
         goalsApi.list(),
         tasksApi.list(),
+        taskListsApi.list(),
         journalApi.list(),
         eventsApi.list(),
         aiMemoryApi.get(),
@@ -236,6 +254,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setGoals(goalsData);
       setMilestones(allMilestones);
       setTasks(tasksData);
+      setTaskLists(taskListsData);
       setJournalEntries(journalData);
       setEvents(eventsData);
       setAiMemoryState(memoryData.memory || "");
@@ -382,9 +401,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const savedTask = await tasksApi.create(data);
       setTasks((prev) => prev.map((t) => (t.id === tempId ? savedTask : t)));
       return savedTask;
-    } catch (error) {
+    } catch (error: any) {
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       console.error("Failed to create task:", error);
+      alert("Failed to create task: " + error.message);
       throw error;
     }
   }, []);
@@ -421,6 +441,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       throw error;
     }
   }, [tasks, events]);
+
+  // ─── Task Lists ────────────────────────────────────────
+
+  const addTaskList = useCallback(async (list: Omit<TaskList, "id" | "createdAt">) => {
+    try {
+      const newList = await taskListsApi.create(list);
+      setTaskLists((prev) => [...prev, newList]);
+      return newList;
+    } catch (error) {
+      console.error("Failed to create task list:", error);
+      throw error;
+    }
+  }, []);
+
+  const updateTaskList = useCallback(async (id: string, updates: Partial<TaskList>) => {
+    try {
+      setTaskLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
+      await taskListsApi.update(id, updates);
+    } catch (error) {
+      console.error("Failed to update task list:", error);
+    }
+  }, []);
+
+  const deleteTaskList = useCallback(async (id: string) => {
+    try {
+      setTaskLists((prev) => prev.filter((l) => l.id !== id));
+      await taskListsApi.delete(id);
+    } catch (error) {
+      console.error("Failed to delete task list:", error);
+    }
+  }, []);
 
   // ─── Events ──────────────────────────────────────────
 
@@ -580,15 +631,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const autoSchedule = useCallback(async () => {
     try {
-      const response = await fetch('/api/tasks/auto-schedule', {
-        method: 'POST',
-      });
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to auto-schedule');
-      }
-
+      const data = await tasksApi.autoSchedule();
       console.log('Auto-schedule results:', data);
       
       // Reload tasks to get the newly scheduled dates
@@ -611,11 +654,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory, loading,
+        goals,
+        milestones,
+        tasks,
+        taskLists,
+        events,
+        chatMessages,
+        aiMemory,
+        loading,
         loadInitialData,
-        addGoal, updateGoal, deleteGoal,
-        addMilestone, updateMilestone, deleteMilestone,
-        addTask, updateTask, deleteTask,
+        addGoal,
+        updateGoal,
+        deleteGoal,
+        addMilestone,
+        updateMilestone,
+        deleteMilestone,
+        addTask,
+        updateTask,
+        deleteTask,
+        addTaskList,
+        updateTaskList,
+        deleteTaskList,
         addEvent, updateEvent, deleteEvent,
         addChatMessage, getChatMessages,
         addJournalEntry, updateJournalEntry, deleteJournalEntry,

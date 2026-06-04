@@ -40,6 +40,30 @@ export async function getAuthUser(request: NextRequest): Promise<string | null> 
 }
 
 /**
+ * Get authenticated user object from request
+ */
+export async function getAuthUserObject(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !user) {
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Auth error:", error);
+    return null;
+  }
+}
+
+/**
  * Require authentication middleware
  * Returns user ID or throws 401 error response
  */

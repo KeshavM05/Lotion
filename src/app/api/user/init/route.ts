@@ -2,8 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "@/lib/auth-server";
-import { supabase } from "@/lib/supabase";
+import { requireAuth, getAuthUserObject } from "@/lib/auth-server";
 
 // POST /api/user/init - Initialize or get user from Supabase auth
 export async function POST(request: NextRequest) {
@@ -11,7 +10,8 @@ export async function POST(request: NextRequest) {
     const supabaseUserId = await requireAuth(request);
 
     // Get Supabase user details
-    const { data: { user: supabaseUser } } = await supabase.auth.admin.getUserById(supabaseUserId);
+    const supabaseUser = await getAuthUserObject(request);
+    
     if (!supabaseUser) {
       return Response.json({ error: "Supabase user not found" }, { status: 404 });
     }

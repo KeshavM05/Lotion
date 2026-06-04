@@ -8,6 +8,7 @@ import type {
   Goal,
   Milestone,
   Task,
+  TaskList,
   CalendarEvent,
   JournalEntry,
   ChatMessage,
@@ -90,6 +91,36 @@ export const tasksApi = {
 
   delete: async (id: string): Promise<void> => {
     return apiRequest(`/tasks/${id}`, { method: "DELETE" });
+  },
+
+  autoSchedule: async (): Promise<{ message: string; scheduledCount: number }> => {
+    return apiRequest("/tasks/auto-schedule", { method: "POST" });
+  },
+};
+
+// ─── Task Lists ──────────────────────────────────────────
+
+export const taskListsApi = {
+  list: async (): Promise<TaskList[]> => {
+    return apiRequest("/task-lists");
+  },
+
+  create: async (data: Omit<TaskList, "id" | "createdAt">): Promise<TaskList> => {
+    return apiRequest("/task-lists", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: string, data: Partial<TaskList>): Promise<TaskList> => {
+    return apiRequest(`/task-lists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: string): Promise<void> => {
+    return apiRequest(`/task-lists/${id}`, { method: "DELETE" });
   },
 };
 
