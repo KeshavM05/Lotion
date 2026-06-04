@@ -66,12 +66,26 @@ export const milestones = pgTable("milestones", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Task Lists
+export const taskLists = pgTable("task_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#8b5cf6"),
+  icon: text("icon").notNull().default("circle"),
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tasks
 export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  listId: uuid("list_id").references(() => taskLists.id, { onDelete: "set null" }),
   goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
   milestoneId: uuid("milestone_id").references(() => milestones.id, { onDelete: "set null" }),
   title: text("title").notNull(),
