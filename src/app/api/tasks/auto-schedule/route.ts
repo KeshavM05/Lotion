@@ -76,8 +76,14 @@ export async function POST(request: NextRequest) {
       scheduledCount: scheduledTasks.length 
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof Response) return error;
     console.error("POST /api/tasks/auto-schedule error:", error);
-    return Response.json({ error: "Failed to run auto-scheduling" }, { status: 500 });
+    const errObj = {
+      message: error?.message,
+      stack: error?.stack,
+      raw: String(error)
+    };
+    return Response.json({ error: "Failed to run auto-scheduling: " + JSON.stringify(errObj) }, { status: 500 });
   }
 }

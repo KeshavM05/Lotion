@@ -16,6 +16,8 @@ export interface ScorerTask {
   priority: "low" | "medium" | "high" | "critical";
   scheduledStart?: Date | null;
   scheduledEnd?: Date | null;
+  durationMinutes?: number;
+  scheduleLocked?: boolean;
 }
 
 interface ProjectTask {

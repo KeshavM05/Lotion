@@ -17,21 +17,38 @@ const COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"
 type ViewMode = "day" | "week" | "month";
 
 // Helper Components
-function TaskSection({ title, count, icon, color, children }: { title: string; count: number; icon: string; color: string; children: React.ReactNode }) {
+function TaskSection({ title, count, icon, color, defaultExpanded = true, children }: { title: string; count: number; icon?: React.ReactNode; color?: string; defaultExpanded?: boolean; children: React.ReactNode }) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="material-symbols-outlined text-sm" style={{ color }}>
-          {icon}
+      <div 
+        className="flex items-center gap-2 mb-2 cursor-pointer hover:bg-white/5 p-1 rounded-md transition-colors select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <span className="material-symbols-outlined text-sm transition-transform" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+          chevron_right
         </span>
-        <h4 className="text-xs font-['Space_Grotesk'] font-semibold text-[#9CA3AF] uppercase tracking-wider">
+        {icon && (
+          typeof icon === 'string' ? (
+            <span className="material-symbols-outlined text-[16px]" style={{ color }}>{icon}</span>
+          ) : (
+            icon
+          )
+        )}
+        <h4 className="text-[13px] font-semibold flex-1" style={{ color: color || '#E5E7EB' }}>
           {title}
         </h4>
-        <span className="text-[10px] text-[#9CA3AF]">({count})</span>
+        {count > 0 && (
+          <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full text-[#9CA3AF] font-medium min-w-[20px] text-center">
+            {count}
+          </span>
+        )}
       </div>
-      <div className="space-y-2">
-        {children}
-      </div>
+      {isExpanded && (
+        <div className="space-y-1 pl-5">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -88,6 +105,21 @@ export default function CalendarPage() {
   const [taskSidebarCollapsed, setTaskSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // New Sidebar UI state
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [viewMenuPreferences, setViewMenuPreferences] = useState({
+    manageDueDates: true,
+    showScheduledTasks: false,
+    enableDueToday: true,
+    enableDueTomorrow: true,
+    enableDueSoon: true,
+    hiddenLists: [] as string[]
+  });
+
+  // New List Modal State
+  const [newListModalOpen, setNewListModalOpen] = useState(false);
+  const [newListForm, setNewListForm] = useState({ name: "", color: "#8b5cf6", icon: "circle" });
 
   // Task creation state
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -261,12 +293,48 @@ export default function CalendarPage() {
     }
 
     if (editingEvent) {
-      store.updateEvent(editingEvent.id, data);
+      if (editingEvent.source === "task") {
+        store.updateTask(editingEvent.id, {
+          title: data.title,
+          description: data.description,
+          scheduledStart: data.start,
+          scheduledEnd: data.end,
+        });
+      } else {
+        store.updateEvent(editingEvent.id, data);
+      }
     } else {
       store.addEvent({ ...data, allDay: false, taskId: null, source: "local" });
     }
     setModalOpen(false);
   }
+
+  const handleCreateList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newListForm.name.trim()) return;
+    try {
+      await store.addTaskList({
+        name: newListForm.name,
+        color: newListForm.color,
+        icon: newListForm.icon,
+        order: store.taskLists.length,
+      });
+      setNewListModalOpen(false);
+      setNewListForm({ name: "", color: "#8b5cf6", icon: "circle" });
+      setViewMenuOpen(false);
+    } catch (err) {
+      alert("Failed to create list");
+    }
+  };
+
+  const handleToggleListVisibility = (listId: string) => {
+    setViewMenuPreferences(prev => ({
+      ...prev,
+      hiddenLists: prev.hiddenLists.includes(listId) 
+        ? prev.hiddenLists.filter(id => id !== listId)
+        : [...prev.hiddenLists, listId]
+    }));
+  };
 
   function handleSaveTask() {
     if (!taskFormTitle.trim()) return;
@@ -285,6 +353,7 @@ export default function CalendarPage() {
       energyLevel: taskFormEnergy,
       timePreference: "anytime",
       tags: [],
+      listId: null,
     });
     
     setTaskModalOpen(false);
@@ -294,13 +363,40 @@ export default function CalendarPage() {
 
   function handleDelete() {
     if (editingEvent) {
-      store.deleteEvent(editingEvent.id);
+      if (editingEvent.source === "task") {
+        // Just unschedule the task from the calendar, don't delete the actual task
+        store.updateTask(editingEvent.id, {
+          scheduledStart: null,
+          scheduledEnd: null,
+          isAutoScheduled: false
+        });
+      } else {
+        store.deleteEvent(editingEvent.id);
+      }
       setModalOpen(false);
     }
   }
 
   function getEventsForDay(date: Date) {
-    return store.events.filter((e) => isSameDay(new Date(e.start), date));
+    const regularEvents = store.events.filter((e) => isSameDay(new Date(e.start), date));
+    
+    // Map scheduled tasks to look like calendar events
+    const scheduledTasksAsEvents = store.tasks
+      .filter((t) => !t.completed && t.scheduledStart && t.scheduledEnd && isSameDay(new Date(t.scheduledStart), date))
+      .map((t) => ({
+        id: t.id, // Using task id as event id for rendering
+        title: `[Task] ${t.title}`,
+        description: t.description || "",
+        start: t.scheduledStart as string,
+        end: t.scheduledEnd as string,
+        color: "#10b981", // green for tasks
+        allDay: false,
+        source: "task",
+        taskId: t.id,
+        isRecurring: false,
+      })) as CalendarEvent[];
+
+    return [...regularEvents, ...scheduledTasksAsEvents];
   }
 
   function getEventStyle(event: CalendarEvent) {
@@ -480,11 +576,18 @@ export default function CalendarPage() {
     // Create new end time (maintain duration)
     const newEnd = new Date(newStart.getTime() + duration);
 
-    // Update event
-    store.updateEvent(draggingEvent.id, {
-      start: newStart.toISOString(),
-      end: newEnd.toISOString(),
-    });
+    // Update event or task
+    if (draggingEvent.source === "task") {
+      store.updateTask(draggingEvent.id, {
+        scheduledStart: newStart.toISOString(),
+        scheduledEnd: newEnd.toISOString(),
+      });
+    } else {
+      store.updateEvent(draggingEvent.id, {
+        start: newStart.toISOString(),
+        end: newEnd.toISOString(),
+      });
+    }
 
     setDraggingEvent(null);
     setEventDragPosition(null);
@@ -512,16 +615,20 @@ export default function CalendarPage() {
     if (resizeEdge === 'top') {
       // Ensure minimum 15 minutes
       if (resizeOriginalEnd.getTime() - newTime.getTime() >= 15 * 60 * 1000) {
-        store.updateEvent(resizingEvent.id, {
-          start: newTime.toISOString(),
-        });
+        if (resizingEvent.source === "task") {
+          store.updateTask(resizingEvent.id, { scheduledStart: newTime.toISOString() });
+        } else {
+          store.updateEvent(resizingEvent.id, { start: newTime.toISOString() });
+        }
       }
     } else {
       // Ensure minimum 15 minutes
       if (newTime.getTime() - resizeOriginalStart.getTime() >= 15 * 60 * 1000) {
-        store.updateEvent(resizingEvent.id, {
-          end: newTime.toISOString(),
-        });
+        if (resizingEvent.source === "task") {
+          store.updateTask(resizingEvent.id, { scheduledEnd: newTime.toISOString() });
+        } else {
+          store.updateEvent(resizingEvent.id, { end: newTime.toISOString() });
+        }
       }
     }
   }
@@ -617,64 +724,207 @@ export default function CalendarPage() {
     <div className="flex h-full gap-4">
       {/* Task Sidebar */}
       <div
-        className={`flex-shrink-0 transition-all duration-300 ${taskSidebarCollapsed ? 'w-16' : 'w-80'} flex flex-col`}
+        className={`flex-shrink-0 transition-all duration-300 ${taskSidebarCollapsed ? 'w-16' : 'w-[340px]'} flex flex-col`}
       >
-        <div className="glass-card rounded-2xl p-4 h-full overflow-hidden flex flex-col">
+        <div className="glass-card rounded-2xl p-4 h-full overflow-visible flex flex-col bg-[#111111]/80 border-r border-white/5">
           {/* Sidebar Header */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 mb-4 border-b border-white/5 pb-3">
+            <div className="flex items-center justify-between">
+              {!taskSidebarCollapsed && (
+                <h3 className="text-xl font-semibold text-[#F5F5F5] font-['Inter']">Tasks</h3>
+              )}
+              <div className="flex items-center gap-1">
+                {!taskSidebarCollapsed && (
+                  <>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors">
+                      <span className="material-symbols-outlined text-sm">search</span>
+                    </button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors">
+                      <span className="material-symbols-outlined text-sm">filter_list</span>
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setTaskSidebarCollapsed(!taskSidebarCollapsed)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    {taskSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {!taskSidebarCollapsed && (
-              <h3 className="text-lg font-['Space_Grotesk'] font-bold text-[#F5F5F5]">Tasks</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#ff7e67] to-[#ffe3a1] shadow-sm"></div>
+                  <button className="text-[#9CA3AF] hover:text-white transition-colors">
+                    <span className="material-symbols-outlined text-lg">grid_view</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <button 
+                    onClick={() => setViewMenuOpen(!viewMenuOpen)} 
+                    className="flex items-center gap-1 text-sm font-semibold hover:bg-white/5 px-2 py-1 rounded text-[#E5E7EB]"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">tune</span>
+                    View
+                  </button>
+                  {/* POPUP MENU */}
+                  {viewMenuOpen && (
+                    <div className="absolute left-full top-0 ml-2 mt-1 w-72 bg-[#1C1C1C] border border-white/10 rounded-xl shadow-2xl z-50 p-2 flex flex-col font-['Inter',sans-serif]">
+                      <button onClick={() => { setViewMenuOpen(false); setNewListModalOpen(true); }} className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left">
+                        <span className="material-symbols-outlined text-[16px]">add</span>
+                        New task list
+                      </button>
+                      <button className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left">
+                        <span className="material-symbols-outlined text-[16px]">inventory_2</span>
+                        Show archived tasks
+                      </button>
+
+                      <div className="h-px bg-white/10 my-2"></div>
+                      
+                      <div className="px-3 py-1">
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Grouping</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-[#D1D5DB]">Group by</span>
+                          <select className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white">
+                            <option>Task list</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-[#D1D5DB]">then organise by</span>
+                          <select className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white">
+                            <option>None</option>
+                          </select>
+                        </div>
+                        <label className="flex items-center justify-between cursor-pointer group">
+                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors">Hide empty groups</span>
+                          <input type="checkbox" className="rounded border-white/20 bg-[#1C1C1C] text-[#C17A72] focus:ring-[#C17A72]" />
+                        </label>
+                      </div>
+
+                      <div className="h-px bg-white/10 my-2"></div>
+
+                      <div className="px-3 py-1">
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Filtering</div>
+                        <div className="flex items-center justify-between mb-2 text-xs text-[#9CA3AF]">
+                          <div className="flex gap-2"><button className="hover:text-white">Show all</button> | <button className="hover:text-white">None</button></div>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                          {store.taskLists.map(list => (
+                            <label key={list.id} className="flex items-center justify-between cursor-pointer group">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[16px] text-white/40 cursor-grab">drag_indicator</span>
+                                <span className="material-symbols-outlined text-[12px]" style={{ color: list.color }}>{list.icon}</span>
+                                <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">{list.name}</span>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                checked={!viewMenuPreferences.hiddenLists.includes(list.id)}
+                                onChange={() => handleToggleListVisibility(list.id)}
+                                className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" 
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="h-px bg-white/10 my-2"></div>
+
+                      <div className="px-3 py-1">
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Calendar preferences</div>
+                        <label className="flex items-center justify-between cursor-pointer group">
+                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Manage due dates on the calendar</span>
+                          <input type="checkbox" checked={viewMenuPreferences.manageDueDates} onChange={e => setViewMenuPreferences(p => ({...p, manageDueDates: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                        </label>
+                      </div>
+
+                      <div className="h-px bg-white/10 my-2"></div>
+
+                      <div className="px-3 py-1">
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Sidebar preferences</div>
+                        <div className="space-y-3">
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Show scheduled tasks</span>
+                            <input type="checkbox" checked={viewMenuPreferences.showScheduledTasks} onChange={e => setViewMenuPreferences(p => ({...p, showScheduledTasks: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                          </label>
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due today list</span>
+                            <input type="checkbox" checked={viewMenuPreferences.enableDueToday} onChange={e => setViewMenuPreferences(p => ({...p, enableDueToday: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                          </label>
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due tomorrow list</span>
+                            <input type="checkbox" checked={viewMenuPreferences.enableDueTomorrow} onChange={e => setViewMenuPreferences(p => ({...p, enableDueTomorrow: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                          </label>
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due soon list</span>
+                            <input type="checkbox" checked={viewMenuPreferences.enableDueSoon} onChange={e => setViewMenuPreferences(p => ({...p, enableDueSoon: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                          </label>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-            <button
-              onClick={() => setTaskSidebarCollapsed(!taskSidebarCollapsed)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">
-                {taskSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
-              </span>
-            </button>
           </div>
 
           {/* Task Lists */}
           {!taskSidebarCollapsed && (
-            <div className="flex-1 overflow-y-auto space-y-4">
-              {/* Overdue */}
+            <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+              {/* Time Based Lists */}
               {overdueTasks.length > 0 && (
-                <TaskSection title="Overdue" count={overdueTasks.length} icon="error" color="#ef4444">
-                  {overdueTasks.map(task => (
-                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
-                  ))}
+                <TaskSection title="Overdue" count={overdueTasks.length} icon="schedule" color="#ef4444" defaultExpanded={false}>
+                  {overdueTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                </TaskSection>
+              )}
+              
+              {viewMenuPreferences.enableDueToday && todayTasks.length > 0 && (
+                <TaskSection title="Due today" count={todayTasks.length} icon="light_mode" color="#f59e0b" defaultExpanded={true}>
+                  {todayTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
                 </TaskSection>
               )}
 
-              {/* Due Today */}
-              <TaskSection title="Due today" count={todayTasks.length} icon="today" color="#f59e0b">
-                {todayTasks.map(task => (
-                  <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
-                ))}
-              </TaskSection>
-
-              {/* Due Tomorrow */}
-              {tomorrowTasks.length > 0 && (
-                <TaskSection title="Due tomorrow" count={tomorrowTasks.length} icon="event" color="#3b82f6">
-                  {tomorrowTasks.map(task => (
-                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
-                  ))}
+              {viewMenuPreferences.enableDueTomorrow && tomorrowTasks.length > 0 && (
+                <TaskSection title="Due tomorrow" count={tomorrowTasks.length} icon="arrow_forward_ios" color="#f59e0b" defaultExpanded={false}>
+                  {tomorrowTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
                 </TaskSection>
               )}
 
-              {/* Upcoming */}
-              {upcomingTasks.length > 0 && (
-                <TaskSection title="Upcoming" count={upcomingTasks.length} icon="schedule" color="#9CA3AF">
-                  {upcomingTasks.slice(0, 5).map(task => (
-                    <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />
-                  ))}
+              {viewMenuPreferences.enableDueSoon && upcomingTasks.length > 0 && (
+                <TaskSection title="Due soon" count={upcomingTasks.length} icon="terrain" color="#f59e0b" defaultExpanded={false}>
+                  {upcomingTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
                 </TaskSection>
               )}
+
+              {/* Separator */}
+              <div className="h-px bg-white/5 my-3"></div>
+
+              {/* Custom Lists from Store */}
+              {store.taskLists
+                .filter(list => !viewMenuPreferences.hiddenLists.includes(list.id))
+                .sort((a, b) => a.order - b.order)
+                .map((list) => {
+                  const listTasks = store.tasks.filter(t => 
+                    !t.completed && 
+                    (!viewMenuPreferences.showScheduledTasks ? !t.scheduledStart : true) &&
+                    t.listId === list.id
+                  );
+                  
+                  return (
+                    <TaskSection key={list.id} title={list.name} count={listTasks.length} icon={list.icon} color={list.color} defaultExpanded={true}>
+                      {listTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                    </TaskSection>
+                  );
+              })}
+
               {/* Add Task Button */}
               <button
                 onClick={() => setTaskModalOpen(true)}
-                className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-white/20 text-[#9CA3AF] hover:text-white hover:border-white/40 hover:bg-white/5 transition-all"
+                className="w-full mt-4 flex items-center gap-2 px-2 py-2 rounded-xl text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-all text-left"
               >
                 <span className="material-symbols-outlined text-lg">add</span>
                 <span className="text-sm font-medium">Add Task</span>
@@ -1372,6 +1622,72 @@ export default function CalendarPage() {
             </div>
           </div>
         </Modal>
+
+      {/* New Task List Modal */}
+      {newListModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-card rounded-2xl w-full max-w-md p-6 border border-white/10 shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-6">New Task List</h2>
+            <form onSubmit={handleCreateList} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Name</label>
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  value={newListForm.name}
+                  onChange={(e) => setNewListForm({ ...newListForm, name: e.target.value })}
+                  className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#C17A72]"
+                  placeholder="e.g., Groceries, Project X"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Color</label>
+                  <input
+                    type="color"
+                    value={newListForm.color}
+                    onChange={(e) => setNewListForm({ ...newListForm, color: e.target.value })}
+                    className="w-full h-10 rounded-xl cursor-pointer bg-transparent border-0 p-0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Icon</label>
+                  <select
+                    value={newListForm.icon}
+                    onChange={(e) => setNewListForm({ ...newListForm, icon: e.target.value })}
+                    className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#C17A72]"
+                  >
+                    <option value="circle">Circle</option>
+                    <option value="inbox">Inbox</option>
+                    <option value="work">Work</option>
+                    <option value="home">Home</option>
+                    <option value="school">School</option>
+                    <option value="star">Star</option>
+                    <option value="favorite">Heart</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setNewListModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newListForm.name.trim()}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-white text-black hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Create List
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
         {/* Task Modal */}
         <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title="New Task">

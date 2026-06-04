@@ -1,6 +1,7 @@
-import { AutoScheduleSettings } from "@/types/settings";
+import { AutoScheduleSettings } from "./types";
 
-export function parseWorkDays(workDays: string): number[] {
+export function parseWorkDays(workDays: string | number[]): number[] {
+  if (Array.isArray(workDays)) return workDays;
   try {
     return JSON.parse(workDays);
   } catch {
