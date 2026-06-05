@@ -11,7 +11,7 @@ import { CommandPalette } from '@/components/ui/command-palette';
 import { QuickCaptureOverlay, useQuickCapture } from '@/components/ui/quick-capture';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
 import { StoreProvider, useStore } from '@/lib/store';
-import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
+import { SidebarProvider } from '@/lib/sidebar-context';
 import { PageHeaderProvider } from '@/lib/page-header-context';
 import { useAuth } from '@/lib/auth-context';
 import { initializeUser } from '@/lib/api-client';
