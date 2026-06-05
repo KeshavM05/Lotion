@@ -74,18 +74,6 @@ export default function TasksPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
-
-  // List-view drag-to-reorder state
-  const [listDraggedId, setListDraggedId] = useState<string | null>(null);
-  const [listDragOverId, setListDragOverId] = useState<string | null>(null);
-  const [listOrderMap, setListOrderMap] = useState<Record<string, number>>(() => {
-    try {
-      const raw = localStorage.getItem('lotion:task-order');
-      return raw ? (JSON.parse(raw) as Record<string, number>) : {};
-    } catch {
-      return {};
-    }
-  });
   const [showProjects, setShowProjects] = useState(true);
 
   // Advanced filters
@@ -396,80 +384,14 @@ export default function TasksPage() {
     setDraggedTask(null);
   }
 
-  function handleListDragStart(taskId: string, e: React.DragEvent) {
-    e.stopPropagation();
-    e.dataTransfer.effectAllowed = 'move';
-    setListDraggedId(taskId);
-  }
-
-  function handleListDragEnd() {
-    setListDraggedId(null);
-    setListDragOverId(null);
-  }
-
-  function handleListDragOver(taskId: string, e: React.DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (taskId !== listDraggedId) setListDragOverId(taskId);
-  }
-
-  function handleListDrop(targetId: string, e: React.DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!listDraggedId || listDraggedId === targetId) {
-      setListDraggedId(null);
-      setListDragOverId(null);
-      return;
-    }
-    // Build new order from the currently displayed `sortedForList`
-    const ids = sortedForList.map((t) => t.id);
-    const fromIdx = ids.indexOf(listDraggedId);
-    const toIdx = ids.indexOf(targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const reordered = [...ids];
-    reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, listDraggedId);
-    const newMap: Record<string, number> = {};
-    reordered.forEach((id, i) => {
-      newMap[id] = i;
-    });
-    setListOrderMap(newMap);
-    try {
-      localStorage.setItem('lotion:task-order', JSON.stringify(newMap));
-    } catch {
-      // ignore
-    }
-    setListDraggedId(null);
-    setListDragOverId(null);
-  }
-
-  // Apply manual order when in flat list view (no groups)
-  const sortedForList = (() => {
-    if (groups !== null || viewMode !== 'list') return sorted;
-    return [...sorted].sort((a, b) => {
-      const oa = listOrderMap[a.id] ?? Infinity;
-      const ob = listOrderMap[b.id] ?? Infinity;
-      if (oa !== ob) return oa - ob;
-      return sorted.indexOf(a) - sorted.indexOf(b);
-    });
-  })();
-
-  function renderTaskRow(task: Task, draggable?: boolean) {
+  function renderTaskRow(task: Task) {
     const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
     const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
-    const isDragging = draggable && listDraggedId === task.id;
-    const isDragOver = draggable && listDragOverId === task.id;
 
     return (
       <div key={task.id}>
-        {isDragOver && <div className="h-0.5 mx-4 rounded-full bg-[#C17A72] opacity-80 mb-0.5" />}
         <div
-          draggable={draggable}
-          onDragStart={draggable ? (e) => handleListDragStart(task.id, e) : undefined}
-          onDragEnd={draggable ? handleListDragEnd : undefined}
-          onDragOver={draggable ? (e) => handleListDragOver(task.id, e) : undefined}
-          onDrop={draggable ? (e) => handleListDrop(task.id, e) : undefined}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02] ${isDragging ? 'opacity-40' : ''}`}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
           onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
         >
           <button
@@ -533,22 +455,30 @@ export default function TasksPage() {
           >
             <span className="material-symbols-outlined text-sm">delete</span>
           </button>
-          {draggable && (
-            <span
-              className="opacity-0 group-hover:opacity-60 material-symbols-outlined text-sm text-[#9CA3AF] cursor-grab active:cursor-grabbing flex-shrink-0 select-none"
-              onClick={(e) => e.stopPropagation()}
-            >
-              drag_indicator
-            </span>
-          )}
         </div>
+        {expandedTaskId === task.id && (
+          <InlineTaskDetail
+            key={task.id + '-detail'}
+            task={task}
+            goals={goals}
+            onSave={(updates) => {
+              updateTaskMutation.mutate({ id: task.id, updates });
+              setExpandedTaskId(null);
+            }}
+            onCancel={() => setExpandedTaskId(null)}
+            onDelete={(id) => {
+              deleteTaskMutation.mutate(id);
+              setExpandedTaskId(null);
+            }}
+          />
+        )}
       </div>
     );
   }
 
   function renderListContent() {
     if (!groups) {
-      if (sortedForList.length === 0) {
+      if (sorted.length === 0) {
         return (
           <div className="text-center py-20 text-[#9CA3AF]">
             <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">
@@ -560,11 +490,7 @@ export default function TasksPage() {
           </div>
         );
       }
-      return (
-        <div className="space-y-1 max-w-3xl">
-          {sortedForList.map((t) => renderTaskRow(t, true))}
-        </div>
-      );
+      return <div className="space-y-1 max-w-3xl">{sorted.map(renderTaskRow)}</div>;
     }
 
     if (groups.length === 0) {
@@ -619,7 +545,7 @@ export default function TasksPage() {
               </button>
               {!isCollapsed && (
                 <div className="space-y-1 pl-2 border-l border-white/5">
-                  {group.tasks.map((t) => renderTaskRow(t))}
+                  {group.tasks.map(renderTaskRow)}
                 </div>
               )}
             </div>
