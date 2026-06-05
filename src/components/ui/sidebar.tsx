@@ -17,9 +17,6 @@ const navItems = [
   { href: '/analytics', label: 'Analytics', icon: 'bar_chart' },
 ];
 
-// Collapsed w-20 = 80px, icon w-10 = 40px → need 20px each side = px-5
-// Expanded nav items use the same px-5 so icon never moves horizontally
-
 export function Sidebar() {
   const pathname = usePathname();
   const store = useStore();
@@ -49,7 +46,7 @@ export function Sidebar() {
             <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse"></div>
           </div>
           {!collapsed && (
-            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight">
+            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight whitespace-nowrap">
               Lotion
             </h1>
           )}
@@ -65,7 +62,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const count = item.href === '/goals' ? activeGoals : 0;
@@ -75,9 +72,9 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 px-5 py-2.5 rounded-lg transition-colors group ${
+              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group ${
                 isActive
-                  ? "relative text-[#F5F5F5] font-bold bg-white/5 before:content-[''] before:absolute before:left-0 before:w-[2px] before:h-6 before:bg-[#C17A72]"
+                  ? "text-[#F5F5F5] font-bold bg-white/5 before:content-[''] before:absolute before:left-0 before:w-[2px] before:h-6 before:bg-[#C17A72]"
                   : 'text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5'
               }`}
             >
@@ -86,21 +83,19 @@ export function Sidebar() {
               >
                 {item.icon}
               </span>
-              {!collapsed && (
-                <>
-                  <span className="font-['Space_Grotesk'] text-sm tracking-wide flex-1">
-                    {item.label}
-                  </span>
-                  {count > 0 && (
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded-md ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </>
+              <span
+                className={`font-['Space_Grotesk'] text-sm tracking-wide flex-1 whitespace-nowrap transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+              >
+                {item.label}
+              </span>
+              {count > 0 && (
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'} ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500'
+                  }`}
+                >
+                  {count}
+                </span>
               )}
             </Link>
           );
@@ -108,22 +103,30 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="flex-shrink-0 space-y-2 pt-4 mt-4 border-t border-white/5">
+      <div className="flex-shrink-0 space-y-1 pt-4 mt-4 border-t border-white/5 px-2">
         <Link
           href="/settings"
           title={collapsed ? 'Settings' : undefined}
-          className="flex items-center gap-3 px-5 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
+          className="relative flex items-center gap-3 px-3 py-2.5 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
         >
           <span className="material-symbols-outlined text-xl flex-shrink-0">settings</span>
-          {!collapsed && 'Settings'}
+          <span
+            className={`font-['Space_Grotesk'] text-sm whitespace-nowrap transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+          >
+            Settings
+          </span>
         </Link>
         <Link
           href="/support"
           title={collapsed ? 'Support' : undefined}
-          className="flex items-center gap-3 px-5 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
+          className="relative flex items-center gap-3 px-3 py-2.5 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
         >
           <span className="material-symbols-outlined text-xl flex-shrink-0">help_outline</span>
-          {!collapsed && 'Support'}
+          <span
+            className={`font-['Space_Grotesk'] text-sm whitespace-nowrap transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+          >
+            Support
+          </span>
         </Link>
       </div>
     </aside>
