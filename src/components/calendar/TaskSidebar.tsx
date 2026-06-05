@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useStore } from '@/lib/store';
+import { useStore, type Task } from '@/lib/store';
 import { isSameDay } from '@/lib/utils';
 import type { ViewMenuPreferences } from './types';
 
@@ -58,9 +58,9 @@ function TaskSection({
 }
 
 interface TaskItemProps {
-  task: any;
+  task: Task;
   store: ReturnType<typeof useStore>;
-  onDragStart: (task: any, e: React.DragEvent) => void;
+  onDragStart: (task: Task, e: React.DragEvent) => void;
   onDragEnd: () => void;
 }
 
@@ -117,7 +117,7 @@ interface TaskSidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onAddTask: () => void;
-  onDragStart: (task: any, e: React.DragEvent) => void;
+  onDragStart: (task: Task, e: React.DragEvent) => void;
   onDragEnd: () => void;
   viewMenuPreferences: ViewMenuPreferences;
   onViewMenuPreferencesChange: (patch: Partial<ViewMenuPreferences>) => void;

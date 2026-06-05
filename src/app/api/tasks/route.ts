@@ -1,10 +1,10 @@
-import { NextRequest } from "next/server";
-import { db } from "@/db";
-import { tasks } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { requireAuth, getInternalUser } from "@/lib/auth-server";
-import { validateBody } from "@/lib/api-middleware";
-import { createTaskSchema } from "@/lib/validation/schemas";
+import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { tasks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { createTaskSchema } from '@/lib/validation/schemas';
 
 // GET /api/tasks - Get all tasks for user
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     const userTasks = await db.query.tasks.findMany({
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userTasks);
   } catch (error) {
-    console.error("GET /api/tasks error:", error);
-    return Response.json({ error: "Failed to fetch tasks" }, { status: 500 });
+    console.error('GET /api/tasks error:', error);
+    return Response.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
 }
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { data, error } = await validateBody(request, createTaskSchema);
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       .values({
         userId: user.id,
         title,
-        description: description ?? "",
+        description: description ?? '',
         status,
         priority,
         goalId: goalId ?? null,
@@ -80,8 +80,11 @@ export async function POST(request: NextRequest) {
       .returning();
 
     return Response.json(task, { status: 201 });
-  } catch (error: any) {
-    console.error("POST /api/tasks error:", error);
-    return Response.json({ error: error.message || "Failed to create task" }, { status: 500 });
+  } catch (error) {
+    console.error('POST /api/tasks error:', error);
+    return Response.json(
+      { error: error instanceof Error ? error.message : 'Failed to create task' },
+      { status: 500 }
+    );
   }
 }

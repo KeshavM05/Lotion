@@ -43,7 +43,13 @@ export function GoalProgressChart({ milestones, goalTitle }: GoalProgressChartPr
     );
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: { payload: (typeof data)[number] }[];
+  }) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (

@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
-import { useStore, type CalendarEvent } from '@/lib/store';
+import { useStore, type CalendarEvent, type Task } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
-import { isSameDay, toLocalDatetimeStringTz, getWeekDates } from '@/lib/utils';
+import { isSameDay, toLocalDatetimeString, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 
 import CalendarHeader from '@/components/calendar/CalendarHeader';
@@ -61,7 +60,7 @@ interface CalendarState {
   resize: ResizeState;
 
   // Task drag
-  draggingTask: any | null;
+  draggingTask: Task | null;
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -93,7 +92,7 @@ type Action =
   | { type: 'EVENT_DRAG_END' }
   | { type: 'RESIZE_START'; event: CalendarEvent; edge: 'top' | 'bottom' }
   | { type: 'RESIZE_END' }
-  | { type: 'TASK_DRAG_START'; task: any }
+  | { type: 'TASK_DRAG_START'; task: Task }
   | { type: 'TASK_DRAG_END' };
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
@@ -385,8 +384,8 @@ export default function CalendarPage() {
       form: {
         title: '',
         description: '',
-        start: toLocalDatetimeStringTz(s),
-        end: toLocalDatetimeStringTz(e),
+        start: toLocalDatetimeString(s),
+        end: toLocalDatetimeString(e),
         color: '#8b5cf6',
         isRecurring: false,
         recurrenceFrequency: 'weekly',
@@ -404,8 +403,8 @@ export default function CalendarPage() {
       form: {
         title: event.title,
         description: event.description,
-        start: toLocalDatetimeStringTz(new Date(event.start)),
-        end: toLocalDatetimeStringTz(new Date(event.end)),
+        start: toLocalDatetimeString(new Date(event.start)),
+        end: toLocalDatetimeString(new Date(event.end)),
         color: event.color,
         isRecurring: event.isRecurring || false,
         recurrenceFrequency: event.recurrenceFrequency || 'weekly',
@@ -420,23 +419,23 @@ export default function CalendarPage() {
 
   function handleSave() {
     if (!form.title.trim()) return;
-    const data: any = {
+    const data: Omit<CalendarEvent, 'id' | 'createdAt' | 'allDay' | 'taskId' | 'source'> = {
       title: form.title.trim(),
       description: form.description.trim(),
       start: new Date(form.start).toISOString(),
       end: new Date(form.end).toISOString(),
       color: form.color,
       isRecurring: form.isRecurring,
+      ...(form.isRecurring && {
+        recurrenceFrequency: form.recurrenceFrequency,
+        recurrenceInterval: form.recurrenceInterval,
+        recurrenceEndDate: form.recurrenceEndDate
+          ? new Date(form.recurrenceEndDate).toISOString()
+          : null,
+        recurrenceDaysOfWeek:
+          form.recurrenceFrequency === 'weekly' ? form.recurrenceDaysOfWeek : [],
+      }),
     };
-    if (form.isRecurring) {
-      data.recurrenceFrequency = form.recurrenceFrequency;
-      data.recurrenceInterval = form.recurrenceInterval;
-      data.recurrenceEndDate = form.recurrenceEndDate
-        ? new Date(form.recurrenceEndDate).toISOString()
-        : null;
-      data.recurrenceDaysOfWeek =
-        form.recurrenceFrequency === 'weekly' ? form.recurrenceDaysOfWeek : [];
-    }
 
     if (editingEvent) {
       if (editingEvent.source === 'task') {
@@ -498,7 +497,7 @@ export default function CalendarPage() {
       });
       dispatch({ type: 'CLOSE_NEW_LIST_MODAL' });
     } catch {
-      toast.error('Failed to create list');
+      alert('Failed to create list');
     }
   };
 
@@ -906,16 +905,10 @@ export default function CalendarPage() {
         }}
         onDelete={() => {
           if (quickViewEvent) {
-            const eventToDelete = quickViewEvent;
-            dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
-            toast('Delete this event?', {
-              action: {
-                label: 'Delete',
-                onClick: () => store.deleteEvent(eventToDelete.id),
-              },
-              cancel: { label: 'Cancel', onClick: () => {} },
-              duration: 6000,
-            });
+            if (confirm('Are you sure you want to delete this event?')) {
+              store.deleteEvent(quickViewEvent.id);
+              dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
+            }
           }
         }}
         anchorElement={quickViewAnchor}

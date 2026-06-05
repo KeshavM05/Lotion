@@ -1,10 +1,6 @@
-import { EnergyLevel, SlotScore, TimeSlot, AutoScheduleSettings } from "./types";
-import { getEnergyLevelForTime } from "./autoSchedule";
-import {
-  differenceInHours,
-  differenceInMinutes,
-  newDate,
-} from "./date-utils";
+import { EnergyLevel, SlotScore, TimeSlot, AutoScheduleSettings } from './types';
+import { getEnergyLevelForTime } from './autoSchedule';
+import { differenceInHours, differenceInMinutes, newDate } from './date-utils';
 
 // Assuming a simplified Task type for the scorer
 export interface ScorerTask {
@@ -13,7 +9,7 @@ export interface ScorerTask {
   timePreference?: string | null;
   deadline?: Date | null;
   goalId?: string | null;
-  priority: "low" | "medium" | "high" | "critical";
+  priority: 'low' | 'medium' | 'high' | 'critical';
   scheduledStart?: Date | null;
   scheduledEnd?: Date | null;
   durationMinutes?: number;
@@ -88,13 +84,10 @@ export class SlotScorer {
   private scoreEnergyLevelMatch(slot: TimeSlot, task: ScorerTask): number {
     if (!task.energyLevel) return 0.5;
 
-    const slotEnergy = getEnergyLevelForTime(
-      slot.start.getHours(),
-      this.settings as any
-    );
+    const slotEnergy = getEnergyLevelForTime(slot.start.getHours(), this.settings);
     if (!slotEnergy) return 0.5;
 
-    const energyLevels: EnergyLevel[] = ["high", "medium", "low"];
+    const energyLevels: EnergyLevel[] = ['high', 'medium', 'low'];
     const taskEnergyIndex = energyLevels.indexOf(task.energyLevel as EnergyLevel);
     const slotEnergyIndex = energyLevels.indexOf(slotEnergy as EnergyLevel);
 
@@ -108,7 +101,7 @@ export class SlotScorer {
   }
 
   private scoreTimePreference(slot: TimeSlot, task: ScorerTask): number {
-    if (task.timePreference && task.timePreference !== "anytime") {
+    if (task.timePreference && task.timePreference !== 'anytime') {
       const hour = slot.start.getHours();
       const preference = task.timePreference;
       const ranges = {
@@ -118,7 +111,7 @@ export class SlotScorer {
       };
       const range = ranges[preference as keyof typeof ranges];
       if (range) {
-         return hour >= range.start && hour < range.end ? 1 : 0;
+        return hour >= range.start && hour < range.end ? 1 : 0;
       }
     }
 
@@ -164,11 +157,16 @@ export class SlotScorer {
 
   private scorePriority(task: ScorerTask): number {
     switch (task.priority) {
-      case "critical": return 1.0;
-      case "high": return 0.8;
-      case "medium": return 0.5;
-      case "low": return 0.25;
-      default: return 0.25;
+      case 'critical':
+        return 1.0;
+      case 'high':
+        return 0.8;
+      case 'medium':
+        return 0.5;
+      case 'low':
+        return 0.25;
+      default:
+        return 0.25;
     }
   }
 

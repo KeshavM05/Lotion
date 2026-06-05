@@ -21,6 +21,8 @@ import {
 } from './api-client';
 import { AsyncQueue } from './async-queue';
 
+const errMsg = (e: unknown): string | undefined => (e instanceof Error ? e.message : undefined);
+
 // ─── Types ───────────────────────────────────────────────
 
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
@@ -122,8 +124,6 @@ export interface TaskList {
   color: string;
   icon: string;
   order: number;
-  archived: boolean;
-  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -198,13 +198,9 @@ interface StoreContextType {
   deleteTask: (id: string) => Promise<void>;
 
   // Task Lists
-  addTaskList: (
-    list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>
-  ) => Promise<TaskList>;
+  addTaskList: (list: Omit<TaskList, 'id' | 'createdAt'>) => Promise<TaskList>;
   updateTaskList: (id: string, updates: Partial<TaskList>) => Promise<void>;
   deleteTaskList: (id: string) => Promise<void>;
-  archiveTaskList: (id: string) => Promise<void>;
-  restoreTaskList: (id: string) => Promise<void>;
 
   // Events
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<CalendarEvent>;
@@ -322,7 +318,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       // Extract milestones from goals
       const allMilestones: Milestone[] = [];
-      goalsData.forEach((goal: any) => {
+      (goalsData as Array<Goal & { milestones?: Milestone[] }>).forEach((goal) => {
         if (goal.milestones && Array.isArray(goal.milestones)) {
           allMilestones.push(...goal.milestones);
         }
@@ -366,7 +362,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // Fix (d): remove only the optimistic item, don't clobber concurrent changes
         setGoals((prev) => prev.filter((g) => g.id !== tempId));
         console.error('Failed to create goal:', error);
-        toast.error('Failed to create goal', { description: (error as any)?.message });
+        toast.error('Failed to create goal', { description: errMsg(error) });
         throw error;
       }
     });
@@ -386,7 +382,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         setGoals(snapshot);
         console.error('Failed to update goal:', error);
-        toast.error('Failed to update goal', { description: (error as any)?.message });
+        toast.error('Failed to update goal', { description: errMsg(error) });
         throw error;
       }
     });
@@ -415,7 +411,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setTasks(snapshotTasks);
         setChatMessages(snapshotMessages);
         console.error('Failed to delete goal:', error);
-        toast.error('Failed to delete goal', { description: (error as any)?.message });
+        toast.error('Failed to delete goal', { description: errMsg(error) });
         throw error;
       }
     });
@@ -442,7 +438,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         setMilestones((prev) => prev.filter((m) => m.id !== tempId));
         console.error('Failed to create milestone:', error);
-        toast.error('Failed to create milestone', { description: (error as any)?.message });
+        toast.error('Failed to create milestone', { description: errMsg(error) });
         throw error;
       }
     },
@@ -459,7 +455,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setMilestones(snapshot);
       console.error('Failed to update milestone:', error);
-      toast.error('Failed to update milestone', { description: (error as any)?.message });
+      toast.error('Failed to update milestone', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -477,7 +473,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setMilestones(snapshotMilestones);
       setTasks(snapshotTasks);
       console.error('Failed to delete milestone:', error);
-      toast.error('Failed to delete milestone', { description: (error as any)?.message });
+      toast.error('Failed to delete milestone', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -526,7 +522,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         setTasks(snapshot);
         console.error('Failed to update task:', error);
-        toast.error('Failed to update task', { description: (error as any)?.message });
+        toast.error('Failed to update task', { description: errMsg(error) });
         throw error;
       }
     });
@@ -546,7 +542,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setTasks(snapshotTasks);
         setEvents(snapshotEvents);
         console.error('Failed to delete task:', error);
-        toast.error('Failed to delete task', { description: (error as any)?.message });
+        toast.error('Failed to delete task', { description: errMsg(error) });
         throw error;
       }
     });
@@ -554,20 +550,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Task Lists ────────────────────────────────────────
 
-  const addTaskList = useCallback(
-    async (list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>) => {
-      try {
-        const newList = await taskListsApi.create({ ...list, archived: false, archivedAt: null });
-        setTaskLists((prev) => [...prev, newList]);
-        return newList;
-      } catch (error) {
-        console.error('Failed to create task list:', error);
-        toast.error('Failed to create task list', { description: (error as any)?.message });
-        throw error;
-      }
-    },
-    []
-  );
+  const addTaskList = useCallback(async (list: Omit<TaskList, 'id' | 'createdAt'>) => {
+    try {
+      const newList = await taskListsApi.create(list);
+      setTaskLists((prev) => [...prev, newList]);
+      return newList;
+    } catch (error) {
+      console.error('Failed to create task list:', error);
+      toast.error('Failed to create task list', { description: errMsg(error) });
+      throw error;
+    }
+  }, []);
 
   const updateTaskList = useCallback(async (id: string, updates: Partial<TaskList>) => {
     try {
@@ -575,7 +568,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await taskListsApi.update(id, updates);
     } catch (error) {
       console.error('Failed to update task list:', error);
-      toast.error('Failed to update task list', { description: (error as any)?.message });
+      toast.error('Failed to update task list', { description: errMsg(error) });
     }
   }, []);
 
@@ -585,35 +578,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await taskListsApi.delete(id);
     } catch (error) {
       console.error('Failed to delete task list:', error);
-      toast.error('Failed to delete task list', { description: (error as any)?.message });
-    }
-  }, []);
-
-  const archiveTaskList = useCallback(async (id: string) => {
-    const now = new Date().toISOString();
-    try {
-      setTaskLists((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, archived: true, archivedAt: now } : l))
-      );
-      await taskListsApi.update(id, { archived: true, archivedAt: now });
-    } catch (error) {
-      console.error('Failed to archive task list:', error);
-      setTaskLists((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, archived: false, archivedAt: null } : l))
-      );
-      toast.error('Failed to archive task list', { description: (error as any)?.message });
-    }
-  }, []);
-
-  const restoreTaskList = useCallback(async (id: string) => {
-    try {
-      setTaskLists((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, archived: false, archivedAt: null } : l))
-      );
-      await taskListsApi.update(id, { archived: false, archivedAt: null });
-    } catch (error) {
-      console.error('Failed to restore task list:', error);
-      toast.error('Failed to restore task list', { description: (error as any)?.message });
+      toast.error('Failed to delete task list', { description: errMsg(error) });
     }
   }, []);
 
@@ -635,7 +600,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents((prev) => prev.filter((e) => e.id !== tempId));
       console.error('Failed to create event:', error);
-      toast.error('Failed to create event', { description: (error as any)?.message });
+      toast.error('Failed to create event', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -650,7 +615,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents(snapshot);
       console.error('Failed to update event:', error);
-      toast.error('Failed to update event', { description: (error as any)?.message });
+      toast.error('Failed to update event', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -664,7 +629,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents(snapshot);
       console.error('Failed to delete event:', error);
-      toast.error('Failed to delete event', { description: (error as any)?.message });
+      toast.error('Failed to delete event', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -706,7 +671,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         setJournalEntries((prev) => prev.filter((e) => e.id !== tempId));
         console.error('Failed to create journal entry:', error);
-        toast.error('Failed to save journal entry', { description: (error as any)?.message });
+        toast.error('Failed to save journal entry', { description: errMsg(error) });
         throw error;
       }
     },
@@ -725,7 +690,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setJournalEntries(snapshot);
       console.error('Failed to update journal entry:', error);
-      toast.error('Failed to update journal entry', { description: (error as any)?.message });
+      toast.error('Failed to update journal entry', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -739,7 +704,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setJournalEntries(snapshot);
       console.error('Failed to delete journal entry:', error);
-      toast.error('Failed to delete journal entry', { description: (error as any)?.message });
+      toast.error('Failed to delete journal entry', { description: errMsg(error) });
       throw error;
     }
   }, []);
@@ -768,7 +733,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           setAiMemoryState(snapshot);
           console.error('Failed to update AI memory:', error);
-          toast.error('Failed to save AI memory', { description: (error as any)?.message });
+          toast.error('Failed to save AI memory', { description: errMsg(error) });
           reject(error);
         }
       }, 300);
@@ -851,8 +816,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addTaskList,
         updateTaskList,
         deleteTaskList,
-        archiveTaskList,
-        restoreTaskList,
         addEvent,
         updateEvent,
         deleteEvent,
