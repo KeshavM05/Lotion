@@ -105,7 +105,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           {/* Background Bloom Elements */}
           <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#C17A72]/5 blur-[120px] rounded-full -z-10"></div>
           <div className="fixed bottom-[10%] left-[5%] w-[300px] h-[300px] bg-[#BEC6DF]/5 blur-[100px] rounded-full -z-10"></div>
-          <main className="flex-1 overflow-y-auto pb-8 px-4 md:px-8">
+          <main className="flex-1 overflow-y-auto pt-6 pb-8 px-4 md:px-8">
             <div className="max-w-7xl mx-auto">{children}</div>
           </main>
         </div>
