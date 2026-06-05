@@ -28,10 +28,11 @@ export function Sidebar() {
     <aside
       className={`flex-shrink-0 h-screen sticky top-0 ${collapsed ? 'w-20' : 'w-64'} bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-40 flex flex-col py-6 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)] transition-all duration-300`}
     >
-      {/* Logo + Toggle */}
-      <div className="mb-10 px-4">
-        <div
-          className={`relative flex items-center mb-2 ${collapsed ? 'justify-center' : 'gap-3'}`}
+      {/* Logo — click to toggle */}
+      <div className="mb-10 px-2">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3'} mb-2 rounded-xl hover:bg-white/5 py-1.5 px-2 transition-colors`}
         >
           <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
@@ -45,19 +46,11 @@ export function Sidebar() {
             <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse"></div>
           </div>
           {!collapsed && (
-            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight flex-1">
+            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight">
               Lotion
             </h1>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={`flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors flex-shrink-0 ${collapsed ? 'absolute right-0' : ''}`}
-          >
-            <span className="material-symbols-outlined text-lg">
-              {collapsed ? 'chevron_right' : 'chevron_left'}
-            </span>
-          </button>
-        </div>
+        </button>
         {!collapsed && (
           <div className="flex items-center gap-2 ml-[52px]">
             <div className="h-px flex-1 bg-gradient-to-r from-[#C17A72]/50 to-transparent"></div>
