@@ -62,7 +62,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto pr-2">
+      <nav className="flex-1 space-y-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const count = item.href === '/goals' ? activeGoals : 0;
@@ -72,7 +72,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-4 py-2.5 rounded-lg transition-colors group ${
+              className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2.5 rounded-lg transition-colors group ${
                 isActive
                   ? "relative text-[#F5F5F5] font-bold bg-white/5 before:content-[''] before:absolute before:left-0 before:w-[2px] before:h-6 before:bg-[#C17A72]"
                   : 'text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5'
@@ -109,7 +109,7 @@ export function Sidebar() {
         <Link
           href="/settings"
           title={collapsed ? 'Settings' : undefined}
-          className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-4 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
+          className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
         >
           <span className="material-symbols-outlined text-xl">settings</span>
           {!collapsed && 'Settings'}
@@ -117,7 +117,7 @@ export function Sidebar() {
         <Link
           href="/support"
           title={collapsed ? 'Support' : undefined}
-          className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-4 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
+          className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
         >
           <span className="material-symbols-outlined text-xl">help_outline</span>
           {!collapsed && 'Support'}
