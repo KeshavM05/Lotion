@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       scheduledCount: scheduledTasks.length,
     });
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof Response) throw error;
     console.error('POST /api/tasks/auto-schedule error:', error);
     const errObj = {
       message: error instanceof Error ? error.message : undefined,

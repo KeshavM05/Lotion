@@ -3,8 +3,6 @@ import { db } from '@/db';
 import { milestones } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
-import { validateBody } from '@/lib/api-middleware';
-import { updateMilestoneSchema } from '@/lib/validation/schemas';
 
 // PATCH /api/milestones/[id] - Update milestone
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,8 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const { data, error } = await validateBody(request, updateMilestoneSchema);
-    if (error) return error;
+    const body = await request.json();
 
     // Get milestone with goal to verify ownership
     const milestone = await db.query.milestones.findFirst({
@@ -30,20 +27,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Milestone not found' }, { status: 404 });
     }
 
-    const { targetDate, completed, completedAt, ...rest } = data;
-
     const [updated] = await db
       .update(milestones)
       .set({
-        ...rest,
-        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
+        ...body,
+        targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
         completedAt:
-          completed && !completedAt
+          body.completed && !body.completedAt
             ? new Date()
-            : completedAt !== undefined
-              ? completedAt
-                ? new Date(completedAt)
-                : null
+            : body.completedAt
+              ? new Date(body.completedAt)
               : undefined,
       })
       .where(eq(milestones.id, id))
@@ -51,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('PATCH /api/milestones/[id] error:', error);
     return Response.json({ error: 'Failed to update milestone' }, { status: 500 });
   }
@@ -85,6 +79,7 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('DELETE /api/milestones/[id] error:', error);
     return Response.json({ error: 'Failed to delete milestone' }, { status: 500 });
   }

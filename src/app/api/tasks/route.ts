@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userTasks);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('GET /api/tasks error:', error);
     return Response.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(task, { status: 201 });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('POST /api/tasks error:', error);
     return Response.json(
       { error: error instanceof Error ? error.message : 'Failed to create task' },

@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated[0]);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('PATCH /api/task-lists/[id] error:', error);
     return Response.json({ error: 'Failed to update list' }, { status: 500 });
   }
@@ -78,6 +79,7 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('DELETE /api/task-lists/[id] error:', error);
     return Response.json({ error: 'Failed to delete list' }, { status: 500 });
   }

@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { requireAuth, getInternalUser } from "@/lib/auth-server";
-import { eq } from "drizzle-orm";
+import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { eq } from 'drizzle-orm';
 
 // GET /api/user/memory - Get user's AI memory
 export async function GET(request: NextRequest) {
@@ -11,13 +11,14 @@ export async function GET(request: NextRequest) {
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return Response.json({ memory: user.aiMemory || "" });
+    return Response.json({ memory: user.aiMemory || '' });
   } catch (error) {
-    console.error("GET /api/user/memory error:", error);
-    return Response.json({ error: "Failed to fetch AI memory" }, { status: 500 });
+    if (error instanceof Response) throw error;
+    console.error('GET /api/user/memory error:', error);
+    return Response.json({ error: 'Failed to fetch AI memory' }, { status: 500 });
   }
 }
 
@@ -28,14 +29,14 @@ export async function PATCH(request: NextRequest) {
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     const body = await request.json();
     const { memory } = body;
 
-    if (typeof memory !== "string") {
-      return Response.json({ error: "Invalid memory format" }, { status: 400 });
+    if (typeof memory !== 'string') {
+      return Response.json({ error: 'Invalid memory format' }, { status: 400 });
     }
 
     const [updated] = await db
@@ -48,12 +49,13 @@ export async function PATCH(request: NextRequest) {
       .returning({ aiMemory: users.aiMemory });
 
     if (!updated) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     return Response.json({ memory: updated.aiMemory });
   } catch (error) {
-    console.error("PATCH /api/user/memory error:", error);
-    return Response.json({ error: "Failed to update AI memory" }, { status: 500 });
+    if (error instanceof Response) throw error;
+    console.error('PATCH /api/user/memory error:', error);
+    return Response.json({ error: 'Failed to update AI memory' }, { status: 500 });
   }
 }
