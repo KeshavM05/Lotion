@@ -24,6 +24,7 @@ interface TaskModalProps {
     duration: number;
     deadline: string;
     goalId: string;
+    listId?: string | null;
     energyLevel: EnergyLevel;
     timePreference: TimePreference;
     tags: string[];
@@ -41,6 +42,7 @@ export function TaskModal({ open, editingTask, initialValues, onClose, onSaved }
   const [formDuration, setFormDuration] = useState(initialValues.duration);
   const [formDeadline, setFormDeadline] = useState(initialValues.deadline);
   const [formGoalId, setFormGoalId] = useState(initialValues.goalId);
+  const [formListId, setFormListId] = useState(initialValues.listId ?? '');
   const [formEnergyLevel, setFormEnergyLevel] = useState<EnergyLevel>(initialValues.energyLevel);
   const [formTimePreference, setFormTimePreference] = useState<TimePreference>(
     initialValues.timePreference
@@ -62,6 +64,7 @@ export function TaskModal({ open, editingTask, initialValues, onClose, onSaved }
       durationMinutes: formDuration,
       deadline: formDeadline ? new Date(formDeadline).toISOString() : null,
       goalId: formGoalId || null,
+      listId: formListId || null,
       energyLevel: formEnergyLevel,
       timePreference: formTimePreference,
       tags: formTags,
@@ -73,7 +76,7 @@ export function TaskModal({ open, editingTask, initialValues, onClose, onSaved }
         ...data,
         status: 'todo',
         milestoneId: null,
-        listId: null,
+        listId: formListId || null,
         scheduledStart: null,
         scheduledEnd: null,
       });
@@ -176,6 +179,25 @@ export function TaskModal({ open, editingTask, initialValues, onClose, onSaved }
                     {g.title}
                   </option>
                 ))}
+            </select>
+          </div>
+        )}
+        {store.taskLists.length > 0 && (
+          <div>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+              List
+            </label>
+            <select
+              value={formListId}
+              onChange={(e) => setFormListId(e.target.value)}
+              className="input-glass w-full"
+            >
+              <option value="">No list</option>
+              {store.taskLists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
             </select>
           </div>
         )}
