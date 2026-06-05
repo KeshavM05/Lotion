@@ -1,10 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { useStore } from "@/lib/store";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
+import { useStore } from '@/lib/store';
+import { apiClient } from '@/lib/api-client';
 import {
   exportGoalsMarkdown,
   exportJournalMarkdown,
@@ -13,23 +14,35 @@ import {
   exportCalendarJSON,
   exportPDF,
   downloadFile,
-} from "@/lib/export";
+} from '@/lib/export';
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<
-    "profile" | "preferences" | "export" | "about"
-  >("profile");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'export' | 'about'>(
+    'profile'
+  );
   const [loading, setLoading] = useState(false);
+
+  // Handle redirect back from Google OAuth
+  useEffect(() => {
+    if (searchParams.get('connected') === 'google') {
+      toast.success('Google Calendar connected!');
+      router.replace('/settings');
+    } else if (searchParams.get('error')) {
+      toast.error('Failed to connect Google Calendar');
+      router.replace('/settings');
+    }
+  }, [searchParams, router]);
 
   const handleSignOut = async () => {
     setLoading(true);
     try {
       await signOut();
-      router.push("/auth");
+      router.push('/auth');
     } catch (error) {
-      console.error("Failed to sign out:", error);
+      console.error('Failed to sign out:', error);
     } finally {
       setLoading(false);
     }
@@ -38,9 +51,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full">
       <header className="mb-12">
-        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
-          Settings
-        </h2>
+        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Settings</h2>
         <p className="text-on-secondary-container font-['Space_Grotesk'] tracking-wide">
           Manage your account and preferences
         </p>
@@ -51,26 +62,26 @@ export default function SettingsPage() {
         <div className="col-span-3">
           <div className="glass-card p-4 rounded-2xl space-y-2">
             <TabButton
-              active={activeTab === "profile"}
-              onClick={() => setActiveTab("profile")}
+              active={activeTab === 'profile'}
+              onClick={() => setActiveTab('profile')}
               icon="person"
               label="Profile"
             />
             <TabButton
-              active={activeTab === "preferences"}
-              onClick={() => setActiveTab("preferences")}
+              active={activeTab === 'preferences'}
+              onClick={() => setActiveTab('preferences')}
               icon="tune"
               label="Preferences"
             />
             <TabButton
-              active={activeTab === "export"}
-              onClick={() => setActiveTab("export")}
+              active={activeTab === 'export'}
+              onClick={() => setActiveTab('export')}
               icon="download"
               label="Export Data"
             />
             <TabButton
-              active={activeTab === "about"}
-              onClick={() => setActiveTab("about")}
+              active={activeTab === 'about'}
+              onClick={() => setActiveTab('about')}
               icon="info"
               label="About"
             />
@@ -80,16 +91,12 @@ export default function SettingsPage() {
         {/* Content Area */}
         <div className="col-span-9">
           <div className="glass-card p-8 rounded-2xl">
-            {activeTab === "profile" && (
-              <ProfileSection
-                user={user}
-                onSignOut={handleSignOut}
-                loading={loading}
-              />
+            {activeTab === 'profile' && (
+              <ProfileSection user={user} onSignOut={handleSignOut} loading={loading} />
             )}
-            {activeTab === "preferences" && <PreferencesSection />}
-            {activeTab === "export" && <ExportSection />}
-            {activeTab === "about" && <AboutSection />}
+            {activeTab === 'preferences' && <PreferencesSection />}
+            {activeTab === 'export' && <ExportSection />}
+            {activeTab === 'about' && <AboutSection />}
           </div>
         </div>
       </div>
@@ -113,13 +120,11 @@ function TabButton({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${
         active
-          ? "bg-white/10 text-[#F5F5F5] border-l-2 border-l-[#C17A72]"
-          : "text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5"
+          ? 'bg-white/10 text-[#F5F5F5] border-l-2 border-l-[#C17A72]'
+          : 'text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5'
       }`}
     >
-      <span
-        className={`material-symbols-outlined text-xl ${active ? "text-[#C17A72]" : ""}`}
-      >
+      <span className={`material-symbols-outlined text-xl ${active ? 'text-[#C17A72]' : ''}`}>
         {icon}
       </span>
       <span className="font-['Space_Grotesk'] text-sm">{label}</span>
@@ -140,22 +145,18 @@ function ProfileSection({
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
-          Profile
-        </h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Profile</h3>
         <div className="space-y-6">
           {/* Avatar */}
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full border-2 border-white/10 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center text-2xl font-bold text-white">
-              {u?.email?.[0]?.toUpperCase() ?? "U"}
+              {u?.email?.[0]?.toUpperCase() ?? 'U'}
             </div>
             <div>
               <button className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-['Space_Grotesk'] transition-colors">
                 Change Avatar
               </button>
-              <p className="text-xs text-[#9CA3AF] mt-2">
-                JPG, PNG or GIF. Max size 2MB.
-              </p>
+              <p className="text-xs text-[#9CA3AF] mt-2">JPG, PNG or GIF. Max size 2MB.</p>
             </div>
           </div>
 
@@ -166,13 +167,11 @@ function ProfileSection({
             </label>
             <input
               type="email"
-              value={u?.email ?? ""}
+              value={u?.email ?? ''}
               disabled
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm"
             />
-            <p className="text-xs text-[#9CA3AF] mt-2">
-              Your email cannot be changed
-            </p>
+            <p className="text-xs text-[#9CA3AF] mt-2">Your email cannot be changed</p>
           </div>
 
           {/* Name */}
@@ -195,15 +194,13 @@ function ProfileSection({
       </div>
 
       <div className="border-t border-white/10 pt-8">
-        <h4 className="text-lg font-['Playfair_Display'] text-white mb-4">
-          Danger Zone
-        </h4>
+        <h4 className="text-lg font-['Playfair_Display'] text-white mb-4">Danger Zone</h4>
         <button
           onClick={onSignOut}
           disabled={loading}
           className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg font-['Space_Grotesk'] text-sm font-semibold transition-colors disabled:opacity-50"
         >
-          {loading ? "Signing out..." : "Sign Out"}
+          {loading ? 'Signing out...' : 'Sign Out'}
         </button>
       </div>
     </div>
@@ -211,19 +208,42 @@ function ProfileSection({
 }
 
 function PreferencesSection() {
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    apiClient
+      .get('/api/calendar/google/status')
+      .then((d: { connected: boolean }) => setGoogleConnected(d.connected))
+      .catch(() => {});
+  }, []);
+
+  const connectGoogle = () => {
+    setGoogleLoading(true);
+    window.location.href = '/api/calendar/google';
+  };
+
+  const disconnectGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      await apiClient.delete('/api/calendar/google/status');
+      setGoogleConnected(false);
+      toast.success('Google Calendar disconnected');
+    } catch {
+      toast.error('Failed to disconnect');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
-          Preferences
-        </h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Preferences</h3>
 
         <div className="space-y-6">
           {/* Notifications */}
           <div>
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
-              Notifications
-            </h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Notifications</h4>
             <div className="space-y-3">
               <ToggleOption
                 label="Email notifications"
@@ -233,23 +253,16 @@ function PreferencesSection() {
                 label="Task reminders"
                 description="Get reminded about upcoming deadlines"
               />
-              <ToggleOption
-                label="Weekly summary"
-                description="Weekly report of your progress"
-              />
+              <ToggleOption label="Weekly summary" description="Weekly report of your progress" />
             </div>
           </div>
 
           {/* Work Hours */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
-              Work Hours
-            </h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Work Hours</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  Start Time
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Start Time</label>
                 <input
                   type="time"
                   defaultValue="09:00"
@@ -257,9 +270,7 @@ function PreferencesSection() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  End Time
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">End Time</label>
                 <input
                   type="time"
                   defaultValue="18:00"
@@ -276,27 +287,21 @@ function PreferencesSection() {
             </h4>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  Time Format
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time Format</label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="12h">12-hour (9:00 AM)</option>
                   <option value="24h">24-hour (09:00)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  Week Start Day
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Week Start Day</label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="sunday">Sunday</option>
                   <option value="monday">Monday</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  Default Event Duration
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Default Event Duration</label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
@@ -306,9 +311,7 @@ function PreferencesSection() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">
-                  Time Slot Interval
-                </label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time Slot Interval</label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
@@ -320,9 +323,7 @@ function PreferencesSection() {
 
           {/* Auto-schedule Settings */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
-              Auto-schedule
-            </h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Auto-schedule</h4>
             <div className="space-y-3">
               <ToggleOption
                 label="Auto-decline conflicts"
@@ -345,20 +346,42 @@ function PreferencesSection() {
               Calendar Integration
             </h4>
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm transition-colors">
+              <div className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[#C17A72]">
+                  <span
+                    className={`material-symbols-outlined ${googleConnected ? 'text-green-400' : 'text-[#C17A72]'}`}
+                  >
                     calendar_today
                   </span>
-                  <span>Connect Google Calendar</span>
+                  <div>
+                    <div>{googleConnected ? 'Google Calendar' : 'Connect Google Calendar'}</div>
+                    {googleConnected && (
+                      <div className="text-[11px] text-green-400 mt-0.5">Connected</div>
+                    )}
+                  </div>
                 </div>
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
+                {googleConnected ? (
+                  <button
+                    onClick={disconnectGoogle}
+                    disabled={googleLoading}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectGoogle}
+                    disabled={googleLoading}
+                    className="flex items-center gap-1 text-xs text-[#C17A72] hover:text-[#d4918a] transition-colors disabled:opacity-50"
+                  >
+                    {googleLoading ? 'Connecting...' : 'Connect'}
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                )}
+              </div>
               <button className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[#C17A72]">
-                    event
-                  </span>
+                  <span className="material-symbols-outlined text-[#C17A72]">event</span>
                   <span>Connect Outlook</span>
                 </div>
                 <span className="material-symbols-outlined">arrow_forward</span>
@@ -372,31 +395,19 @@ function PreferencesSection() {
 }
 
 function ExportSection() {
-  const {
-    goals,
-    milestones,
-    tasks,
-    taskLists,
-    events,
-    chatMessages,
-    journalEntries,
-    aiMemory,
-  } = useStore();
-  const slug = new Date().toISOString().split("T")[0];
+  const { goals, milestones, tasks, taskLists, events, chatMessages, journalEntries, aiMemory } =
+    useStore();
+  const slug = new Date().toISOString().split('T')[0];
 
   const handleMarkdownExport = async () => {
     try {
       const goalsContent = exportGoalsMarkdown(goals, milestones, tasks);
       const journalContent = exportJournalMarkdown(journalEntries, goals);
-      const combined = goalsContent + "\n\n" + journalContent;
-      downloadFile(
-        combined,
-        `lotion-export-${slug}.md`,
-        "text/markdown"
-      );
-      toast.success("Markdown export downloaded");
+      const combined = goalsContent + '\n\n' + journalContent;
+      downloadFile(combined, `lotion-export-${slug}.md`, 'text/markdown');
+      toast.success('Markdown export downloaded');
     } catch {
-      toast.error("Failed to export Markdown");
+      toast.error('Failed to export Markdown');
     }
   };
 
@@ -411,64 +422,50 @@ function ExportSection() {
         journalEntries,
         aiMemory,
       });
-      downloadFile(
-        content,
-        `lotion-export-${slug}.json`,
-        "application/json"
-      );
-      toast.success("JSON export downloaded");
+      downloadFile(content, `lotion-export-${slug}.json`, 'application/json');
+      toast.success('JSON export downloaded');
     } catch {
-      toast.error("Failed to export JSON");
+      toast.error('Failed to export JSON');
     }
   };
 
   const handleCSVExport = async () => {
     try {
       const content = exportTasksCSV(tasks, taskLists, goals);
-      downloadFile(
-        content,
-        `lotion-tasks-${slug}.csv`,
-        "text/csv;charset=utf-8;"
-      );
-      toast.success("Tasks CSV downloaded");
+      downloadFile(content, `lotion-tasks-${slug}.csv`, 'text/csv;charset=utf-8;');
+      toast.success('Tasks CSV downloaded');
     } catch {
-      toast.error("Failed to export CSV");
+      toast.error('Failed to export CSV');
     }
   };
 
   const handleCalendarExport = async () => {
     try {
       const content = exportCalendarJSON(events);
-      downloadFile(
-        content,
-        `lotion-calendar-${slug}.json`,
-        "application/json"
-      );
-      toast.success("Calendar JSON downloaded");
+      downloadFile(content, `lotion-calendar-${slug}.json`, 'application/json');
+      toast.success('Calendar JSON downloaded');
     } catch {
-      toast.error("Failed to export calendar");
+      toast.error('Failed to export calendar');
     }
   };
 
   const handlePDFExport = async () => {
     try {
       exportPDF({ goals, milestones, tasks, journalEntries, aiMemory });
-      toast.success("Print dialog opened — save as PDF");
+      toast.success('Print dialog opened — save as PDF');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to open print view", { description: msg });
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Failed to open print view', { description: msg });
     }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
-          Export Data
-        </h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Export Data</h3>
         <p className="text-sm text-[#9CA3AF] mb-8">
-          Download your data in various formats. All exports include your goals,
-          tasks, journal entries, and AI memory.
+          Download your data in various formats. All exports include your goals, tasks, journal
+          entries, and AI memory.
         </p>
 
         <div className="space-y-4">
@@ -545,9 +542,7 @@ function ExportButton({
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-lg bg-[#C17A72]/20 flex items-center justify-center">
-          <span className="material-symbols-outlined text-[#C17A72]">
-            {icon}
-          </span>
+          <span className="material-symbols-outlined text-[#C17A72]">{icon}</span>
         </div>
         <div className="text-left">
           <p className="text-sm font-['Space_Grotesk'] font-semibold text-white group-hover:text-[#C17A72] transition-colors">
@@ -557,9 +552,7 @@ function ExportButton({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xs font-['JetBrains_Mono'] text-[#9CA3AF]">
-          {format}
-        </span>
+        <span className="text-xs font-['JetBrains_Mono'] text-[#9CA3AF]">{format}</span>
         {loading ? (
           <span className="material-symbols-outlined text-[#9CA3AF] animate-spin">
             progress_activity
@@ -578,13 +571,10 @@ function AboutSection() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
-          About Lotion
-        </h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">About Lotion</h3>
         <p className="text-sm text-[#9CA3AF] mb-6 leading-relaxed">
-          Lotion is your AI life coach - combining calendar management, goal
-          tracking, and personalized AI guidance to help you achieve what
-          matters most.
+          Lotion is your AI life coach - combining calendar management, goal tracking, and
+          personalized AI guidance to help you achieve what matters most.
         </p>
 
         <div className="space-y-4">
@@ -594,9 +584,7 @@ function AboutSection() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-white/10">
-          <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
-            Resources
-          </h4>
+          <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Resources</h4>
           <div className="space-y-3">
             <LinkButton href="#" label="Documentation" icon="book" />
             <LinkButton href="#" label="Privacy Policy" icon="shield" />
@@ -609,13 +597,7 @@ function AboutSection() {
   );
 }
 
-function ToggleOption({
-  label,
-  description,
-}: {
-  label: string;
-  description: string;
-}) {
+function ToggleOption({ label, description }: { label: string; description: string }) {
   const [enabled, setEnabled] = useState(true);
   return (
     <div className="flex items-center justify-between py-3">
@@ -626,12 +608,12 @@ function ToggleOption({
       <button
         onClick={() => setEnabled(!enabled)}
         className={`relative w-12 h-6 rounded-full transition-colors ${
-          enabled ? "bg-[#C17A72]" : "bg-white/10"
+          enabled ? 'bg-[#C17A72]' : 'bg-white/10'
         }`}
       >
         <div
           className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            enabled ? "translate-x-7" : "translate-x-1"
+            enabled ? 'translate-x-7' : 'translate-x-1'
           }`}
         />
       </button>
@@ -648,15 +630,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LinkButton({
-  href,
-  label,
-  icon,
-}: {
-  href: string;
-  label: string;
-  icon: string;
-}) {
+function LinkButton({ href, label, icon }: { href: string; label: string; icon: string }) {
   return (
     <a
       href={href}

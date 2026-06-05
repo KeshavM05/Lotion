@@ -309,3 +309,12 @@ export const aiChatApi = {
 export const initializeUser = async (): Promise<void> => {
   return apiRequest('/user/init', { method: 'POST' });
 };
+
+// ─── Generic client ──────────────────────────────────────
+
+export const apiClient = {
+  get: (endpoint: string) => apiRequest(endpoint, { method: 'GET' }),
+  post: (endpoint: string, body?: unknown) =>
+    apiRequest(endpoint, { method: 'POST', body: JSON.stringify(body) }),
+  delete: (endpoint: string) => apiRequest(endpoint, { method: 'DELETE' }),
+};

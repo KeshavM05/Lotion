@@ -179,6 +179,7 @@ interface StoreContextType {
 
   // Init
   loadInitialData: () => Promise<void>;
+  syncGoogleCalendar: () => Promise<{ synced: number } | null>;
 
   // Goals
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Goal>;
@@ -789,6 +790,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Auto-schedule ──────────────────────────────────
 
+  const syncGoogleCalendar = useCallback(async () => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/api-client');
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/calendar/google/events', { headers });
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Reload events from DB to pick up newly synced Google events
+      const fresh = await eventsApi.list();
+      setEvents(fresh);
+      return { synced: data.synced ?? 0 };
+    } catch {
+      return null;
+    }
+  }, []);
+
   const autoSchedule = useCallback(async () => {
     try {
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -848,6 +865,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getGoalMilestones,
         getGoalTasks,
         autoSchedule,
+        syncGoogleCalendar,
       }}
     >
       {children}
