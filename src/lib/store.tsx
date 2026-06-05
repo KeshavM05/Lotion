@@ -124,6 +124,8 @@ export interface TaskList {
   color: string;
   icon: string;
   order: number;
+  archived: boolean;
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -198,9 +200,12 @@ interface StoreContextType {
   deleteTask: (id: string) => Promise<void>;
 
   // Task Lists
-  addTaskList: (list: Omit<TaskList, 'id' | 'createdAt'>) => Promise<TaskList>;
+  addTaskList: (
+    list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>
+  ) => Promise<TaskList>;
   updateTaskList: (id: string, updates: Partial<TaskList>) => Promise<void>;
   deleteTaskList: (id: string) => Promise<void>;
+  restoreTaskList: (id: string) => Promise<void>;
 
   // Events
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<CalendarEvent>;
@@ -550,17 +555,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Task Lists ────────────────────────────────────────
 
-  const addTaskList = useCallback(async (list: Omit<TaskList, 'id' | 'createdAt'>) => {
-    try {
-      const newList = await taskListsApi.create(list);
-      setTaskLists((prev) => [...prev, newList]);
-      return newList;
-    } catch (error) {
-      console.error('Failed to create task list:', error);
-      toast.error('Failed to create task list', { description: errMsg(error) });
-      throw error;
-    }
-  }, []);
+  const addTaskList = useCallback(
+    async (list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>) => {
+      try {
+        const newList = await taskListsApi.create(list);
+        setTaskLists((prev) => [...prev, newList]);
+        return newList;
+      } catch (error) {
+        console.error('Failed to create task list:', error);
+        toast.error('Failed to create task list', { description: errMsg(error) });
+        throw error;
+      }
+    },
+    []
+  );
 
   const updateTaskList = useCallback(async (id: string, updates: Partial<TaskList>) => {
     try {
@@ -581,6 +589,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toast.error('Failed to delete task list', { description: errMsg(error) });
     }
   }, []);
+
+  const restoreTaskList = useCallback(
+    async (id: string) => {
+      try {
+        await updateTaskList(id, { archived: false, archivedAt: null });
+      } catch (error) {
+        toast.error('Failed to restore task list', { description: errMsg(error) });
+      }
+    },
+    [updateTaskList]
+  );
 
   // ─── Events ──────────────────────────────────────────
 
@@ -816,6 +835,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addTaskList,
         updateTaskList,
         deleteTaskList,
+        restoreTaskList,
         addEvent,
         updateEvent,
         deleteEvent,
