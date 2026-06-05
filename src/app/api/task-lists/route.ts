@@ -3,6 +3,8 @@ import { db } from '@/db';
 import { taskLists } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { createTaskListSchema } from '@/lib/validation/schemas';
 
 // GET /api/task-lists?archived=true - Get task lists for user (optionally filter by archived)
 export async function GET(request: NextRequest) {
@@ -44,21 +46,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { name, color, icon, order } = body;
+    const { data, error } = await validateBody(request, createTaskListSchema);
+    if (error) return error;
 
-    if (!name) {
-      return Response.json({ error: 'Name is required' }, { status: 400 });
-    }
+    const { name, color, icon, order } = data;
 
     const newList = await db
       .insert(taskLists)
       .values({
         userId: user.id,
         name,
-        color: color || '#8b5cf6',
-        icon: icon || 'circle',
-        order: order || 0,
+        color,
+        icon,
+        order,
       })
       .returning();
 
