@@ -1,14 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import { useStore } from "@/lib/store";
-import { useSidebar } from "@/lib/sidebar-context";
-import { usePageHeader } from "@/lib/page-header-context";
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { useStore } from '@/lib/store';
+import { useSidebar } from '@/lib/sidebar-context';
+import { usePageHeader } from '@/lib/page-header-context';
 
-export function Header() {
+interface HeaderProps {
+  onMobileMenuOpen?: () => void;
+}
+
+export function Header({ onMobileMenuOpen }: HeaderProps) {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const store = useStore();
@@ -17,7 +21,7 @@ export function Header() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -36,42 +40,54 @@ export function Header() {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Search functionality
-  const searchResults = searchQuery.trim() ? {
-    goals: store.goals.filter(g =>
-      g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.description.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 3),
-    tasks: store.tasks.filter(t =>
-      t.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 3),
-    journal: store.journalEntries.filter(j =>
-      j.content.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 3),
-    events: store.events.filter(e =>
-      e.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 3),
-  } : null;
+  const searchResults = searchQuery.trim()
+    ? {
+        goals: store.goals
+          .filter(
+            (g) =>
+              g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              g.description.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .slice(0, 3),
+        tasks: store.tasks
+          .filter((t) => t.title.toLowerCase().includes(searchQuery.toLowerCase()))
+          .slice(0, 3),
+        journal: store.journalEntries
+          .filter((j) => j.content.toLowerCase().includes(searchQuery.toLowerCase()))
+          .slice(0, 3),
+        events: store.events
+          .filter((e) => e.title.toLowerCase().includes(searchQuery.toLowerCase()))
+          .slice(0, 3),
+      }
+    : null;
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/auth");
+    router.push('/auth');
   };
 
-  const userInitial = user?.email?.[0]?.toUpperCase() || "U";
+  const userInitial = user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
-    <header className={`fixed top-0 right-0 ${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8 gap-6 transition-all duration-300`}>
+    <header
+      className={`fixed top-0 right-0 w-full md:${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4 md:px-8 gap-4 md:gap-6 transition-all duration-300`}
+    >
+      {/* Mobile hamburger button */}
+      <button
+        onClick={onMobileMenuOpen}
+        className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors flex-shrink-0"
+        aria-label="Open navigation menu"
+      >
+        <span className="material-symbols-outlined text-xl">menu</span>
+      </button>
+
       {/* Page-specific controls */}
-      {pageControls && (
-        <div className="flex-1 flex items-center">
-          {pageControls}
-        </div>
-      )}
+      {pageControls && <div className="flex-1 flex items-center">{pageControls}</div>}
 
       {/* Search bar - always visible, smaller when page controls present */}
       <div className={`${pageControls ? 'w-64' : 'flex-1 max-w-xl'}`} ref={searchRef}>
@@ -91,7 +107,10 @@ export function Header() {
           {/* Search Results Dropdown */}
           {showSearch && searchQuery.trim() && searchResults && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-[#1F2D47] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-96 overflow-y-auto">
-              {searchResults.goals.length === 0 && searchResults.tasks.length === 0 && searchResults.journal.length === 0 && searchResults.events.length === 0 ? (
+              {searchResults.goals.length === 0 &&
+              searchResults.tasks.length === 0 &&
+              searchResults.journal.length === 0 &&
+              searchResults.events.length === 0 ? (
                 <div className="p-8 text-center text-[#9CA3AF] text-sm">
                   No results found for "{searchQuery}"
                 </div>
@@ -99,7 +118,7 @@ export function Header() {
                 <>
                   {searchResults.goals.length > 0 && (
                     <SearchSection title="Goals" icon="auto_awesome_motion">
-                      {searchResults.goals.map(goal => (
+                      {searchResults.goals.map((goal) => (
                         <SearchResult
                           key={goal.id}
                           title={goal.title}
@@ -107,7 +126,7 @@ export function Header() {
                           onClick={() => {
                             router.push(`/goals/${goal.id}`);
                             setShowSearch(false);
-                            setSearchQuery("");
+                            setSearchQuery('');
                           }}
                         />
                       ))}
@@ -115,15 +134,15 @@ export function Header() {
                   )}
                   {searchResults.tasks.length > 0 && (
                     <SearchSection title="Tasks" icon="check_circle">
-                      {searchResults.tasks.map(task => (
+                      {searchResults.tasks.map((task) => (
                         <SearchResult
                           key={task.id}
                           title={task.title}
-                          subtitle={task.completed ? "Completed" : "Active"}
+                          subtitle={task.completed ? 'Completed' : 'Active'}
                           onClick={() => {
                             router.push('/tasks');
                             setShowSearch(false);
-                            setSearchQuery("");
+                            setSearchQuery('');
                           }}
                         />
                       ))}
@@ -131,15 +150,15 @@ export function Header() {
                   )}
                   {searchResults.journal.length > 0 && (
                     <SearchSection title="Journal" icon="edit_note">
-                      {searchResults.journal.map(entry => (
+                      {searchResults.journal.map((entry) => (
                         <SearchResult
                           key={entry.id}
                           title={new Date(entry.createdAt).toLocaleDateString()}
-                          subtitle={entry.content.slice(0, 60) + "..."}
+                          subtitle={entry.content.slice(0, 60) + '...'}
                           onClick={() => {
                             router.push('/journal');
                             setShowSearch(false);
-                            setSearchQuery("");
+                            setSearchQuery('');
                           }}
                         />
                       ))}
@@ -147,7 +166,7 @@ export function Header() {
                   )}
                   {searchResults.events.length > 0 && (
                     <SearchSection title="Calendar" icon="calendar_today">
-                      {searchResults.events.map(event => (
+                      {searchResults.events.map((event) => (
                         <SearchResult
                           key={event.id}
                           title={event.title}
@@ -155,7 +174,7 @@ export function Header() {
                           onClick={() => {
                             router.push('/calendar');
                             setShowSearch(false);
-                            setSearchQuery("");
+                            setSearchQuery('');
                           }}
                         />
                       ))}
@@ -185,7 +204,9 @@ export function Header() {
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-[#1F2D47] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
               <div className="p-4 border-b border-white/10">
-                <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-white">Notifications</h3>
+                <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-white">
+                  Notifications
+                </h3>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 <NotificationItem
@@ -232,7 +253,7 @@ export function Header() {
             <div className="absolute right-0 mt-2 w-64 bg-[#1F2D47] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
               <div className="p-4 border-b border-white/10">
                 <p className="text-sm font-['Space_Grotesk'] font-semibold text-white truncate">
-                  {user?.email || "User"}
+                  {user?.email || 'User'}
                 </p>
                 <p className="text-xs text-[#9CA3AF] mt-1">Free Plan</p>
               </div>
@@ -241,7 +262,7 @@ export function Header() {
                   icon="person"
                   label="Profile"
                   onClick={() => {
-                    router.push("/settings");
+                    router.push('/settings');
                     setShowProfileMenu(false);
                   }}
                 />
@@ -249,7 +270,7 @@ export function Header() {
                   icon="settings"
                   label="Settings"
                   onClick={() => {
-                    router.push("/settings");
+                    router.push('/settings');
                     setShowProfileMenu(false);
                   }}
                 />
@@ -276,19 +297,37 @@ export function Header() {
   );
 }
 
-function SearchSection({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function SearchSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="border-b border-white/5 last:border-0">
       <div className="px-4 py-2 flex items-center gap-2">
         <span className="material-symbols-outlined text-[#C17A72] text-sm">{icon}</span>
-        <h4 className="text-xs font-['Space_Grotesk'] font-semibold text-[#9CA3AF] uppercase tracking-wider">{title}</h4>
+        <h4 className="text-xs font-['Space_Grotesk'] font-semibold text-[#9CA3AF] uppercase tracking-wider">
+          {title}
+        </h4>
       </div>
       <div>{children}</div>
     </div>
   );
 }
 
-function SearchResult({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick: () => void }) {
+function SearchResult({
+  title,
+  subtitle,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -300,7 +339,17 @@ function SearchResult({ title, subtitle, onClick }: { title: string; subtitle?: 
   );
 }
 
-function NotificationItem({ icon, title, message, time }: { icon: string; title: string; message: string; time: string }) {
+function NotificationItem({
+  icon,
+  title,
+  message,
+  time,
+}: {
+  icon: string;
+  title: string;
+  message: string;
+  time: string;
+}) {
   return (
     <div className="px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0">
       <div className="flex gap-3">
@@ -317,7 +366,15 @@ function NotificationItem({ icon, title, message, time }: { icon: string; title:
   );
 }
 
-function ProfileMenuItem({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+function ProfileMenuItem({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}

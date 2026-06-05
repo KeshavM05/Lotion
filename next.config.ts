@@ -1,16 +1,17 @@
 import type { NextConfig } from 'next';
-import bundleAnalyzer from '@next/bundle-analyzer';
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
+const nextConfig: NextConfig = {};
 
-const nextConfig: NextConfig = {
-  compress: true,
-  poweredByHeader: false,
-  images: {
-    formats: ['image/avif', 'image/webp'],
-  },
-};
+// Wrap with next-pwa only in production
+const withPWA =
+  process.env.NODE_ENV === 'production'
+    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('next-pwa')({
+        dest: 'public',
+        register: true,
+        skipWaiting: true,
+        disable: false,
+      })
+    : (config: NextConfig) => config;
 
-export default withBundleAnalyzer(nextConfig);
+export default withPWA(nextConfig);
