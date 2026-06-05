@@ -1,14 +1,13 @@
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { NextRequest } from "next/server";
+import { env } from "@/lib/env";
 
 const bedrock = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: process.env.AWS_ACCESS_KEY_ID
-    ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      }
-    : undefined,
+  region: env.AWS_REGION,
+  credentials: {
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+  },
 });
 
 const MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0";
@@ -17,13 +16,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { messages, goalContext, aiMemory, calendarContext, tasksContext } = body;
-
-    if (!process.env.AWS_ACCESS_KEY_ID) {
-      return Response.json(
-        { error: "AWS credentials not configured" },
-        { status: 500 }
-      );
-    }
 
     const systemPrompt = buildSystemPrompt({
       goalContext,

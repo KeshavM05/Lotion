@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { env } from "@/lib/env";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Server-side Supabase client
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
