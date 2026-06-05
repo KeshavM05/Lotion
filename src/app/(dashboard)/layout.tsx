@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { Sidebar } from '@/components/ui/sidebar';
 import { Header } from '@/components/ui/header';
 import { MobileNav } from '@/components/ui/MobileNav';
-import { MobileNav } from '@/components/ui/MobileNav';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { QuickCaptureOverlay, useQuickCapture } from '@/components/ui/quick-capture';
 import { StoreProvider, useStore } from '@/lib/store';
@@ -15,6 +14,8 @@ import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
 import { PageHeaderProvider } from '@/lib/page-header-context';
 import { useAuth } from '@/lib/auth-context';
 import { initializeUser } from '@/lib/api-client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -23,7 +24,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { isOpen, close } = useQuickCapture();
   const { collapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Global unhandled rejection listener
