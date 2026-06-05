@@ -113,23 +113,25 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <StoreProvider>
-      <SidebarProvider>
-        <PageHeaderProvider>
-          <DashboardInner>{children}</DashboardInner>
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: '#1F2D47',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#F1F5F9',
-                fontFamily: 'Inter, sans-serif',
-              },
-            }}
-          />
-        </PageHeaderProvider>
-      </SidebarProvider>
-    </StoreProvider>
+    <QueryClientProvider client={queryClient}>
+      <StoreProvider>
+        <SidebarProvider>
+          <PageHeaderProvider>
+            <DashboardInner>{children}</DashboardInner>
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                style: {
+                  background: '#1F2D47',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#F1F5F9',
+                  fontFamily: 'Inter, sans-serif',
+                },
+              }}
+            />
+          </PageHeaderProvider>
+        </SidebarProvider>
+      </StoreProvider>
+    </QueryClientProvider>
   );
 }

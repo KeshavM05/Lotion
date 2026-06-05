@@ -1,56 +1,47 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   useStore,
   type Task,
   type Priority,
+  type TaskStatus,
   type EnergyLevel,
   type TimePreference,
+  PRIORITY_LABELS,
+  ENERGY_LABELS,
+  TIME_PREFERENCE_LABELS,
 } from '@/lib/store';
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks';
+import { useGoals } from '@/lib/hooks/useGoals';
+import { Modal } from '@/components/ui/modal';
+import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
-import { TaskList } from '@/components/tasks/TaskList';
-import { KanbanBoard } from '@/components/tasks/KanbanBoard';
-import { ProjectsSidebar, AdvancedFiltersSidebar } from '@/components/tasks/TaskFilters';
-import { TaskModal } from '@/components/tasks/TaskModal';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
-type ProjectFilter = 'all' | 'unassigned' | string;
+type ProjectFilter = 'all' | string; // "all" or goalId
 
-type ModalValues = {
-  title: string;
-  description: string;
-  priority: Priority;
-  duration: number;
-  deadline: string;
-  goalId: string;
-  energyLevel: EnergyLevel;
-  timePreference: TimePreference;
-  tags: string[];
-};
-
-const DEFAULT_FORM: ModalValues = {
-  title: '',
-  description: '',
-  priority: 'medium',
-  duration: 30,
-  deadline: '',
-  goalId: '',
-  energyLevel: 'medium',
-  timePreference: 'anytime',
-  tags: [],
+const PRIORITY_DOTS: Record<Priority, string> = {
+  critical: '#ef4444',
+  high: '#f97316',
+  medium: '#eab308',
+  low: '#3b82f6',
 };
 
 export default function TasksPage() {
+  const { data: tasks = [] } = useTasks();
+  const { data: goals = [] } = useGoals();
+  const createTaskMutation = useCreateTask();
+  const updateTaskMutation = useUpdateTask();
+  const deleteTaskMutation = useDeleteTask();
   const store = useStore();
   const { setPageControls } = usePageHeader();
-
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [modalValues, setModalValues] = useState<ModalValues>(DEFAULT_FORM);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
   const [showProjects, setShowProjects] = useState(true);
 
@@ -60,34 +51,83 @@ export default function TasksPage() {
   const [filterTag, setFilterTag] = useState<string>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  // Form
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formPriority, setFormPriority] = useState<Priority>('medium');
+  const [formDuration, setFormDuration] = useState(30);
+  const [formDeadline, setFormDeadline] = useState('');
+  const [formGoalId, setFormGoalId] = useState('');
+  const [formEnergyLevel, setFormEnergyLevel] = useState<EnergyLevel>('medium');
+  const [formTimePreference, setFormTimePreference] = useState<TimePreference>('anytime');
+  const [formTags, setFormTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+
   function openCreate() {
     setEditingTask(null);
-    setModalValues(DEFAULT_FORM);
+    setFormTitle('');
+    setFormDescription('');
+    setFormPriority('medium');
+    setFormDuration(30);
+    setFormDeadline('');
+    setFormGoalId('');
+    setFormEnergyLevel('medium');
+    setFormTimePreference('anytime');
+    setFormTags([]);
     setModalOpen(true);
   }
 
   function openEdit(task: Task) {
     setEditingTask(task);
-    setModalValues({
-      title: task.title,
-      description: task.description,
-      priority: task.priority,
-      duration: task.durationMinutes,
-      deadline: task.deadline ? task.deadline.split('T')[0] : '',
-      goalId: task.goalId || '',
-      energyLevel: task.energyLevel || 'medium',
-      timePreference: task.timePreference || 'anytime',
-      tags: task.tags || [],
-    });
+    setFormTitle(task.title);
+    setFormDescription(task.description);
+    setFormPriority(task.priority);
+    setFormDuration(task.durationMinutes);
+    setFormEnergyLevel(task.energyLevel || 'medium');
+    setFormTimePreference(task.timePreference || 'anytime');
+    setFormTags(task.tags || []);
+    setFormDeadline(task.deadline ? task.deadline.split('T')[0] : '');
+    setFormGoalId(task.goalId || '');
     setModalOpen(true);
+  }
+
+  function handleSave() {
+    if (!formTitle.trim()) return;
+    const data = {
+      title: formTitle.trim(),
+      description: formDescription.trim(),
+      priority: formPriority,
+      durationMinutes: formDuration,
+      deadline: formDeadline ? new Date(formDeadline).toISOString() : null,
+      goalId: formGoalId || null,
+      energyLevel: formEnergyLevel,
+      timePreference: formTimePreference,
+      tags: formTags,
+    };
+    if (editingTask) {
+      updateTaskMutation.mutate({ id: editingTask.id, updates: data });
+    } else {
+      createTaskMutation.mutate({
+        ...data,
+        status: 'todo',
+        milestoneId: null,
+        listId: null,
+        scheduledStart: null,
+        scheduledEnd: null,
+      });
+    }
+    setModalOpen(false);
   }
 
   function toggleComplete(task: Task) {
     const done = !task.completed;
-    store.updateTask(task.id, {
-      completed: done,
-      status: done ? 'done' : 'todo',
-      completedAt: done ? new Date().toISOString() : null,
+    updateTaskMutation.mutate({
+      id: task.id,
+      updates: {
+        completed: done,
+        status: done ? 'done' : 'todo',
+        completedAt: done ? new Date().toISOString() : null,
+      },
     });
   }
 
@@ -95,67 +135,75 @@ export default function TasksPage() {
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
 
-  const tabs: { key: FilterTab; label: string; count: number }[] = useMemo(
-    () => [
-      { key: 'all', label: 'All', count: store.tasks.filter((t) => !t.completed).length },
-      {
-        key: 'today',
-        label: 'Today',
-        count: store.tasks.filter(
-          (t) => !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd
-        ).length,
-      },
-      {
-        key: 'upcoming',
-        label: 'Upcoming',
-        count: store.tasks.filter(
-          (t) => !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd
-        ).length,
-      },
-      { key: 'completed', label: 'Done', count: store.tasks.filter((t) => t.completed).length },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    ],
-    [store.tasks]
-  );
+  const filtered = tasks.filter((t) => {
+    // Apply tab filter
+    let tabMatch = false;
+    switch (activeTab) {
+      case 'all':
+        tabMatch = !t.completed;
+        break;
+      case 'today':
+        tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd;
+        break;
+      case 'upcoming':
+        tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd;
+        break;
+      case 'completed':
+        tabMatch = t.completed;
+        break;
+    }
+    if (!tabMatch) return false;
 
-  const allTags = useMemo(
-    () => Array.from(new Set(store.tasks.flatMap((t) => t.tags || []))),
-    [store.tasks]
-  );
+    // Apply project filter
+    if (projectFilter === 'unassigned') {
+      if (t.goalId) return false;
+    } else if (projectFilter !== 'all') {
+      if (t.goalId !== projectFilter) return false;
+    }
 
-  const filteredTasks = useMemo(() => {
-    return store.tasks.filter((t) => {
-      let tabMatch = false;
-      switch (activeTab) {
-        case 'all':
-          tabMatch = !t.completed;
-          break;
-        case 'today':
-          tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd;
-          break;
-        case 'upcoming':
-          tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd;
-          break;
-        case 'completed':
-          tabMatch = t.completed;
-          break;
+    // Apply advanced filters
+    if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) {
+      return false;
+    }
+    if (filterTimePreference !== 'all' && t.timePreference !== filterTimePreference) {
+      return false;
+    }
+    if (filterTag !== 'all') {
+      if (!t.tags || !t.tags.includes(filterTag)) {
+        return false;
       }
-      if (!tabMatch) return false;
+    }
 
-      if (projectFilter === 'unassigned') {
-        if (t.goalId) return false;
-      } else if (projectFilter !== 'all') {
-        if (t.goalId !== projectFilter) return false;
-      }
+    return true;
+  });
 
-      if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) return false;
-      if (filterTimePreference !== 'all' && t.timePreference !== filterTimePreference) return false;
-      if (filterTag !== 'all' && (!t.tags || !t.tags.includes(filterTag))) return false;
+  const sorted = [...filtered].sort((a, b) => {
+    const pw = { critical: 4, high: 3, medium: 2, low: 1 };
+    if (pw[b.priority] !== pw[a.priority]) return pw[b.priority] - pw[a.priority];
+    const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+    const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+    return da - db;
+  });
 
-      return true;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.tasks, activeTab, projectFilter, filterEnergy, filterTimePreference, filterTag]);
+  // Get all unique tags
+  const allTags = Array.from(new Set(tasks.flatMap((t) => t.tags || [])));
+
+  const tabs: { key: FilterTab; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: tasks.filter((t) => !t.completed).length },
+    {
+      key: 'today',
+      label: 'Today',
+      count: tasks.filter((t) => !t.completed && t.deadline && new Date(t.deadline) <= todayEnd)
+        .length,
+    },
+    {
+      key: 'upcoming',
+      label: 'Upcoming',
+      count: tasks.filter((t) => !t.completed && t.deadline && new Date(t.deadline) > todayEnd)
+        .length,
+    },
+    { key: 'completed', label: 'Done', count: tasks.filter((t) => t.completed).length },
+  ];
 
   // Set page header controls
   useEffect(() => {
@@ -182,7 +230,7 @@ export default function TasksPage() {
         {/* View Mode, Filters, Projects Toggle & Add Button */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowAdvancedFilters((v) => !v)}
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showAdvancedFilters ||
               filterEnergy !== 'all' ||
@@ -196,7 +244,7 @@ export default function TasksPage() {
             <span className="material-symbols-outlined text-sm">filter_list</span>
           </button>
           <button
-            onClick={() => setShowProjects((v) => !v)}
+            onClick={() => setShowProjects(!showProjects)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showProjects
                 ? 'bg-[#C17A72]/20 text-[#C17A72]'
@@ -248,57 +296,640 @@ export default function TasksPage() {
     setPageControls,
   ]);
 
+  // Drag handlers for board view
+  function handleDragStart(task: Task, e: React.DragEvent) {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedTask(task);
+  }
+
+  function handleDragEnd() {
+    setDraggedTask(null);
+  }
+
+  function handleDrop(newStatus: TaskStatus, e: React.DragEvent) {
+    e.preventDefault();
+    if (!draggedTask) return;
+
+    updateTaskMutation.mutate({
+      id: draggedTask.id,
+      updates: {
+        status: newStatus,
+        completed: newStatus === 'done',
+        completedAt: newStatus === 'done' ? new Date().toISOString() : null,
+      },
+    });
+    setDraggedTask(null);
+  }
+
   return (
     <div className="flex gap-6 h-full">
       {/* Projects Sidebar */}
       {showProjects && (
-        <ProjectsSidebar projectFilter={projectFilter} onProjectFilterChange={setProjectFilter} />
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Projects
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Filter by goal</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {/* All Projects */}
+            <button
+              onClick={() => setProjectFilter('all')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'all'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">inbox</span>
+                <span className="text-xs font-medium">All Tasks</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed).length}
+              </span>
+            </button>
+
+            {/* Unassigned */}
+            <button
+              onClick={() => setProjectFilter('unassigned')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'unassigned'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">radio_button_unchecked</span>
+                <span className="text-xs font-medium">No Project</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed && !t.goalId).length}
+              </span>
+            </button>
+
+            <div className="h-px bg-white/5 my-2" />
+
+            {/* Goals as Projects */}
+            {goals
+              .filter((g) => g.status === 'active')
+              .map((goal) => {
+                const taskCount = tasks.filter((t) => !t.completed && t.goalId === goal.id).length;
+                return (
+                  <button
+                    key={goal.id}
+                    onClick={() => setProjectFilter(goal.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors group ${
+                      projectFilter === goal.id
+                        ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                        : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: goal.color }}
+                      />
+                      <span className="text-xs font-medium truncate">{goal.title}</span>
+                    </div>
+                    <span className="text-xs font-['JetBrains_Mono'] ml-2 flex-shrink-0">
+                      {taskCount}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
       )}
 
       {/* Advanced Filters Sidebar */}
       {showAdvancedFilters && (
-        <AdvancedFiltersSidebar
-          filterEnergy={filterEnergy}
-          filterTimePreference={filterTimePreference}
-          filterTag={filterTag}
-          allTags={allTags}
-          onEnergyChange={setFilterEnergy}
-          onTimePreferenceChange={setFilterTimePreference}
-          onTagChange={setFilterTag}
-          onClear={() => {
-            setFilterEnergy('all');
-            setFilterTimePreference('all');
-            setFilterTag('all');
-          }}
-        />
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Advanced Filters
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Refine your task list</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Energy Level Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Energy Level</label>
+              <select
+                value={filterEnergy}
+                onChange={(e) => setFilterEnergy(e.target.value as EnergyLevel | 'all')}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Levels</option>
+                {(['low', 'medium', 'high'] as EnergyLevel[]).map((level) => (
+                  <option key={level} value={level}>
+                    {ENERGY_LABELS[level]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Time Preference Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">
+                Time Preference
+              </label>
+              <select
+                value={filterTimePreference}
+                onChange={(e) => setFilterTimePreference(e.target.value as TimePreference | 'all')}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Times</option>
+                {(['morning', 'afternoon', 'evening', 'anytime'] as TimePreference[]).map(
+                  (time) => (
+                    <option key={time} value={time}>
+                      {TIME_PREFERENCE_LABELS[time]}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            {/* Tag Filter */}
+            <div>
+              <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Tag</label>
+              <select
+                value={filterTag}
+                onChange={(e) => setFilterTag(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#C17A72]/50 cursor-pointer"
+              >
+                <option value="all">All Tags</option>
+                {allTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(filterEnergy !== 'all' || filterTimePreference !== 'all' || filterTag !== 'all') && (
+              <button
+                onClick={() => {
+                  setFilterEnergy('all');
+                  setFilterTimePreference('all');
+                  setFilterTag('all');
+                }}
+                className="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">clear</span>
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* List View */}
         {viewMode === 'list' && (
           <div className="flex-1 overflow-auto">
-            <TaskList
-              tasks={filteredTasks}
-              onEdit={openEdit}
-              onToggleComplete={toggleComplete}
-              onDelete={(id) => store.deleteTask(id)}
-              emptyLabel={activeTab === 'completed' ? 'No completed tasks' : 'No tasks yet'}
-            />
+            {sorted.length === 0 ? (
+              <div className="text-center py-20 text-[#9CA3AF]">
+                <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">
+                  task_alt
+                </span>
+                <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF]">
+                  {activeTab === 'completed' ? 'No completed tasks' : 'No tasks yet'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1 max-w-3xl">
+                {sorted.map((task) => {
+                  const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
+                  const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
+                      onClick={() => openEdit(task)}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleComplete(task);
+                        }}
+                        className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+                        style={{
+                          borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
+                          background: task.completed ? '#C17A72' : 'transparent',
+                        }}
+                      >
+                        {task.completed && (
+                          <span
+                            className="material-symbols-outlined text-xs text-white"
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                          >
+                            check
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <span
+                          className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
+                        >
+                          {task.title}
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {goal && (
+                            <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ background: goal.color }}
+                              />
+                              {goal.title}
+                            </span>
+                          )}
+                          {task.deadline && (
+                            <span
+                              className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}
+                            >
+                              {formatRelativeDate(task.deadline)}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
+                            {task.durationMinutes}m
+                          </span>
+                          {task.scheduledStart && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
+                              Scheduled
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ background: PRIORITY_DOTS[task.priority] }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteTaskMutation.mutate(task.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {viewMode === 'board' && <KanbanBoard onEdit={openEdit} />}
+        {/* Board View */}
+        {viewMode === 'board' && (
+          <div className="flex-1 overflow-auto">
+            <div className="grid grid-cols-3 gap-4 h-full">
+              {(['todo', 'in_progress', 'done'] as const).map((status) => {
+                const statusTasks = tasks.filter((t) => t.status === status);
+                const statusLabels: Record<typeof status, string> = {
+                  todo: 'To Do',
+                  in_progress: 'In Progress',
+                  done: 'Done',
+                };
+                const statusColors: Record<typeof status, string> = {
+                  todo: '#6B7280',
+                  in_progress: '#f59e0b',
+                  done: '#10b981',
+                };
+
+                return (
+                  <div
+                    key={status}
+                    className="flex flex-col glass-card rounded-2xl overflow-hidden"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(status, e)}
+                  >
+                    {/* Column Header */}
+                    <div className="px-4 py-3 border-b border-white/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: statusColors[status] }}
+                          />
+                          <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5]">
+                            {statusLabels[status]}
+                          </h3>
+                        </div>
+                        <span className="text-xs text-[#9CA3AF] font-['JetBrains_Mono']">
+                          {statusTasks.length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Column Tasks */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {statusTasks.length === 0 ? (
+                        <div className="text-center py-8 text-[#6B7280] text-xs">No tasks</div>
+                      ) : (
+                        statusTasks.map((task) => {
+                          const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
+                          const overdue =
+                            task.deadline && !task.completed && new Date(task.deadline) < now;
+                          const isDragging = draggedTask?.id === task.id;
+
+                          return (
+                            <div
+                              key={task.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(task, e)}
+                              onDragEnd={handleDragEnd}
+                              className={`glass-card rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all ${
+                                isDragging ? 'opacity-50' : 'hover:bg-white/[0.02]'
+                              }`}
+                              onClick={() => openEdit(task)}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <h4 className="text-sm text-[#F5F5F5] font-medium flex-1">
+                                  {task.title}
+                                </h4>
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
+                                  style={{ background: PRIORITY_DOTS[task.priority] }}
+                                />
+                              </div>
+
+                              {task.description && (
+                                <p className="text-xs text-[#9CA3AF] mb-2 line-clamp-2">
+                                  {task.description}
+                                </p>
+                              )}
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {goal && (
+                                  <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-white/5 text-[#9CA3AF]">
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full"
+                                      style={{ background: goal.color }}
+                                    />
+                                    {goal.title}
+                                  </span>
+                                )}
+                                {task.deadline && (
+                                  <span
+                                    className={`text-[10px] px-2 py-1 rounded ${
+                                      overdue
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : 'bg-white/5 text-[#9CA3AF]'
+                                    }`}
+                                  >
+                                    {formatRelativeDate(task.deadline)}
+                                  </span>
+                                )}
+                                <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-[#9CA3AF] font-['JetBrains_Mono']">
+                                  {task.durationMinutes}m
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Task Modal — key forces re-mount (resets form state) on task change */}
-      <TaskModal
-        key={editingTask?.id ?? 'new'}
+      {/* Modal */}
+      <Modal
         open={modalOpen}
-        editingTask={editingTask}
-        initialValues={modalValues}
         onClose={() => setModalOpen(false)}
-        onSaved={() => setModalOpen(false)}
-      />
+        title={editingTask ? 'Edit Task' : 'New Task'}
+      >
+        <div className="flex flex-col gap-4">
+          <input
+            type="text"
+            placeholder="Task title"
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            autoFocus
+            className="input-glass"
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={formDescription}
+            onChange={(e) => setFormDescription(e.target.value)}
+            rows={2}
+            className="input-glass resize-none"
+          />
+          <div>
+            <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
+              Priority
+            </label>
+            <div className="flex gap-2">
+              {(['low', 'medium', 'high', 'critical'] as Priority[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setFormPriority(p)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background:
+                      formPriority === p ? 'var(--accent-soft)' : 'rgba(255,255,255,0.03)',
+                    color: formPriority === p ? 'var(--accent)' : 'var(--text-muted)',
+                    border: `1px solid ${formPriority === p ? 'rgba(193,122,114,0.3)' : 'var(--border)'}`,
+                  }}
+                >
+                  {PRIORITY_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Duration
+              </label>
+              <select
+                value={formDuration}
+                onChange={(e) => setFormDuration(Number(e.target.value))}
+                className="input-glass w-full"
+              >
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={45}>45 min</option>
+                <option value={60}>1 hour</option>
+                <option value={90}>1.5 hours</option>
+                <option value={120}>2 hours</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Deadline
+              </label>
+              <input
+                type="date"
+                value={formDeadline}
+                onChange={(e) => setFormDeadline(e.target.value)}
+                className="input-glass w-full"
+              />
+            </div>
+          </div>
+          {goals.length > 0 && (
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Goal
+              </label>
+              <select
+                value={formGoalId}
+                onChange={(e) => setFormGoalId(e.target.value)}
+                className="input-glass w-full"
+              >
+                <option value="">No goal</option>
+                {goals
+                  .filter((g) => g.status === 'active')
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          {/* Advanced Fields */}
+          <div className="border-t border-white/10 pt-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Energy Level
+                </label>
+                <select
+                  value={formEnergyLevel}
+                  onChange={(e) => setFormEnergyLevel(e.target.value as EnergyLevel)}
+                  className="input-glass w-full"
+                >
+                  {(['low', 'medium', 'high'] as EnergyLevel[]).map((level) => (
+                    <option key={level} value={level}>
+                      {ENERGY_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Time Preference
+                </label>
+                <select
+                  value={formTimePreference}
+                  onChange={(e) => setFormTimePreference(e.target.value as TimePreference)}
+                  className="input-glass w-full"
+                >
+                  {(['morning', 'afternoon', 'evening', 'anytime'] as TimePreference[]).map(
+                    (time) => (
+                      <option key={time} value={time}>
+                        {TIME_PREFERENCE_LABELS[time]}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Tags
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-[#C17A72]/20 text-[#C17A72] rounded text-xs"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setFormTags(formTags.filter((t) => t !== tag))}
+                      className="hover:text-white transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-xs">close</span>
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && tagInput.trim()) {
+                      e.preventDefault();
+                      if (!formTags.includes(tagInput.trim())) {
+                        setFormTags([...formTags, tagInput.trim()]);
+                      }
+                      setTagInput('');
+                    }
+                  }}
+                  placeholder="Add tag..."
+                  className="input-glass flex-1 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tagInput.trim() && !formTags.includes(tagInput.trim())) {
+                      setFormTags([...formTags, tagInput.trim()]);
+                      setTagInput('');
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors text-xs"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            {editingTask ? (
+              <button
+                onClick={() => {
+                  deleteTaskMutation.mutate(editingTask.id);
+                  setModalOpen(false);
+                }}
+                className="px-3 py-2 text-sm rounded-lg"
+                style={{ color: 'var(--danger)' }}
+              >
+                Delete
+              </button>
+            ) : (
+              <div />
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 text-sm rounded-lg"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="btn-glow px-5 py-2 rounded-xl text-sm font-medium"
+              >
+                {editingTask ? 'Save' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
