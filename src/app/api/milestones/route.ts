@@ -1,8 +1,10 @@
-import { NextRequest } from "next/server";
-import { db } from "@/db";
-import { milestones, goals } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { requireAuth, getInternalUser } from "@/lib/auth-server";
+import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { milestones, goals } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { createMilestoneSchema } from '@/lib/validation/schemas';
 
 // POST /api/milestones - Create new milestone
 export async function POST(request: NextRequest) {
@@ -11,15 +13,13 @@ export async function POST(request: NextRequest) {
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { goalId, title, description, targetDate, order } = body;
+    const { data, error } = await validateBody(request, createMilestoneSchema);
+    if (error) return error;
 
-    if (!goalId || !title) {
-      return Response.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    const { goalId, title, description, targetDate, order } = data;
 
     // Verify goal belongs to user
     const goal = await db.query.goals.findFirst({
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!goal) {
-      return Response.json({ error: "Goal not found" }, { status: 404 });
+      return Response.json({ error: 'Goal not found' }, { status: 404 });
     }
 
     const [milestone] = await db
@@ -35,15 +35,15 @@ export async function POST(request: NextRequest) {
       .values({
         goalId,
         title,
-        description: description || "",
+        description,
         targetDate: targetDate ? new Date(targetDate) : null,
-        order: order ?? 0,
+        order,
       })
       .returning();
 
     return Response.json(milestone, { status: 201 });
   } catch (error) {
-    console.error("POST /api/milestones error:", error);
-    return Response.json({ error: "Failed to create milestone" }, { status: 500 });
+    console.error('POST /api/milestones error:', error);
+    return Response.json({ error: 'Failed to create milestone' }, { status: 500 });
   }
 }
