@@ -3,8 +3,6 @@ import { db } from '@/db';
 import { goals } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
-import { validateBody } from '@/lib/api-middleware';
-import { updateGoalSchema } from '@/lib/validation/schemas';
 
 // GET /api/goals/[id] - Get single goal
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return Response.json(goal);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('GET /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to fetch goal' }, { status: 500 });
   }
@@ -50,16 +49,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const { data, error } = await validateBody(request, updateGoalSchema);
-    if (error) return error;
-
-    const { targetDate, ...rest } = data;
+    const body = await request.json();
 
     const [updated] = await db
       .update(goals)
       .set({
-        ...rest,
-        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
+        ...body,
+        targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
         updatedAt: new Date(),
       })
       .where(and(eq(goals.id, id), eq(goals.userId, user.id)))
@@ -71,6 +67,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('PATCH /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to update goal' }, { status: 500 });
   }
@@ -102,6 +99,7 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('DELETE /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to delete goal' }, { status: 500 });
   }

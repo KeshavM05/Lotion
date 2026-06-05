@@ -2,8 +2,6 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { journalEntries } from '@/db/schema';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
-import { validateBody } from '@/lib/api-middleware';
-import { updateJournalEntrySchema } from '@/lib/validation/schemas';
 import { eq, and } from 'drizzle-orm';
 
 // PATCH /api/journal/[id] - Update journal entry
@@ -17,13 +15,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const { data, error } = await validateBody(request, updateJournalEntrySchema);
-    if (error) return error;
+    const body = await request.json();
 
     const [updated] = await db
       .update(journalEntries)
       .set({
-        ...data,
+        ...body,
         updatedAt: new Date(),
       })
       .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, user.id)))
@@ -35,6 +32,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('PATCH /api/journal/[id] error:', error);
     return Response.json({ error: 'Failed to update journal entry' }, { status: 500 });
   }
@@ -66,6 +64,7 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('DELETE /api/journal/[id] error:', error);
     return Response.json({ error: 'Failed to delete journal entry' }, { status: 500 });
   }

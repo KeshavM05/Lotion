@@ -1,9 +1,9 @@
-import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
-import { NextRequest } from "next/server";
-import { env } from "@/lib/env";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { validateBody } from "@/lib/api-middleware";
-import { chatRequestSchema } from "@/lib/validation/schemas";
+import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { NextRequest } from 'next/server';
+import { env } from '@/lib/env';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { validateBody } from '@/lib/api-middleware';
+import { chatRequestSchema } from '@/lib/validation/schemas';
 
 const bedrock = new BedrockRuntimeClient({
   region: env.AWS_REGION,
@@ -13,26 +13,26 @@ const bedrock = new BedrockRuntimeClient({
   },
 });
 
-const MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0";
+const MODEL_ID = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
 
 export async function POST(request: NextRequest) {
   // Rate limiting — key by IP (or forwarded header in prod)
   const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "anonymous";
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    'anonymous';
 
   const rateCheck = checkRateLimit(`ai:${ip}`, RATE_LIMITS.ai);
   if (!rateCheck.allowed) {
     return Response.json(
       {
-        error: "Too many requests",
+        error: 'Too many requests',
         retryAfterMs: rateCheck.retryAfterMs,
       },
       {
         status: 429,
         headers: {
-          "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)),
+          'Retry-After': String(Math.ceil(rateCheck.retryAfterMs / 1000)),
         },
       }
     );
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       modelId: MODEL_ID,
       system: [{ text: systemPrompt }],
       messages: messages.map((m) => ({
-        role: m.role as "user" | "assistant",
+        role: m.role as 'user' | 'assistant',
         content: [{ text: m.content }],
       })),
       inferenceConfig: {
@@ -71,8 +71,9 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ message: assistantMessage });
   } catch (error: unknown) {
-    console.error("AI Chat error:", error);
-    const message = error instanceof Error ? error.message : "AI request failed";
+    if (error instanceof Response) throw error;
+    console.error('AI Chat error:', error);
+    const message = error instanceof Error ? error.message : 'AI request failed';
     return Response.json({ error: message }, { status: 500 });
   }
 }

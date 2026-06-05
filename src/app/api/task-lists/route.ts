@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userTaskLists);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('GET /api/task-lists error:', error);
     return Response.json({ error: 'Failed to fetch task lists' }, { status: 500 });
   }
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(newList[0]);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('POST /api/task-lists error:', error);
     return Response.json({ error: 'Failed to create task list' }, { status: 500 });
   }

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userGoals);
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('GET /api/goals error:', error);
     return Response.json({ error: 'Failed to fetch goals' }, { status: 500 });
   }
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(goal, { status: 201 });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error('POST /api/goals error:', error);
     return Response.json({ error: 'Failed to create goal' }, { status: 500 });
   }
