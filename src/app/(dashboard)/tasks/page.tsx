@@ -15,6 +15,7 @@ import {
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks';
 import { useGoals } from '@/lib/hooks/useGoals';
 import { Modal } from '@/components/ui/modal';
+import { InlineTaskDetail } from '@/components/tasks/InlineTaskDetail';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
@@ -65,6 +66,7 @@ export default function TasksPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [viewOptions, setViewOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
@@ -72,6 +74,18 @@ export default function TasksPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
+
+  // List-view drag-to-reorder state
+  const [listDraggedId, setListDraggedId] = useState<string | null>(null);
+  const [listDragOverId, setListDragOverId] = useState<string | null>(null);
+  const [listOrderMap, setListOrderMap] = useState<Record<string, number>>(() => {
+    try {
+      const raw = localStorage.getItem('lotion:task-order');
+      return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    } catch {
+      return {};
+    }
+  });
   const [showProjects, setShowProjects] = useState(true);
 
   // Advanced filters
@@ -382,84 +396,159 @@ export default function TasksPage() {
     setDraggedTask(null);
   }
 
-  function renderTaskRow(task: Task) {
+  function handleListDragStart(taskId: string, e: React.DragEvent) {
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    setListDraggedId(taskId);
+  }
+
+  function handleListDragEnd() {
+    setListDraggedId(null);
+    setListDragOverId(null);
+  }
+
+  function handleListDragOver(taskId: string, e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (taskId !== listDraggedId) setListDragOverId(taskId);
+  }
+
+  function handleListDrop(targetId: string, e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!listDraggedId || listDraggedId === targetId) {
+      setListDraggedId(null);
+      setListDragOverId(null);
+      return;
+    }
+    // Build new order from the currently displayed `sortedForList`
+    const ids = sortedForList.map((t) => t.id);
+    const fromIdx = ids.indexOf(listDraggedId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const reordered = [...ids];
+    reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, listDraggedId);
+    const newMap: Record<string, number> = {};
+    reordered.forEach((id, i) => {
+      newMap[id] = i;
+    });
+    setListOrderMap(newMap);
+    try {
+      localStorage.setItem('lotion:task-order', JSON.stringify(newMap));
+    } catch {
+      // ignore
+    }
+    setListDraggedId(null);
+    setListDragOverId(null);
+  }
+
+  // Apply manual order when in flat list view (no groups)
+  const sortedForList = (() => {
+    if (groups !== null || viewMode !== 'list') return sorted;
+    return [...sorted].sort((a, b) => {
+      const oa = listOrderMap[a.id] ?? Infinity;
+      const ob = listOrderMap[b.id] ?? Infinity;
+      if (oa !== ob) return oa - ob;
+      return sorted.indexOf(a) - sorted.indexOf(b);
+    });
+  })();
+
+  function renderTaskRow(task: Task, draggable?: boolean) {
     const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
     const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+    const isDragging = draggable && listDraggedId === task.id;
+    const isDragOver = draggable && listDragOverId === task.id;
 
     return (
-      <div
-        key={task.id}
-        className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
-        onClick={() => openEdit(task)}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleComplete(task);
-          }}
-          className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
-          style={{
-            borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
-            background: task.completed ? '#C17A72' : 'transparent',
-          }}
+      <div key={task.id}>
+        {isDragOver && <div className="h-0.5 mx-4 rounded-full bg-[#C17A72] opacity-80 mb-0.5" />}
+        <div
+          draggable={draggable}
+          onDragStart={draggable ? (e) => handleListDragStart(task.id, e) : undefined}
+          onDragEnd={draggable ? handleListDragEnd : undefined}
+          onDragOver={draggable ? (e) => handleListDragOver(task.id, e) : undefined}
+          onDrop={draggable ? (e) => handleListDrop(task.id, e) : undefined}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02] ${isDragging ? 'opacity-40' : ''}`}
+          onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
         >
-          {task.completed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleComplete(task);
+            }}
+            className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+            style={{
+              borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
+              background: task.completed ? '#C17A72' : 'transparent',
+            }}
+          >
+            {task.completed && (
+              <span
+                className="material-symbols-outlined text-xs text-white"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                check
+              </span>
+            )}
+          </button>
+          <div className="flex-1 min-w-0">
             <span
-              className="material-symbols-outlined text-xs text-white"
-              style={{ fontVariationSettings: "'FILL' 1" }}
+              className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
             >
-              check
+              {task.title}
+            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              {goal && (
+                <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
+                  <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
+                  {goal.title}
+                </span>
+              )}
+              {task.deadline && (
+                <span className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}>
+                  {formatRelativeDate(task.deadline)}
+                </span>
+              )}
+              <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
+                {task.durationMinutes}m
+              </span>
+              {task.scheduledStart && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
+                  Scheduled
+                </span>
+              )}
+            </div>
+          </div>
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ background: PRIORITY_DOTS[task.priority] }}
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteTaskMutation.mutate(task.id);
+            }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
+          >
+            <span className="material-symbols-outlined text-sm">delete</span>
+          </button>
+          {draggable && (
+            <span
+              className="opacity-0 group-hover:opacity-60 material-symbols-outlined text-sm text-[#9CA3AF] cursor-grab active:cursor-grabbing flex-shrink-0 select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              drag_indicator
             </span>
           )}
-        </button>
-        <div className="flex-1 min-w-0">
-          <span
-            className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
-          >
-            {task.title}
-          </span>
-          <div className="flex items-center gap-2 mt-0.5">
-            {goal && (
-              <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
-                <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
-                {goal.title}
-              </span>
-            )}
-            {task.deadline && (
-              <span className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}>
-                {formatRelativeDate(task.deadline)}
-              </span>
-            )}
-            <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
-              {task.durationMinutes}m
-            </span>
-            {task.scheduledStart && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
-                Scheduled
-              </span>
-            )}
-          </div>
         </div>
-        <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ background: PRIORITY_DOTS[task.priority] }}
-        />
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteTaskMutation.mutate(task.id);
-          }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
-        >
-          <span className="material-symbols-outlined text-sm">delete</span>
-        </button>
       </div>
     );
   }
 
   function renderListContent() {
     if (!groups) {
-      if (sorted.length === 0) {
+      if (sortedForList.length === 0) {
         return (
           <div className="text-center py-20 text-[#9CA3AF]">
             <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">
@@ -471,7 +560,11 @@ export default function TasksPage() {
           </div>
         );
       }
-      return <div className="space-y-1 max-w-3xl">{sorted.map(renderTaskRow)}</div>;
+      return (
+        <div className="space-y-1 max-w-3xl">
+          {sortedForList.map((t) => renderTaskRow(t, true))}
+        </div>
+      );
     }
 
     if (groups.length === 0) {
@@ -526,7 +619,7 @@ export default function TasksPage() {
               </button>
               {!isCollapsed && (
                 <div className="space-y-1 pl-2 border-l border-white/5">
-                  {group.tasks.map(renderTaskRow)}
+                  {group.tasks.map((t) => renderTaskRow(t))}
                 </div>
               )}
             </div>
