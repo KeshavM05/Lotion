@@ -368,7 +368,6 @@ export default function CalendarPage() {
         store.updateTask(editingEvent.id, {
           scheduledStart: null,
           scheduledEnd: null,
-          isAutoScheduled: false
         });
       } else {
         store.deleteEvent(editingEvent.id);
@@ -394,6 +393,7 @@ export default function CalendarPage() {
         source: "task",
         taskId: t.id,
         isRecurring: false,
+        createdAt: t.createdAt,
       })) as CalendarEvent[];
 
     return [...regularEvents, ...scheduledTasksAsEvents];

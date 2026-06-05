@@ -116,7 +116,7 @@ export interface CalendarEvent {
   allDay: boolean;
   color: string;
   taskId: string | null;
-  source: "local" | "google" | "outlook";
+  source: "local" | "google" | "outlook" | "task";
   isRecurring?: boolean;
   recurrenceFrequency?: "daily" | "weekly" | "monthly" | "yearly";
   recurrenceInterval?: number;
@@ -659,6 +659,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         tasks,
         taskLists,
         events,
+        journalEntries,
         chatMessages,
         aiMemory,
         loading,

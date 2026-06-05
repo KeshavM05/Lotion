@@ -82,6 +82,7 @@ export default function GoalDetailPage() {
       deadline: taskDeadline ? new Date(taskDeadline).toISOString() : null,
       scheduledStart: null,
       scheduledEnd: null,
+      listId: null,
     });
     setTaskTitle("");
     setTaskDescription("");
