@@ -262,6 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setInitialized(true);
     } catch (error) {
       console.error("Failed to load initial data:", error);
+      toast.error("Failed to load data", { description: "Please refresh the page." });
     } finally {
       setLoading(false);
     }
@@ -286,6 +287,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setGoals((prev) => prev.filter((g) => g.id !== tempId));
       console.error("Failed to create goal:", error);
+      toast.error("Failed to create goal", { description: (error as any)?.message });
       throw error;
     }
   }, []);
@@ -302,6 +304,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setGoals(oldGoals);
       console.error("Failed to update goal:", error);
+      toast.error("Failed to update goal", { description: (error as any)?.message });
       throw error;
     }
   }, [goals]);
@@ -325,6 +328,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTasks(oldTasks);
       setChatMessages(oldMessages);
       console.error("Failed to delete goal:", error);
+      toast.error("Failed to delete goal", { description: (error as any)?.message });
       throw error;
     }
   }, [goals, milestones, tasks, chatMessages]);
@@ -349,6 +353,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setMilestones((prev) => prev.filter((m) => m.id !== tempId));
       console.error("Failed to create milestone:", error);
+      toast.error("Failed to create milestone", { description: (error as any)?.message });
       throw error;
     }
   }, []);
@@ -363,6 +368,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setMilestones(oldMilestones);
       console.error("Failed to update milestone:", error);
+      toast.error("Failed to update milestone", { description: (error as any)?.message });
       throw error;
     }
   }, [milestones]);
@@ -380,6 +386,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setMilestones(oldMilestones);
       setTasks(oldTasks);
       console.error("Failed to delete milestone:", error);
+      toast.error("Failed to delete milestone", { description: (error as any)?.message });
       throw error;
     }
   }, [milestones, tasks]);
@@ -422,6 +429,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setTasks(oldTasks);
       console.error("Failed to update task:", error);
+      toast.error("Failed to update task", { description: (error as any)?.message });
       throw error;
     }
   }, [tasks]);
@@ -439,6 +447,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTasks(oldTasks);
       setEvents(oldEvents);
       console.error("Failed to delete task:", error);
+      toast.error("Failed to delete task", { description: (error as any)?.message });
       throw error;
     }
   }, [tasks, events]);
@@ -452,6 +461,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return newList;
     } catch (error) {
       console.error("Failed to create task list:", error);
+      toast.error("Failed to create task list", { description: (error as any)?.message });
       throw error;
     }
   }, []);
@@ -462,6 +472,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await taskListsApi.update(id, updates);
     } catch (error) {
       console.error("Failed to update task list:", error);
+      toast.error("Failed to update task list", { description: (error as any)?.message });
     }
   }, []);
 
@@ -471,6 +482,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await taskListsApi.delete(id);
     } catch (error) {
       console.error("Failed to delete task list:", error);
+      toast.error("Failed to delete task list", { description: (error as any)?.message });
     }
   }, []);
 
@@ -492,6 +504,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents((prev) => prev.filter((e) => e.id !== tempId));
       console.error("Failed to create event:", error);
+      toast.error("Failed to create event", { description: (error as any)?.message });
       throw error;
     }
   }, []);
@@ -506,6 +519,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents(oldEvents);
       console.error("Failed to update event:", error);
+      toast.error("Failed to update event", { description: (error as any)?.message });
       throw error;
     }
   }, [events]);
@@ -519,6 +533,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setEvents(oldEvents);
       console.error("Failed to delete event:", error);
+      toast.error("Failed to delete event", { description: (error as any)?.message });
       throw error;
     }
   }, [events]);
@@ -555,6 +570,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setJournalEntries((prev) => prev.filter((e) => e.id !== tempId));
       console.error("Failed to create journal entry:", error);
+      toast.error("Failed to save journal entry", { description: (error as any)?.message });
       throw error;
     }
   }, []);
@@ -571,6 +587,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setJournalEntries(oldEntries);
       console.error("Failed to update journal entry:", error);
+      toast.error("Failed to update journal entry", { description: (error as any)?.message });
       throw error;
     }
   }, [journalEntries]);
@@ -584,6 +601,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setJournalEntries(oldEntries);
       console.error("Failed to delete journal entry:", error);
+      toast.error("Failed to delete journal entry", { description: (error as any)?.message });
       throw error;
     }
   }, [journalEntries]);
@@ -599,6 +617,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setAiMemoryState(oldMemory);
       console.error("Failed to update AI memory:", error);
+      toast.error("Failed to save AI memory", { description: (error as any)?.message });
       throw error;
     }
   }, [aiMemory]);
