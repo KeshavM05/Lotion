@@ -15,15 +15,10 @@ import {
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks';
 import { useGoals } from '@/lib/hooks/useGoals';
 import { Modal } from '@/components/ui/modal';
-import { InlineTaskDetail } from '@/components/tasks/InlineTaskDetail';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
-import {
-  ViewOptionsMenu,
-  DEFAULT_VIEW_OPTIONS,
-  type ViewOptions,
-} from '@/components/tasks/ViewOptionsMenu';
+import { TaskListsSidebar } from '@/components/tasks/TaskListsSidebar';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
@@ -61,16 +56,13 @@ export default function TasksPage() {
   const deleteTaskMutation = useDeleteTask();
   // store kept for compatibility with shared components
   const store = useStore();
-  void store;
   const { setPageControls } = usePageHeader();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [viewOptions, setViewOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
-  const groupMode: GroupMode = viewOptions.groupMode;
+  const [groupMode, setGroupMode] = useState<GroupMode>('none');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
@@ -196,7 +188,12 @@ export default function TasksPage() {
     if (projectFilter === 'unassigned') {
       if (t.goalId) return false;
     } else if (projectFilter !== 'all') {
-      if (t.goalId !== projectFilter) return false;
+      const isListId = store.taskLists.some((l) => l.id === projectFilter);
+      if (isListId) {
+        if (t.listId !== projectFilter) return false;
+      } else {
+        if (t.goalId !== projectFilter) return false;
+      }
     }
 
     if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) return false;
@@ -206,35 +203,9 @@ export default function TasksPage() {
     return true;
   });
 
-  const { sortField, sortDir } = viewOptions;
   const pw: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
-  const dir = sortDir === 'asc' ? 1 : -1;
   const sorted = [...filtered].sort((a, b) => {
-    switch (sortField) {
-      case 'priority': {
-        const diff = (pw[b.priority] ?? 0) - (pw[a.priority] ?? 0);
-        if (diff !== 0) return diff * dir;
-        break;
-      }
-      case 'deadline': {
-        const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-        const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-        return (da - db) * dir;
-      }
-      case 'created': {
-        const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return (ca - cb) * dir;
-      }
-      case 'updated': {
-        const ua = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        const ub = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-        return (ua - ub) * dir;
-      }
-      case 'title':
-        return a.title.localeCompare(b.title) * dir;
-    }
-    // fallback: deadline ascending
+    if (pw[b.priority] !== pw[a.priority]) return pw[b.priority] - pw[a.priority];
     const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return da - db;
@@ -289,8 +260,28 @@ export default function TasksPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View options */}
-          <ViewOptionsMenu options={viewOptions} onChange={setViewOptions} />
+          {/* Group mode toggle */}
+          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            {(
+              [
+                { mode: 'none', icon: 'format_list_bulleted', title: 'No grouping' },
+                { mode: 'time', icon: 'schedule', title: 'Group by time' },
+                { mode: 'status', icon: 'flag', title: 'Group by status' },
+                { mode: 'priority', icon: 'priority_high', title: 'Group by priority' },
+              ] as const
+            ).map(({ mode, icon, title }) => (
+              <button
+                key={mode}
+                onClick={() => setGroupMode(mode)}
+                title={title}
+                className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                  groupMode === mode ? 'bg-[#C17A72] text-white' : 'text-[#9CA3AF] hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">{icon}</span>
+              </button>
+            ))}
+          </div>
 
           <button
             onClick={() => setShowAdvancedFilters((v) => !v)}
@@ -351,7 +342,7 @@ export default function TasksPage() {
   }, [
     activeTab,
     viewMode,
-    viewOptions,
+    groupMode,
     showProjects,
     showAdvancedFilters,
     filterEnergy,
@@ -389,89 +380,72 @@ export default function TasksPage() {
     const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
 
     return (
-      <div key={task.id}>
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
-          onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
+      <div
+        key={task.id}
+        className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
+        onClick={() => openEdit(task)}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleComplete(task);
+          }}
+          className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+          style={{
+            borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
+            background: task.completed ? '#C17A72' : 'transparent',
+          }}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleComplete(task);
-            }}
-            className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
-            style={{
-              borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
-              background: task.completed ? '#C17A72' : 'transparent',
-            }}
+          {task.completed && (
+            <span
+              className="material-symbols-outlined text-xs text-white"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              check
+            </span>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <span
+            className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
           >
-            {task.completed && (
-              <span
-                className="material-symbols-outlined text-xs text-white"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                check
+            {task.title}
+          </span>
+          <div className="flex items-center gap-2 mt-0.5">
+            {goal && (
+              <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
+                <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
+                {goal.title}
               </span>
             )}
-          </button>
-          <div className="flex-1 min-w-0">
-            <span
-              className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
-            >
-              {task.title}
-            </span>
-            <div className="flex items-center gap-2 mt-0.5">
-              {goal && (
-                <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
-                  <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
-                  {goal.title}
-                </span>
-              )}
-              {task.deadline && (
-                <span className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}>
-                  {formatRelativeDate(task.deadline)}
-                </span>
-              )}
-              <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
-                {task.durationMinutes}m
+            {task.deadline && (
+              <span className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}>
+                {formatRelativeDate(task.deadline)}
               </span>
-              {task.scheduledStart && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
-                  Scheduled
-                </span>
-              )}
-            </div>
+            )}
+            <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
+              {task.durationMinutes}m
+            </span>
+            {task.scheduledStart && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
+                Scheduled
+              </span>
+            )}
           </div>
-          <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ background: PRIORITY_DOTS[task.priority] }}
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteTaskMutation.mutate(task.id);
-            }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
-          >
-            <span className="material-symbols-outlined text-sm">delete</span>
-          </button>
         </div>
-        {expandedTaskId === task.id && (
-          <InlineTaskDetail
-            key={task.id + '-detail'}
-            task={task}
-            goals={goals}
-            onSave={(updates) => {
-              updateTaskMutation.mutate({ id: task.id, updates });
-              setExpandedTaskId(null);
-            }}
-            onCancel={() => setExpandedTaskId(null)}
-            onDelete={(id) => {
-              deleteTaskMutation.mutate(id);
-              setExpandedTaskId(null);
-            }}
-          />
-        )}
+        <span
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: PRIORITY_DOTS[task.priority] }}
+        />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteTaskMutation.mutate(task.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
+        >
+          <span className="material-symbols-outlined text-sm">delete</span>
+        </button>
       </div>
     );
   }
@@ -557,82 +531,14 @@ export default function TasksPage() {
 
   return (
     <div className="flex gap-6 h-full">
-      {/* Projects Sidebar */}
+      {/* Tasks Lists Sidebar */}
       {showProjects && (
-        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
-              Projects
-            </h3>
-            <p className="text-xs text-[#9CA3AF]">Filter by goal</p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-1">
-            <button
-              onClick={() => setProjectFilter('all')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
-                projectFilter === 'all'
-                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
-                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-base">inbox</span>
-                <span className="text-xs font-medium">All Tasks</span>
-              </div>
-              <span className="text-xs font-['JetBrains_Mono']">
-                {tasks.filter((t) => !t.completed).length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setProjectFilter('unassigned')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
-                projectFilter === 'unassigned'
-                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
-                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-base">radio_button_unchecked</span>
-                <span className="text-xs font-medium">No Project</span>
-              </div>
-              <span className="text-xs font-['JetBrains_Mono']">
-                {tasks.filter((t) => !t.completed && !t.goalId).length}
-              </span>
-            </button>
-
-            <div className="h-px bg-white/5 my-2" />
-
-            {goals
-              .filter((g) => g.status === 'active')
-              .map((goal) => {
-                const taskCount = tasks.filter((t) => !t.completed && t.goalId === goal.id).length;
-                return (
-                  <button
-                    key={goal.id}
-                    onClick={() => setProjectFilter(goal.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors group ${
-                      projectFilter === goal.id
-                        ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
-                        : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ background: goal.color }}
-                      />
-                      <span className="text-xs font-medium truncate">{goal.title}</span>
-                    </div>
-                    <span className="text-xs font-['JetBrains_Mono'] ml-2 flex-shrink-0">
-                      {taskCount}
-                    </span>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
+        <TaskListsSidebar
+          projectFilter={projectFilter}
+          onProjectFilterChange={setProjectFilter}
+          tasks={tasks}
+          goals={goals}
+        />
       )}
 
       {/* Advanced Filters Sidebar */}
