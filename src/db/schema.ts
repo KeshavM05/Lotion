@@ -218,6 +218,7 @@ export const oauthConnections = pgTable('oauth_connections', {
 export const usersRelations = relations(users, ({ one, many }) => ({
   goals: many(goals),
   tasks: many(tasks),
+  taskLists: many(taskLists),
   calendarEvents: many(calendarEvents),
   chatMessages: many(chatMessages),
   journalEntries: many(journalEntries),
@@ -240,10 +241,16 @@ export const milestonesRelations = relations(milestones, ({ one, many }) => ({
   tasks: many(tasks),
 }));
 
+export const taskListsRelations = relations(taskLists, ({ one, many }) => ({
+  user: one(users, { fields: [taskLists.userId], references: [users.id] }),
+  tasks: many(tasks),
+}));
+
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   user: one(users, { fields: [tasks.userId], references: [users.id] }),
   goal: one(goals, { fields: [tasks.goalId], references: [goals.id] }),
   milestone: one(milestones, { fields: [tasks.milestoneId], references: [milestones.id] }),
+  list: one(taskLists, { fields: [tasks.listId], references: [taskLists.id] }),
   calendarEvents: many(calendarEvents),
 }));
 
