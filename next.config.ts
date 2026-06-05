@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  turbopack: {},
+};
 
 // Wrap with next-pwa only in production
 const withPWA =

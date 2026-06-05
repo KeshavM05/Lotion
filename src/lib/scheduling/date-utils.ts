@@ -21,8 +21,8 @@ import {
   setMinutes,
   subDays,
   subMinutes,
-} from "date-fns";
-import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+} from 'date-fns';
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 
 export function newDate(date?: Date | string | number): Date {
   if (date === undefined) {
@@ -35,38 +35,23 @@ export function newDateFromYMD(year: number, month: number, day: number): Date {
 }
 export function formatDate(date: Date): string {
   // Ensure we have a valid date object
-  const validDate =
-    date instanceof Date && !isNaN(date.getTime()) ? date : newDate();
+  const validDate = date instanceof Date && !isNaN(date.getTime()) ? date : newDate();
 
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   }).format(validDate);
 }
 
-export function roundDateUp(date: Date, minutes?: number | undefined): Date {
-  if (minutes === undefined) {
-    minutes = 30;
-  }
-  const roundedDate = new Date(date);
-  roundedDate.setMinutes(
-    Math.ceil(roundedDate.getMinutes() / minutes) * minutes
-  );
-  return roundedDate;
+export function roundDateUp(date: Date, minutes = 30): Date {
+  const ms = minutes * 60 * 1000;
+  return new Date(Math.ceil(date.getTime() / ms) * ms);
 }
 
 export function getWeekDays(short = false): string[] {
-  const weekdays = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   return short ? weekdays.map((day) => day.slice(0, 3)) : weekdays;
 }
 
@@ -75,9 +60,7 @@ export function getDaysInMonth(date: Date): Date[] {
   const month = date.getMonth();
   const daysInMonth = newDateFromYMD(year, month + 1, 0).getDate();
 
-  return Array.from({ length: daysInMonth }, (_, i) =>
-    newDateFromYMD(year, month, i + 1)
-  );
+  return Array.from({ length: daysInMonth }, (_, i) => newDateFromYMD(year, month, i + 1));
 }
 
 /**
@@ -89,7 +72,7 @@ export function convertToUTC(dateTimeString: string, timeZone: string): Date {
 
   // Get the UTC timestamp while respecting the original timezone
   const utcDate = newDate(
-    originalDate.toLocaleString("en-US", {
+    originalDate.toLocaleString('en-US', {
       timeZone: timeZone,
     })
   );
@@ -104,16 +87,16 @@ export function convertToUTC(dateTimeString: string, timeZone: string): Date {
  */
 export function formatDateToLocal(date: Date): string {
   return date
-    .toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
+    .toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
       hour12: false,
     })
-    .replace(/(\d+)\/(\d+)\/(\d+), /, "$3-$1-$2T");
+    .replace(/(\d+)\/(\d+)\/(\d+), /, '$3-$1-$2T');
 }
 
 /**
@@ -164,9 +147,7 @@ export function subHours(date: Date, hours: number): Date {
  */
 export function createUTCMidnightDate(localDate: Date | null): Date | null {
   if (!localDate) return null;
-  return new Date(
-    Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate())
-  );
+  return new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate()));
 }
 
 /**
@@ -180,7 +161,7 @@ export function createAllDayDate(dateString: string): Date {
   if (!dateString) return new Date();
 
   // For an all-day event, extract just the YYYY-MM-DD portion
-  const [year, month, day] = dateString.split("T")[0].split("-").map(Number);
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
 
   // Create a date at midnight local time for the specified day
   // Use setHours(0,0,0,0) to ensure consistent midnight timing
@@ -212,7 +193,7 @@ export function createOutlookAllDayDate(dateString: string): Date {
   if (!dateString) return new Date();
 
   // For an all-day event, extract just the YYYY-MM-DD portion
-  const [year, month, day] = dateString.split("T")[0].split("-").map(Number);
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
 
   // Create a date at midnight UTC for the specified day
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
@@ -242,7 +223,7 @@ export function convertToUserTimezone(date: Date, timezone: string): Date {
   const dateObj = date instanceof Date ? date : new Date(date);
 
   // Convert to the user's timezone
-  return toZonedTime(dateObj, timezone || "UTC");
+  return toZonedTime(dateObj, timezone || 'UTC');
 }
 
 // Re-export date-fns functions

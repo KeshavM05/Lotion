@@ -7,14 +7,13 @@ import { chatRequestSchema } from '@/lib/validation/schemas';
 import { requireAuth } from '@/lib/auth-server';
 
 // Bedrock client is null when AWS credentials are not configured (AI gracefully degraded)
+const _accessKeyId = env.AWS_ACCESS_KEY_ID;
+const _secretAccessKey = env.AWS_SECRET_ACCESS_KEY;
 const bedrock =
-  env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
+  _accessKeyId && _secretAccessKey
     ? new BedrockRuntimeClient({
         region: env.AWS_REGION,
-        credentials: {
-          accessKeyId: env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-        },
+        credentials: { accessKeyId: _accessKeyId, secretAccessKey: _secretAccessKey },
       })
     : null;
 

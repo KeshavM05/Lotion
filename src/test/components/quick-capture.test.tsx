@@ -3,26 +3,31 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickCaptureOverlay } from '@/components/ui/quick-capture';
 
-// Mock the store
 const mockAddJournalEntry = vi.fn();
+const mockAddTask = vi.fn();
 
 vi.mock('@/lib/store', () => ({
   useStore: () => ({
     addJournalEntry: mockAddJournalEntry,
+    addTask: mockAddTask,
     goals: [],
     tasks: [],
     events: [],
     journalEntries: [],
+    taskLists: [],
   }),
 }));
 
-// Mock sonner toast
 vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-  },
+  toast: { error: vi.fn(), success: vi.fn() },
 }));
+
+Object.defineProperty(global.navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: vi.fn().mockRejectedValue(new DOMException('Not allowed', 'NotAllowedError')),
+  },
+  writable: true,
+});
 
 describe('QuickCaptureOverlay', () => {
   const onClose = vi.fn();
@@ -59,8 +64,7 @@ describe('QuickCaptureOverlay', () => {
 
   it('calls onClose when backdrop is clicked', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
-    // Click the backdrop (the outermost div)
-    const backdrop = screen.getByText('Quick Capture').closest("[style*='rgba(0,0,0']");
+    const backdrop = document.querySelector("[style*='rgba(0,0,0,0.8)']");
     if (backdrop) {
       fireEvent.click(backdrop);
       expect(onClose).toHaveBeenCalled();
@@ -93,63 +97,50 @@ describe('QuickCaptureOverlay', () => {
     const user = userEvent.setup();
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
-
     const textarea = await screen.findByPlaceholderText(/What's the thought/i);
     await user.type(textarea, 'Hello');
-
     expect(screen.getByText('5/2000')).toBeInTheDocument();
   });
 
-  it('Capture button is disabled when textarea is empty', async () => {
+  it('Save button is disabled when textarea is empty', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
-
     await waitFor(() => {
-      const captureBtn = screen.getByText('Capture').closest('button');
-      expect(captureBtn).toBeDisabled();
+      const saveBtn = screen.getByRole('button', { name: /save note/i });
+      expect(saveBtn).toBeDisabled();
     });
   });
 
-  it('Capture button is enabled after typing', async () => {
+  it('Save button is enabled after typing', async () => {
     const user = userEvent.setup();
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
-
     const textarea = await screen.findByPlaceholderText(/What's the thought/i);
     await user.type(textarea, 'A thought');
-
-    const captureBtn = screen.getByText('Capture').closest('button');
-    expect(captureBtn).not.toBeDisabled();
+    const saveBtn = screen.getByRole('button', { name: /save note/i });
+    expect(saveBtn).not.toBeDisabled();
   });
 
-  it('saves journal entry on Capture click', async () => {
+  it('saves journal entry on save click (note type)', async () => {
     const user = userEvent.setup();
     mockAddJournalEntry.mockResolvedValue(undefined);
-
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
-
     const textarea = await screen.findByPlaceholderText(/What's the thought/i);
     await user.type(textarea, 'My captured thought');
-
-    fireEvent.click(screen.getByText('Capture').closest('button')!);
-
+    fireEvent.click(screen.getByRole('button', { name: /save note/i }));
     await waitFor(() => {
-      expect(mockAddJournalEntry).toHaveBeenCalledWith({
-        content: 'My captured thought',
-        mood: null,
-        linkedGoalIds: [],
-      });
+      expect(mockAddJournalEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ content: 'My captured thought' })
+      );
     });
   });
 
   it('goes back to select mode when Back is clicked', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
-
     await screen.findByPlaceholderText(/What's the thought/i);
     fireEvent.click(screen.getByText('Back'));
-
     await waitFor(() => {
       expect(screen.getByText('Voice')).toBeInTheDocument();
       expect(screen.getByText('Type')).toBeInTheDocument();
@@ -159,7 +150,6 @@ describe('QuickCaptureOverlay', () => {
   it('shows voice recording mode when Voice is clicked', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Voice'));
-
     await waitFor(() => {
       expect(screen.getByText('Stop & Save')).toBeInTheDocument();
     });
@@ -168,7 +158,6 @@ describe('QuickCaptureOverlay', () => {
   it('shows timer in voice mode', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Voice'));
-
     await waitFor(() => {
       expect(screen.getByText('00:00')).toBeInTheDocument();
     });
