@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useStore, type Priority, CATEGORY_LABELS, PRIORITY_LABELS } from "@/lib/store";
@@ -37,6 +37,23 @@ export default function GoalDetailPage() {
   const [chatInput, setChatInput] = useState("");
   const { messages: chatMessages, sendMessage: sendChatMessage, isLoading: chatLoading } = useAiChat({ goalId });
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
+
+  // Track whether user has manually scrolled up
+  function handleChatScroll() {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    userScrolledUp.current = !isNearBottom;
+  }
+
+  // Auto-scroll to bottom when messages change or while loading (streaming)
+  useEffect(() => {
+    if (!userScrolledUp.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages.length, chatMessages[chatMessages.length - 1]?.content, chatLoading]);
 
   if (!goal) {
     return (
@@ -351,7 +368,7 @@ export default function GoalDetailPage() {
         {/* Chat Tab */}
         {activeTab === "chat" && (
           <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-auto p-8 space-y-4 max-w-3xl">
+            <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 overflow-auto p-8 space-y-4 max-w-3xl">
               {chatMessages.length === 0 && (
                 <div className="text-center py-16" style={{ color: "var(--text-muted)" }}>
                   <svg width="40" height="40" className="mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.4 }}>
