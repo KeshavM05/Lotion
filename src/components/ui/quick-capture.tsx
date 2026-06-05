@@ -5,6 +5,13 @@ import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 type CaptureMode = 'select' | 'text' | 'voice';
+type CaptureType = 'note' | 'task' | 'idea';
+
+const CAPTURE_TYPES: { type: CaptureType; label: string; icon: string; key: string }[] = [
+  { type: 'note', label: 'Note', icon: 'edit_note', key: '1' },
+  { type: 'task', label: 'Task', icon: 'check_circle', key: '2' },
+  { type: 'idea', label: 'Idea', icon: 'lightbulb', key: '3' },
+];
 
 export function useQuickCapture() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,9 +57,11 @@ function generateWaveformHeights(count: number): number[] {
 export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const store = useStore();
   const [mode, setMode] = useState<CaptureMode>('select');
+  const [captureType, setCaptureType] = useState<CaptureType>('note');
   const [text, setText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedType, setSavedType] = useState<CaptureType>('note');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Voice state
@@ -80,6 +89,7 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
   useEffect(() => {
     if (!isOpen) {
       setMode('select');
+      setCaptureType('note');
       setText('');
       setIsSaving(false);
       setSaved(false);
@@ -117,6 +127,21 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
         !isSaving
       ) {
         handleSaveText();
+      }
+      // 1/2/3 to switch capture type in text mode
+      if (mode === 'text' && !isSaving && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          setCaptureType('note');
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          setCaptureType('task');
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          setCaptureType('idea');
+        }
       }
     }
     window.addEventListener('keydown', handleKey);
@@ -417,78 +442,175 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
                 </svg>
               </div>
               <p className="text-sm font-medium" style={{ color: 'var(--success)' }}>
-                Captured!
+                {savedType === 'task'
+                  ? 'Task added!'
+                  : savedType === 'idea'
+                    ? 'Idea saved!'
+                    : 'Note saved!'}
               </p>
             </div>
           )}
 
           {/* Select mode */}
           {!saved && mode === 'select' && (
-            <div className="text-center py-4">
-              <h3
-                className="text-xl font-medium mb-1"
-                style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  color: 'var(--text-primary)',
-                }}
-              >
-                What&apos;s on your mind?
-              </h3>
-              <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
-                Capture now, reflect later.
-              </p>
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={enterVoiceMode}
-                  className="h-20 w-40 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 btn-glow"
-                >
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
-                    <path d="M19 10v2a7 7 0 01-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="23" />
-                    <line x1="8" x2="16" y1="23" y2="23" />
-                  </svg>
-                  <span className="text-sm font-medium">Voice</span>
-                </button>
-                <button
-                  onClick={() => setMode('text')}
-                  className="h-20 w-40 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105"
+            <div>
+              <div className="text-center py-4">
+                <h3
+                  className="text-xl font-medium mb-1"
                   style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border)',
+                    fontFamily: "'Playfair Display', Georgia, serif",
                     color: 'var(--text-primary)',
                   }}
                 >
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+                  What&apos;s on your mind?
+                </h3>
+                <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
+                  Capture now, reflect later.
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={enterVoiceMode}
+                    className="h-20 w-40 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 btn-glow"
                   >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <span className="text-sm font-medium">Type</span>
-                </button>
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                      <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                      <line x1="12" x2="12" y1="19" y2="23" />
+                      <line x1="8" x2="16" y1="23" y2="23" />
+                    </svg>
+                    <span className="text-sm font-medium">Voice</span>
+                  </button>
+                  <button
+                    onClick={() => setMode('text')}
+                    className="h-20 w-40 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <span className="text-sm font-medium">Type</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Recent captures */}
+              {(store.journalEntries.length > 0 || store.tasks.length > 0) && (
+                <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <p
+                    className="text-[10px] font-medium uppercase tracking-wider mb-3"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Recent captures
+                  </p>
+                  <div className="space-y-1.5">
+                    {[
+                      ...store.journalEntries.slice(0, 3).map((e) => ({
+                        id: e.id,
+                        text: e.content.replace(/<[^>]+>/g, '').slice(0, 80),
+                        type: 'note' as CaptureType,
+                        createdAt: e.createdAt,
+                      })),
+                      ...store.tasks.slice(0, 2).map((t) => ({
+                        id: t.id,
+                        text: t.title.slice(0, 80),
+                        type: 'task' as CaptureType,
+                        createdAt: t.createdAt,
+                      })),
+                    ]
+                      .sort(
+                        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                      )
+                      .slice(0, 5)
+                      .map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                          style={{ background: 'var(--bg-tertiary)' }}
+                        >
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
+                            style={{
+                              background:
+                                item.type === 'task'
+                                  ? 'rgba(52,211,153,0.1)'
+                                  : 'var(--accent-soft)',
+                              color: item.type === 'task' ? 'var(--success)' : 'var(--accent)',
+                            }}
+                          >
+                            {item.type}
+                          </span>
+                          <span
+                            className="text-xs truncate"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {item.text || '—'}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Text mode */}
           {!saved && mode === 'text' && (
             <div className="animate-in">
+              {/* Capture type selector */}
+              <div className="flex gap-2 mb-3">
+                {CAPTURE_TYPES.map((ct) => (
+                  <button
+                    key={ct.type}
+                    onClick={() => setCaptureType(ct.type)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      background:
+                        captureType === ct.type ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
+                      color: captureType === ct.type ? 'var(--accent)' : 'var(--text-muted)',
+                      border: `1px solid ${captureType === ct.type ? 'rgba(193,122,114,0.3)' : 'var(--border)'}`,
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                      {ct.icon}
+                    </span>
+                    {ct.label}
+                    <span
+                      className="ml-0.5 opacity-50"
+                      style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}
+                    >
+                      [{ct.key}]
+                    </span>
+                  </button>
+                ))}
+              </div>
               <textarea
                 ref={textareaRef}
-                placeholder="What's the thought, decision, or challenge on your mind?"
+                placeholder={
+                  captureType === 'task'
+                    ? 'What needs to get done?'
+                    : captureType === 'idea'
+                      ? "What's the idea?"
+                      : "What's the thought, decision, or challenge on your mind?"
+                }
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 disabled={isSaving}
@@ -509,7 +631,7 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
                 >
                   <span>{text.length}/2000</span>
                   <span style={{ color: 'var(--border)' }}>|</span>
-                  <span>Ctrl+Enter to save</span>
+                  <span>Ctrl+Enter to save · 1/2/3 to switch type</span>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -539,7 +661,8 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
                         >
                           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                         </svg>
-                        Capture
+                        Save{' '}
+                        {captureType === 'task' ? 'Task' : captureType === 'idea' ? 'Idea' : 'Note'}
                       </>
                     )}
                   </button>
@@ -643,11 +766,29 @@ export function QuickCaptureOverlay({ isOpen, onClose }: { isOpen: boolean; onCl
     if (!text.trim() || isSaving) return;
     setIsSaving(true);
     try {
-      await store.addJournalEntry({ content: text.trim(), mood: null, linkedGoalIds: [] });
+      if (captureType === 'task') {
+        await store.addTask({
+          title: text.trim(),
+          description: '',
+          status: 'todo',
+          priority: 'medium',
+          goalId: null,
+          milestoneId: null,
+          durationMinutes: 30,
+          deadline: null,
+          scheduledStart: null,
+          scheduledEnd: null,
+          listId: null,
+        });
+      } else {
+        const content = captureType === 'idea' ? `💡 ${text.trim()}` : text.trim();
+        await store.addJournalEntry({ content, mood: null, linkedGoalIds: [] });
+      }
+      setSavedType(captureType);
       setSaved(true);
       setTimeout(() => onClose(), 600);
     } catch (error) {
-      console.error('Failed to save journal entry:', error);
+      console.error('Failed to save capture:', error);
       toast.error('Failed to save. Please try again.');
       setIsSaving(false);
     }
