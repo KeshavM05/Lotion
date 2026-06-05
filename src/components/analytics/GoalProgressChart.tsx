@@ -77,7 +77,7 @@ export function GoalProgressChart({ milestones, goalTitle }: GoalProgressChartPr
             tick={{ fill: '#9CA3AF', fontSize: 10, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => `${v}%`}
+            tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip content={<CustomTooltip />} />
           <Line
