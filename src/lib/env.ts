@@ -8,14 +8,14 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 
-  // AWS Bedrock
+  // AWS Bedrock (optional in dev — AI features won't work without these)
   AWS_REGION: z.string().min(1).default("us-east-1"),
-  AWS_ACCESS_KEY_ID: z.string().min(1, "AWS_ACCESS_KEY_ID is required"),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1, "AWS_SECRET_ACCESS_KEY is required"),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
 
-  // Google Calendar OAuth
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
+  // Google Calendar OAuth (optional in dev — calendar sync won't work without these)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z
     .string()
     .url("GOOGLE_REDIRECT_URI must be a valid URL")
