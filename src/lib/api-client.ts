@@ -97,6 +97,7 @@ export const tasksApi = {
     return apiRequest("/tasks/auto-schedule", {
       method: "POST",
       body: JSON.stringify({ timezone }),
+
     });
   },
 };
