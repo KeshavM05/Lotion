@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useStore } from '@/lib/store';
-import { useSidebar } from '@/lib/sidebar-context';
 import { usePageHeader } from '@/lib/page-header-context';
 
 interface HeaderProps {
@@ -16,7 +15,6 @@ export function Header({ onMobileMenuOpen }: HeaderProps) {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const store = useStore();
-  const { collapsed } = useSidebar();
   const { pageControls } = usePageHeader();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -74,9 +72,7 @@ export function Header({ onMobileMenuOpen }: HeaderProps) {
   const userInitial = user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
-    <header
-      className={`fixed top-0 right-0 w-full md:${collapsed ? 'w-[calc(100%-5rem)]' : 'w-[calc(100%-16rem)]'} h-16 z-40 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4 md:px-8 gap-4 md:gap-6 transition-all duration-300`}
-    >
+    <header className="sticky top-0 z-40 w-full h-16 bg-[#060E1F]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4 md:px-8 gap-4 md:gap-6">
       {/* Mobile hamburger button */}
       <button
         onClick={onMobileMenuOpen}
