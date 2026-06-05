@@ -18,7 +18,7 @@ import { Modal } from '@/components/ui/modal';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
-import { TaskListsSidebar } from '@/components/tasks/TaskListsSidebar';
+import { ArchivedTaskListsModal } from '@/components/tasks/ArchivedTaskListsModal';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
@@ -56,6 +56,7 @@ export default function TasksPage() {
   const deleteTaskMutation = useDeleteTask();
   // store kept for compatibility with shared components
   const store = useStore();
+  void store;
   const { setPageControls } = usePageHeader();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function TasksPage() {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
   const [showProjects, setShowProjects] = useState(true);
+  const [showArchivedLists, setShowArchivedLists] = useState(false);
 
   // Advanced filters
   const [filterEnergy, setFilterEnergy] = useState<EnergyLevel | 'all'>('all');
@@ -188,12 +190,7 @@ export default function TasksPage() {
     if (projectFilter === 'unassigned') {
       if (t.goalId) return false;
     } else if (projectFilter !== 'all') {
-      const isListId = store.taskLists.some((l) => l.id === projectFilter);
-      if (isListId) {
-        if (t.listId !== projectFilter) return false;
-      } else {
-        if (t.goalId !== projectFilter) return false;
-      }
+      if (t.goalId !== projectFilter) return false;
     }
 
     if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) return false;
@@ -531,15 +528,100 @@ export default function TasksPage() {
 
   return (
     <div className="flex gap-6 h-full">
-      {/* Tasks Lists Sidebar */}
+      {/* Projects Sidebar */}
       {showProjects && (
-        <TaskListsSidebar
-          projectFilter={projectFilter}
-          onProjectFilterChange={setProjectFilter}
-          tasks={tasks}
-          goals={goals}
-        />
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Projects
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Filter by goal</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1">
+            <button
+              onClick={() => setProjectFilter('all')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'all'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">inbox</span>
+                <span className="text-xs font-medium">All Tasks</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed).length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setProjectFilter('unassigned')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'unassigned'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">radio_button_unchecked</span>
+                <span className="text-xs font-medium">No Project</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed && !t.goalId).length}
+              </span>
+            </button>
+
+            <div className="h-px bg-white/5 my-2" />
+
+            {goals
+              .filter((g) => g.status === 'active')
+              .map((goal) => {
+                const taskCount = tasks.filter((t) => !t.completed && t.goalId === goal.id).length;
+                return (
+                  <button
+                    key={goal.id}
+                    onClick={() => setProjectFilter(goal.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors group ${
+                      projectFilter === goal.id
+                        ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                        : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: goal.color }}
+                      />
+                      <span className="text-xs font-medium truncate">{goal.title}</span>
+                    </div>
+                    <span className="text-xs font-['JetBrains_Mono'] ml-2 flex-shrink-0">
+                      {taskCount}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+
+          {store.taskLists.some((l) => l.archived) && (
+            <div className="pt-3 mt-2 border-t border-white/5">
+              <button
+                onClick={() => setShowArchivedLists(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">archive</span>
+                Show archived lists
+              </button>
+            </div>
+          )}
+        </div>
       )}
+
+      <ArchivedTaskListsModal
+        open={showArchivedLists}
+        onClose={() => setShowArchivedLists(false)}
+      />
 
       {/* Advanced Filters Sidebar */}
       {showAdvancedFilters && (

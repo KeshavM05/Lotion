@@ -7,192 +7,211 @@ import {
   integer,
   pgEnum,
   jsonb,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+} from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Enums
-export const priorityEnum = pgEnum("priority", ["low", "medium", "high", "critical"]);
-export const taskStatusEnum = pgEnum("task_status", ["todo", "in_progress", "done", "cancelled"]);
-export const goalStatusEnum = pgEnum("goal_status", ["active", "paused", "completed", "abandoned"]);
-export const goalCategoryEnum = pgEnum("goal_category", ["career", "business", "finance", "personal", "health", "creative"]);
-export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
-export const moodEnum = pgEnum("mood", ["great", "good", "okay", "bad", "terrible"]);
-export const eventSourceEnum = pgEnum("event_source", ["local", "google", "outlook"]);
-export const recurrenceFrequencyEnum = pgEnum("recurrence_frequency", ["daily", "weekly", "monthly", "yearly"]);
-export const energyLevelEnum = pgEnum("energy_level", ["low", "medium", "high"]);
-export const timePreferenceEnum = pgEnum("time_preference", ["morning", "afternoon", "evening", "anytime"]);
+export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high', 'critical']);
+export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'done', 'cancelled']);
+export const goalStatusEnum = pgEnum('goal_status', ['active', 'paused', 'completed', 'abandoned']);
+export const goalCategoryEnum = pgEnum('goal_category', [
+  'career',
+  'business',
+  'finance',
+  'personal',
+  'health',
+  'creative',
+]);
+export const chatRoleEnum = pgEnum('chat_role', ['user', 'assistant']);
+export const moodEnum = pgEnum('mood', ['great', 'good', 'okay', 'bad', 'terrible']);
+export const eventSourceEnum = pgEnum('event_source', ['local', 'google', 'outlook']);
+export const recurrenceFrequencyEnum = pgEnum('recurrence_frequency', [
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly',
+]);
+export const energyLevelEnum = pgEnum('energy_level', ['low', 'medium', 'high']);
+export const timePreferenceEnum = pgEnum('time_preference', [
+  'morning',
+  'afternoon',
+  'evening',
+  'anytime',
+]);
 
 // Users
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  supabaseId: text("supabase_id").notNull().unique(),
-  email: text("email").notNull().unique(),
-  name: text("name"),
-  avatarUrl: text("avatar_url"),
-  aiMemory: text("ai_memory").default(""),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  supabaseId: text('supabase_id').notNull().unique(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  avatarUrl: text('avatar_url'),
+  aiMemory: text('ai_memory').default(''),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Goals
-export const goals = pgTable("goals", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const goals = pgTable('goals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  category: goalCategoryEnum("category").notNull(),
-  priority: priorityEnum("priority").default("medium").notNull(),
-  targetDate: timestamp("target_date"),
-  color: text("color").notNull(),
-  status: goalStatusEnum("status").default("active").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description').default(''),
+  category: goalCategoryEnum('category').notNull(),
+  priority: priorityEnum('priority').default('medium').notNull(),
+  targetDate: timestamp('target_date'),
+  color: text('color').notNull(),
+  status: goalStatusEnum('status').default('active').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Milestones
-export const milestones = pgTable("milestones", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  goalId: uuid("goal_id")
+export const milestones = pgTable('milestones', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  goalId: uuid('goal_id')
     .notNull()
-    .references(() => goals.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  targetDate: timestamp("target_date"),
-  completed: boolean("completed").default(false).notNull(),
-  completedAt: timestamp("completed_at"),
-  order: integer("order").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+    .references(() => goals.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description').default(''),
+  targetDate: timestamp('target_date'),
+  completed: boolean('completed').default(false).notNull(),
+  completedAt: timestamp('completed_at'),
+  order: integer('order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Task Lists
-export const taskLists = pgTable("task_lists", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const taskLists = pgTable('task_lists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  color: text("color").notNull().default("#8b5cf6"),
-  icon: text("icon").notNull().default("circle"),
-  order: integer("order").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  color: text('color').notNull().default('#8b5cf6'),
+  icon: text('icon').notNull().default('circle'),
+  order: integer('order').default(0).notNull(),
+  archived: boolean('archived').default(false).notNull(),
+  archivedAt: timestamp('archived_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Tasks
-export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const tasks = pgTable('tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  listId: uuid("list_id").references(() => taskLists.id, { onDelete: "set null" }),
-  goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
-  milestoneId: uuid("milestone_id").references(() => milestones.id, { onDelete: "set null" }),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  status: taskStatusEnum("status").default("todo").notNull(),
-  priority: priorityEnum("priority").default("medium").notNull(),
-  durationMinutes: integer("duration_minutes").default(30).notNull(),
-  deadline: timestamp("deadline"),
-  scheduledStart: timestamp("scheduled_start"),
-  scheduledEnd: timestamp("scheduled_end"),
-  isAutoScheduled: boolean("is_auto_scheduled").default(false).notNull(),
-  scheduleLocked: boolean("schedule_locked").default(false).notNull(),
-  scheduleScore: integer("schedule_score"),
-  lastScheduled: timestamp("last_scheduled"),
-  completed: boolean("completed").default(false).notNull(),
-  completedAt: timestamp("completed_at"),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  listId: uuid('list_id').references(() => taskLists.id, { onDelete: 'set null' }),
+  goalId: uuid('goal_id').references(() => goals.id, { onDelete: 'set null' }),
+  milestoneId: uuid('milestone_id').references(() => milestones.id, { onDelete: 'set null' }),
+  title: text('title').notNull(),
+  description: text('description').default(''),
+  status: taskStatusEnum('status').default('todo').notNull(),
+  priority: priorityEnum('priority').default('medium').notNull(),
+  durationMinutes: integer('duration_minutes').default(30).notNull(),
+  deadline: timestamp('deadline'),
+  scheduledStart: timestamp('scheduled_start'),
+  scheduledEnd: timestamp('scheduled_end'),
+  isAutoScheduled: boolean('is_auto_scheduled').default(false).notNull(),
+  scheduleLocked: boolean('schedule_locked').default(false).notNull(),
+  scheduleScore: integer('schedule_score'),
+  lastScheduled: timestamp('last_scheduled'),
+  completed: boolean('completed').default(false).notNull(),
+  completedAt: timestamp('completed_at'),
   // Advanced filtering fields
-  energyLevel: energyLevelEnum("energy_level").default("medium"),
-  timePreference: timePreferenceEnum("time_preference").default("anytime"),
-  tags: jsonb("tags").$type<string[]>().default([]),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  energyLevel: energyLevelEnum('energy_level').default('medium'),
+  timePreference: timePreferenceEnum('time_preference').default('anytime'),
+  tags: jsonb('tags').$type<string[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Calendar Events
-export const calendarEvents = pgTable("calendar_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const calendarEvents = pgTable('calendar_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  start: timestamp("start").notNull(),
-  end: timestamp("end").notNull(),
-  allDay: boolean("all_day").default(false).notNull(),
-  color: text("color").default("#8b5cf6"),
-  source: eventSourceEnum("source").default("local").notNull(),
-  googleEventId: text("google_event_id"),
-  outlookEventId: text("outlook_event_id"),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+  title: text('title').notNull(),
+  description: text('description').default(''),
+  start: timestamp('start').notNull(),
+  end: timestamp('end').notNull(),
+  allDay: boolean('all_day').default(false).notNull(),
+  color: text('color').default('#8b5cf6'),
+  source: eventSourceEnum('source').default('local').notNull(),
+  googleEventId: text('google_event_id'),
+  outlookEventId: text('outlook_event_id'),
   // Recurrence fields
-  isRecurring: boolean("is_recurring").default(false).notNull(),
-  recurrenceFrequency: recurrenceFrequencyEnum("recurrence_frequency"),
-  recurrenceInterval: integer("recurrence_interval").default(1),
-  recurrenceEndDate: timestamp("recurrence_end_date"),
-  recurrenceDaysOfWeek: jsonb("recurrence_days_of_week").$type<number[]>(), // 0=Sun, 1=Mon, etc
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isRecurring: boolean('is_recurring').default(false).notNull(),
+  recurrenceFrequency: recurrenceFrequencyEnum('recurrence_frequency'),
+  recurrenceInterval: integer('recurrence_interval').default(1),
+  recurrenceEndDate: timestamp('recurrence_end_date'),
+  recurrenceDaysOfWeek: jsonb('recurrence_days_of_week').$type<number[]>(), // 0=Sun, 1=Mon, etc
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Chat Messages
-export const chatMessages = pgTable("chat_messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  goalId: uuid("goal_id").references(() => goals.id, { onDelete: "cascade" }),
-  role: chatRoleEnum("role").notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  goalId: uuid('goal_id').references(() => goals.id, { onDelete: 'cascade' }),
+  role: chatRoleEnum('role').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Journal Entries
-export const journalEntries = pgTable("journal_entries", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const journalEntries = pgTable('journal_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  mood: moodEnum("mood"),
-  linkedGoalIds: jsonb("linked_goal_ids").$type<string[]>().default([]),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  mood: moodEnum('mood'),
+  linkedGoalIds: jsonb('linked_goal_ids').$type<string[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Auto Schedule Settings
-export const autoScheduleSettings = pgTable("auto_schedule_settings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const autoScheduleSettings = pgTable('auto_schedule_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
     .unique()
-    .references(() => users.id, { onDelete: "cascade" }),
-  workDays: jsonb("work_days").$type<number[]>().default([1, 2, 3, 4, 5]), // Mon-Fri
-  workHourStart: integer("work_hour_start").default(9).notNull(), // 9 AM
-  workHourEnd: integer("work_hour_end").default(17).notNull(), // 5 PM
-  highEnergyStart: integer("high_energy_start").default(9),
-  highEnergyEnd: integer("high_energy_end").default(12),
-  mediumEnergyStart: integer("medium_energy_start").default(13),
-  mediumEnergyEnd: integer("medium_energy_end").default(15),
-  lowEnergyStart: integer("low_energy_start").default(15),
-  lowEnergyEnd: integer("low_energy_end").default(17),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  workDays: jsonb('work_days').$type<number[]>().default([1, 2, 3, 4, 5]), // Mon-Fri
+  workHourStart: integer('work_hour_start').default(9).notNull(), // 9 AM
+  workHourEnd: integer('work_hour_end').default(17).notNull(), // 5 PM
+  highEnergyStart: integer('high_energy_start').default(9),
+  highEnergyEnd: integer('high_energy_end').default(12),
+  mediumEnergyStart: integer('medium_energy_start').default(13),
+  mediumEnergyEnd: integer('medium_energy_end').default(15),
+  lowEnergyStart: integer('low_energy_start').default(15),
+  lowEnergyEnd: integer('low_energy_end').default(17),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // OAuth Connections (For Google/Outlook Calendar Sync)
-export const oauthConnections = pgTable("oauth_connections", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+export const oauthConnections = pgTable('oauth_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  provider: text("provider").notNull(), // 'google' | 'outlook'
-  providerAccountId: text("provider_account_id").notNull(),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    .references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(), // 'google' | 'outlook'
+  providerAccountId: text('provider_account_id').notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Relations

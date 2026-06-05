@@ -122,6 +122,8 @@ export interface TaskList {
   color: string;
   icon: string;
   order: number;
+  archived: boolean;
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -196,9 +198,13 @@ interface StoreContextType {
   deleteTask: (id: string) => Promise<void>;
 
   // Task Lists
-  addTaskList: (list: Omit<TaskList, 'id' | 'createdAt'>) => Promise<TaskList>;
+  addTaskList: (
+    list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>
+  ) => Promise<TaskList>;
   updateTaskList: (id: string, updates: Partial<TaskList>) => Promise<void>;
   deleteTaskList: (id: string) => Promise<void>;
+  archiveTaskList: (id: string) => Promise<void>;
+  restoreTaskList: (id: string) => Promise<void>;
 
   // Events
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<CalendarEvent>;
@@ -548,17 +554,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Task Lists ────────────────────────────────────────
 
-  const addTaskList = useCallback(async (list: Omit<TaskList, 'id' | 'createdAt'>) => {
-    try {
-      const newList = await taskListsApi.create(list);
-      setTaskLists((prev) => [...prev, newList]);
-      return newList;
-    } catch (error) {
-      console.error('Failed to create task list:', error);
-      toast.error('Failed to create task list', { description: (error as any)?.message });
-      throw error;
-    }
-  }, []);
+  const addTaskList = useCallback(
+    async (list: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>) => {
+      try {
+        const newList = await taskListsApi.create({ ...list, archived: false, archivedAt: null });
+        setTaskLists((prev) => [...prev, newList]);
+        return newList;
+      } catch (error) {
+        console.error('Failed to create task list:', error);
+        toast.error('Failed to create task list', { description: (error as any)?.message });
+        throw error;
+      }
+    },
+    []
+  );
 
   const updateTaskList = useCallback(async (id: string, updates: Partial<TaskList>) => {
     try {
@@ -577,6 +586,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to delete task list:', error);
       toast.error('Failed to delete task list', { description: (error as any)?.message });
+    }
+  }, []);
+
+  const archiveTaskList = useCallback(async (id: string) => {
+    const now = new Date().toISOString();
+    try {
+      setTaskLists((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, archived: true, archivedAt: now } : l))
+      );
+      await taskListsApi.update(id, { archived: true, archivedAt: now });
+    } catch (error) {
+      console.error('Failed to archive task list:', error);
+      setTaskLists((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, archived: false, archivedAt: null } : l))
+      );
+      toast.error('Failed to archive task list', { description: (error as any)?.message });
+    }
+  }, []);
+
+  const restoreTaskList = useCallback(async (id: string) => {
+    try {
+      setTaskLists((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, archived: false, archivedAt: null } : l))
+      );
+      await taskListsApi.update(id, { archived: false, archivedAt: null });
+    } catch (error) {
+      console.error('Failed to restore task list:', error);
+      toast.error('Failed to restore task list', { description: (error as any)?.message });
     }
   }, []);
 
@@ -814,6 +851,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addTaskList,
         updateTaskList,
         deleteTaskList,
+        archiveTaskList,
+        restoreTaskList,
         addEvent,
         updateEvent,
         deleteEvent,
