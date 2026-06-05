@@ -3,7 +3,6 @@
 import React, { memo } from 'react';
 import type { CalendarEvent } from '@/lib/store';
 import { formatTime } from '@/lib/utils';
-import { HOUR_HEIGHT } from './types';
 
 interface EventCardProps {
   event: CalendarEvent;

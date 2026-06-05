@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useStore, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/store';
+import { useStore, CATEGORY_LABELS } from '@/lib/store';
 import { ProgressRing } from '@/components/ui/progress-ring';
-import { formatRelativeDate } from '@/lib/utils';
 
 export default function DashboardPage() {
   const store = useStore();

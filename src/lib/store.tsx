@@ -793,7 +793,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const data = await tasksApi.autoSchedule(userTimezone);
-      console.log('Auto-schedule results:', data);
 
       // Reload tasks to get the newly scheduled dates
       const [tasksData, eventsData] = await Promise.all([tasksApi.list(), eventsApi.list()]);

@@ -4,7 +4,7 @@ import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useStore, type CalendarEvent, type Task } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
-import { isSameDay, toLocalDatetimeString, getWeekDates } from '@/lib/utils';
+import { toLocalDatetimeString, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 
 import CalendarHeader from '@/components/calendar/CalendarHeader';
