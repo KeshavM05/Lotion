@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "./supabase";
-import type { User, Session } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { supabase } from './supabase';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, name?: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, name?: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
 

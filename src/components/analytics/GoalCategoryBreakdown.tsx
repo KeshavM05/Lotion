@@ -28,7 +28,13 @@ export function GoalCategoryBreakdown({ goals }: GoalCategoryBreakdownProps) {
     );
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: { payload: (typeof data)[number] }[];
+  }) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     const total = data.reduce((s, x) => s + x.value, 0);
@@ -44,6 +50,7 @@ export function GoalCategoryBreakdown({ goals }: GoalCategoryBreakdownProps) {
     );
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     if (percent < 0.08) return null;
     const RADIAN = Math.PI / 180;
