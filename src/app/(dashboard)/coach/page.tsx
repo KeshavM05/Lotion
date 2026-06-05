@@ -7,10 +7,22 @@ export default function CoachPage() {
   const [input, setInput] = useState("");
   const { messages, sendMessage, isLoading } = useAiChat({ goalId: null });
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
 
+  function handleChatScroll() {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    userScrolledUp.current = !isNearBottom;
+  }
+
+  // Auto-scroll to bottom on new messages or while streaming; respect user scroll position
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, isLoading]);
+    if (!userScrolledUp.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length, messages[messages.length - 1]?.content, isLoading]);
 
   function send() {
     if (!input.trim() || isLoading) return;
@@ -86,7 +98,7 @@ export default function CoachPage() {
 
       {/* Chat Messages - Only show when there are messages */}
       {messages.length > 0 && (
-        <div className="flex-1 overflow-auto min-h-0 mb-20">
+        <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 overflow-auto min-h-0 mb-20">
           <div className="max-w-2xl mx-auto space-y-4 pb-4 pt-6 px-8">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
