@@ -34,7 +34,13 @@ export const createTaskSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
 });
 
-export const updateTaskSchema = createTaskSchema.partial();
+export const updateTaskSchema = createTaskSchema.partial().extend({
+  completed: z.boolean().optional(),
+  completedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  scheduleLocked: z.boolean().optional(),
+  isAutoScheduled: z.boolean().optional(),
+  scheduleScore: z.number().int().optional().nullable(),
+});
 
 // Journal schemas
 export const createJournalEntrySchema = z.object({
@@ -109,6 +115,8 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateJournalEntryInput = z.infer<typeof createJournalEntrySchema>;
 export type UpdateJournalEntryInput = z.infer<typeof updateJournalEntrySchema>;
+export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
+export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
 export type ChatRequestInput = z.infer<typeof chatRequestSchema>;
 export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
 export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;

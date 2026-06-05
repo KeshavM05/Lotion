@@ -6,21 +6,20 @@ import { validateBody } from '@/lib/api-middleware';
 import { chatRequestSchema } from '@/lib/validation/schemas';
 import { requireAuth } from '@/lib/auth-server';
 
-// Bedrock client is null when AWS credentials are not configured (AI gracefully degraded)
-const _accessKeyId = env.AWS_ACCESS_KEY_ID;
-const _secretAccessKey = env.AWS_SECRET_ACCESS_KEY;
 const bedrock =
-  _accessKeyId && _secretAccessKey
+  env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
     ? new BedrockRuntimeClient({
         region: env.AWS_REGION,
-        credentials: { accessKeyId: _accessKeyId, secretAccessKey: _secretAccessKey },
+        credentials: {
+          accessKeyId: env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+        },
       })
     : null;
 
 const MODEL_ID = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
 
 export async function POST(request: NextRequest) {
-  // Require authentication
   try {
     await requireAuth(request);
   } catch (error) {
@@ -50,13 +49,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!bedrock) {
-    return Response.json({ error: 'AI not configured' }, { status: 503 });
-  }
-
   // Validate request body
   const { data, error } = await validateBody(request, chatRequestSchema);
   if (error) return error;
+
+  if (!bedrock) {
+    return Response.json({ error: 'AI not configured' }, { status: 503 });
+  }
 
   try {
     const { messages, goalContext, aiMemory, calendarContext, tasksContext } = data;
