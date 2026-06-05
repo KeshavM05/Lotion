@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useStore } from "@/lib/store";
+import { exportGoalsMarkdown, exportJournalMarkdown, exportAllJSON, downloadFile } from "@/lib/export";
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
@@ -281,6 +284,26 @@ function PreferencesSection() {
 }
 
 function ExportSection() {
+  const { goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory } = useStore();
+
+  const handleMarkdownExport = async () => {
+    const goalsContent = exportGoalsMarkdown(goals, milestones, tasks);
+    const journalContent = exportJournalMarkdown(journalEntries, goals);
+    const combined = goalsContent + "\n\n" + journalContent;
+    downloadFile(combined, `lotion-export-${new Date().toISOString().split("T")[0]}.md`, "text/markdown");
+    toast.success("Markdown export downloaded");
+  };
+
+  const handleJSONExport = async () => {
+    const content = exportAllJSON({ goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory });
+    downloadFile(content, `lotion-export-${new Date().toISOString().split("T")[0]}.json`, "application/json");
+    toast.success("JSON export downloaded");
+  };
+
+  const handlePDFExport = async () => {
+    toast.info("PDF export coming soon");
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -295,18 +318,21 @@ function ExportSection() {
             title="Export as Markdown"
             description="Human-readable format perfect for archiving"
             format="Markdown"
+            onClick={handleMarkdownExport}
           />
           <ExportButton
             icon="code"
             title="Export as JSON"
             description="Machine-readable format for data portability"
             format="JSON"
+            onClick={handleJSONExport}
           />
           <ExportButton
             icon="picture_as_pdf"
             title="Export as PDF"
             description="Formatted document with your complete history"
             format="PDF"
+            onClick={handlePDFExport}
           />
         </div>
       </div>
@@ -314,9 +340,36 @@ function ExportSection() {
   );
 }
 
-function ExportButton({ icon, title, description, format }: { icon: string; title: string; description: string; format: string }) {
+function ExportButton({
+  icon,
+  title,
+  description,
+  format,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  format: string;
+  onClick: () => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async () => {
+    setLoading(true);
+    try {
+      await onClick();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <button className="w-full flex items-center justify-between px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors group">
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="w-full flex items-center justify-between px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors group disabled:opacity-60 disabled:cursor-not-allowed"
+    >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-lg bg-[#C17A72]/20 flex items-center justify-center">
           <span className="material-symbols-outlined text-[#C17A72]">{icon}</span>
@@ -330,9 +383,13 @@ function ExportButton({ icon, title, description, format }: { icon: string; titl
       </div>
       <div className="flex items-center gap-3">
         <span className="text-xs font-['JetBrains_Mono'] text-[#9CA3AF]">{format}</span>
-        <span className="material-symbols-outlined text-[#9CA3AF] group-hover:text-white transition-colors">
-          download
-        </span>
+        {loading ? (
+          <span className="material-symbols-outlined text-[#9CA3AF] animate-spin">progress_activity</span>
+        ) : (
+          <span className="material-symbols-outlined text-[#9CA3AF] group-hover:text-white transition-colors">
+            download
+          </span>
+        )}
       </div>
     </button>
   );
