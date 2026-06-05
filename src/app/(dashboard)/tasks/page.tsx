@@ -17,10 +17,11 @@ import { useGoals } from '@/lib/hooks/useGoals';
 import { Modal } from '@/components/ui/modal';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
+import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
-type ProjectFilter = 'all' | string; // "all" or goalId
+type ProjectFilter = 'all' | 'unassigned' | string;
 
 const PRIORITY_DOTS: Record<Priority, string> = {
   critical: '#ef4444',
@@ -29,18 +30,40 @@ const PRIORITY_DOTS: Record<Priority, string> = {
   low: '#3b82f6',
 };
 
+const GROUP_ICONS: Record<string, string> = {
+  overdue: 'warning',
+  today: 'today',
+  tomorrow: 'event',
+  this_week: 'date_range',
+  later: 'schedule',
+  no_due_date: 'remove_circle_outline',
+  todo: 'radio_button_unchecked',
+  in_progress: 'pending',
+  done: 'check_circle',
+  cancelled: 'cancel',
+  critical: 'priority_high',
+  high: 'keyboard_arrow_up',
+  medium: 'remove',
+  low: 'keyboard_arrow_down',
+};
+
 export default function TasksPage() {
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
   const createTaskMutation = useCreateTask();
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
+  // store kept for compatibility with shared components
   const store = useStore();
+  void store;
   const { setPageControls } = usePageHeader();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [groupMode, setGroupMode] = useState<GroupMode>('none');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
   const [showProjects, setShowProjects] = useState(true);
@@ -51,7 +74,7 @@ export default function TasksPage() {
   const [filterTag, setFilterTag] = useState<string>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Form
+  // Form state
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formPriority, setFormPriority] = useState<Priority>('medium');
@@ -131,12 +154,20 @@ export default function TasksPage() {
     });
   }
 
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   const now = new Date();
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
 
   const filtered = tasks.filter((t) => {
-    // Apply tab filter
     let tabMatch = false;
     switch (activeTab) {
       case 'all':
@@ -154,38 +185,27 @@ export default function TasksPage() {
     }
     if (!tabMatch) return false;
 
-    // Apply project filter
     if (projectFilter === 'unassigned') {
       if (t.goalId) return false;
     } else if (projectFilter !== 'all') {
       if (t.goalId !== projectFilter) return false;
     }
 
-    // Apply advanced filters
-    if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) {
-      return false;
-    }
-    if (filterTimePreference !== 'all' && t.timePreference !== filterTimePreference) {
-      return false;
-    }
-    if (filterTag !== 'all') {
-      if (!t.tags || !t.tags.includes(filterTag)) {
-        return false;
-      }
-    }
+    if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) return false;
+    if (filterTimePreference !== 'all' && t.timePreference !== filterTimePreference) return false;
+    if (filterTag !== 'all' && (!t.tags || !t.tags.includes(filterTag))) return false;
 
     return true;
   });
 
+  const pw: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
   const sorted = [...filtered].sort((a, b) => {
-    const pw = { critical: 4, high: 3, medium: 2, low: 1 };
     if (pw[b.priority] !== pw[a.priority]) return pw[b.priority] - pw[a.priority];
     const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return da - db;
   });
 
-  // Get all unique tags
   const allTags = Array.from(new Set(tasks.flatMap((t) => t.tags || [])));
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
@@ -205,11 +225,18 @@ export default function TasksPage() {
     { key: 'completed', label: 'Done', count: tasks.filter((t) => t.completed).length },
   ];
 
-  // Set page header controls
+  const groups =
+    groupMode === 'time'
+      ? groupByTime(sorted)
+      : groupMode === 'status'
+        ? groupByStatus(sorted)
+        : groupMode === 'priority'
+          ? groupByPriority(sorted)
+          : null;
+
   useEffect(() => {
     setPageControls(
       <div className="flex items-center justify-between w-full">
-        {/* Tabs */}
         <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
@@ -227,10 +254,32 @@ export default function TasksPage() {
           ))}
         </div>
 
-        {/* View Mode, Filters, Projects Toggle & Add Button */}
         <div className="flex items-center gap-2">
+          {/* Group mode toggle */}
+          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            {(
+              [
+                { mode: 'none', icon: 'format_list_bulleted', title: 'No grouping' },
+                { mode: 'time', icon: 'schedule', title: 'Group by time' },
+                { mode: 'status', icon: 'flag', title: 'Group by status' },
+                { mode: 'priority', icon: 'priority_high', title: 'Group by priority' },
+              ] as const
+            ).map(({ mode, icon, title }) => (
+              <button
+                key={mode}
+                onClick={() => setGroupMode(mode)}
+                title={title}
+                className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                  groupMode === mode ? 'bg-[#C17A72] text-white' : 'text-[#9CA3AF] hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">{icon}</span>
+              </button>
+            ))}
+          </div>
+
           <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            onClick={() => setShowAdvancedFilters((v) => !v)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showAdvancedFilters ||
               filterEnergy !== 'all' ||
@@ -244,7 +293,7 @@ export default function TasksPage() {
             <span className="material-symbols-outlined text-sm">filter_list</span>
           </button>
           <button
-            onClick={() => setShowProjects(!showProjects)}
+            onClick={() => setShowProjects((v) => !v)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showProjects
                 ? 'bg-[#C17A72]/20 text-[#C17A72]'
@@ -284,9 +333,11 @@ export default function TasksPage() {
     );
 
     return () => setPageControls(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
     viewMode,
+    groupMode,
     showProjects,
     showAdvancedFilters,
     filterEnergy,
@@ -296,7 +347,6 @@ export default function TasksPage() {
     setPageControls,
   ]);
 
-  // Drag handlers for board view
   function handleDragStart(task: Task, e: React.DragEvent) {
     e.dataTransfer.effectAllowed = 'move';
     setDraggedTask(task);
@@ -309,7 +359,6 @@ export default function TasksPage() {
   function handleDrop(newStatus: TaskStatus, e: React.DragEvent) {
     e.preventDefault();
     if (!draggedTask) return;
-
     updateTaskMutation.mutate({
       id: draggedTask.id,
       updates: {
@@ -319,6 +368,160 @@ export default function TasksPage() {
       },
     });
     setDraggedTask(null);
+  }
+
+  function renderTaskRow(task: Task) {
+    const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
+    const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+
+    return (
+      <div
+        key={task.id}
+        className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
+        onClick={() => openEdit(task)}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleComplete(task);
+          }}
+          className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+          style={{
+            borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
+            background: task.completed ? '#C17A72' : 'transparent',
+          }}
+        >
+          {task.completed && (
+            <span
+              className="material-symbols-outlined text-xs text-white"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              check
+            </span>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <span
+            className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
+          >
+            {task.title}
+          </span>
+          <div className="flex items-center gap-2 mt-0.5">
+            {goal && (
+              <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
+                <span className="w-2 h-2 rounded-full" style={{ background: goal.color }} />
+                {goal.title}
+              </span>
+            )}
+            {task.deadline && (
+              <span className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}>
+                {formatRelativeDate(task.deadline)}
+              </span>
+            )}
+            <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
+              {task.durationMinutes}m
+            </span>
+            {task.scheduledStart && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
+                Scheduled
+              </span>
+            )}
+          </div>
+        </div>
+        <span
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: PRIORITY_DOTS[task.priority] }}
+        />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteTaskMutation.mutate(task.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
+        >
+          <span className="material-symbols-outlined text-sm">delete</span>
+        </button>
+      </div>
+    );
+  }
+
+  function renderListContent() {
+    if (!groups) {
+      if (sorted.length === 0) {
+        return (
+          <div className="text-center py-20 text-[#9CA3AF]">
+            <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">
+              task_alt
+            </span>
+            <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF]">
+              {activeTab === 'completed' ? 'No completed tasks' : 'No tasks yet'}
+            </p>
+          </div>
+        );
+      }
+      return <div className="space-y-1 max-w-3xl">{sorted.map(renderTaskRow)}</div>;
+    }
+
+    if (groups.length === 0) {
+      return (
+        <div className="text-center py-20 text-[#9CA3AF]">
+          <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">task_alt</span>
+          <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF]">No tasks yet</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 max-w-3xl">
+        {groups.map((group) => {
+          const isCollapsed = collapsedGroups.has(group.key);
+          const isOverdue = group.key === 'overdue';
+          const icon = GROUP_ICONS[group.key] ?? 'folder';
+
+          return (
+            <div key={group.key}>
+              <button
+                onClick={() => toggleGroup(group.key)}
+                className="flex items-center gap-2 mb-2 w-full text-left"
+              >
+                <span
+                  className="material-symbols-outlined text-sm"
+                  style={{ color: isOverdue ? '#C17A72' : '#9CA3AF' }}
+                >
+                  {isCollapsed ? 'chevron_right' : 'expand_more'}
+                </span>
+                <span
+                  className="material-symbols-outlined text-sm"
+                  style={{ color: isOverdue ? '#C17A72' : '#9CA3AF' }}
+                >
+                  {icon}
+                </span>
+                <span
+                  className="text-xs font-semibold font-['Space_Grotesk'] uppercase tracking-wider"
+                  style={{ color: isOverdue ? '#C17A72' : '#9CA3AF' }}
+                >
+                  {group.label}
+                </span>
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded font-['JetBrains_Mono']"
+                  style={{
+                    background: isOverdue ? 'rgba(193,122,114,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: isOverdue ? '#C17A72' : '#6B7280',
+                  }}
+                >
+                  {group.tasks.length}
+                </span>
+              </button>
+              {!isCollapsed && (
+                <div className="space-y-1 pl-2 border-l border-white/5">
+                  {group.tasks.map(renderTaskRow)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   }
 
   return (
@@ -334,7 +537,6 @@ export default function TasksPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-1">
-            {/* All Projects */}
             <button
               onClick={() => setProjectFilter('all')}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
@@ -352,7 +554,6 @@ export default function TasksPage() {
               </span>
             </button>
 
-            {/* Unassigned */}
             <button
               onClick={() => setProjectFilter('unassigned')}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
@@ -372,7 +573,6 @@ export default function TasksPage() {
 
             <div className="h-px bg-white/5 my-2" />
 
-            {/* Goals as Projects */}
             {goals
               .filter((g) => g.status === 'active')
               .map((goal) => {
@@ -415,7 +615,6 @@ export default function TasksPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Energy Level Filter */}
             <div>
               <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Energy Level</label>
               <select
@@ -432,7 +631,6 @@ export default function TasksPage() {
               </select>
             </div>
 
-            {/* Time Preference Filter */}
             <div>
               <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">
                 Time Preference
@@ -453,7 +651,6 @@ export default function TasksPage() {
               </select>
             </div>
 
-            {/* Tag Filter */}
             <div>
               <label className="text-xs font-medium text-[#BEC6DF] mb-2 block">Tag</label>
               <select
@@ -470,7 +667,6 @@ export default function TasksPage() {
               </select>
             </div>
 
-            {/* Clear Filters Button */}
             {(filterEnergy !== 'all' || filterTimePreference !== 'all' || filterTag !== 'all') && (
               <button
                 onClick={() => {
@@ -490,105 +686,8 @@ export default function TasksPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* List View */}
-        {viewMode === 'list' && (
-          <div className="flex-1 overflow-auto">
-            {sorted.length === 0 ? (
-              <div className="text-center py-20 text-[#9CA3AF]">
-                <span className="material-symbols-outlined text-4xl mb-3 block opacity-40">
-                  task_alt
-                </span>
-                <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF]">
-                  {activeTab === 'completed' ? 'No completed tasks' : 'No tasks yet'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1 max-w-3xl">
-                {sorted.map((task) => {
-                  const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
-                  const overdue = task.deadline && !task.completed && new Date(task.deadline) < now;
+        {viewMode === 'list' && <div className="flex-1 overflow-auto">{renderListContent()}</div>}
 
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl group cursor-pointer transition-colors hover:bg-white/[0.02]"
-                      onClick={() => openEdit(task)}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleComplete(task);
-                        }}
-                        className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors"
-                        style={{
-                          borderColor: task.completed ? '#C17A72' : 'rgba(255,255,255,0.1)',
-                          background: task.completed ? '#C17A72' : 'transparent',
-                        }}
-                      >
-                        {task.completed && (
-                          <span
-                            className="material-symbols-outlined text-xs text-white"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                          >
-                            check
-                          </span>
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <span
-                          className={`text-sm ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
-                        >
-                          {task.title}
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {goal && (
-                            <span className="flex items-center gap-1 text-[10px] text-[#9CA3AF]">
-                              <span
-                                className="w-2 h-2 rounded-full"
-                                style={{ background: goal.color }}
-                              />
-                              {goal.title}
-                            </span>
-                          )}
-                          {task.deadline && (
-                            <span
-                              className={`text-[10px] ${overdue ? 'text-[#ef4444]' : 'text-[#9CA3AF]'}`}
-                            >
-                              {formatRelativeDate(task.deadline)}
-                            </span>
-                          )}
-                          <span className="text-[10px] text-[#9CA3AF] font-['JetBrains_Mono']">
-                            {task.durationMinutes}m
-                          </span>
-                          {task.scheduledStart && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C17A72]/20 text-[#C17A72]">
-                              Scheduled
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: PRIORITY_DOTS[task.priority] }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTaskMutation.mutate(task.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all text-[#9CA3AF] hover:text-[#ef4444]"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Board View */}
         {viewMode === 'board' && (
           <div className="flex-1 overflow-auto">
             <div className="grid grid-cols-3 gap-4 h-full">
@@ -612,7 +711,6 @@ export default function TasksPage() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleDrop(status, e)}
                   >
-                    {/* Column Header */}
                     <div className="px-4 py-3 border-b border-white/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -630,7 +728,6 @@ export default function TasksPage() {
                       </div>
                     </div>
 
-                    {/* Column Tasks */}
                     <div className="flex-1 overflow-y-auto p-3 space-y-2">
                       {statusTasks.length === 0 ? (
                         <div className="text-center py-8 text-[#6B7280] text-xs">No tasks</div>
@@ -803,7 +900,6 @@ export default function TasksPage() {
             </div>
           )}
 
-          {/* Advanced Fields */}
           <div className="border-t border-white/10 pt-4">
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
@@ -842,7 +938,6 @@ export default function TasksPage() {
               </div>
             </div>
 
-            {/* Tags */}
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
                 Tags
