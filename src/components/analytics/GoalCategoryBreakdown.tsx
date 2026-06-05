@@ -92,7 +92,7 @@ export function GoalCategoryBreakdown({ goals }: GoalCategoryBreakdownProps) {
         <Legend
           iconType="circle"
           iconSize={8}
-          formatter={(value) => (
+          formatter={(value: string) => (
             <span style={{ color: '#9CA3AF', fontSize: 11, fontFamily: 'Space Grotesk' }}>
               {value}
             </span>
