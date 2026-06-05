@@ -1,14 +1,15 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useStore, CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/store";
-import { ProgressRing } from "@/components/ui/progress-ring";
-import { formatRelativeDate } from "@/lib/utils";
+import Link from 'next/link';
+import { useStore, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/store';
+import { ProgressRing } from '@/components/ui/progress-ring';
+import { formatRelativeDate } from '@/lib/utils';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 
 export default function DashboardPage() {
   const store = useStore();
 
-  const activeGoals = store.goals.filter((g) => g.status === "active");
+  const activeGoals = store.goals.filter((g) => g.status === 'active');
   const activeTasks = store.tasks.filter((t) => !t.completed);
   const completedTasks = store.tasks.filter((t) => t.completed);
   const todayEntries = store.journalEntries.filter(
@@ -19,12 +20,11 @@ export default function DashboardPage() {
   );
 
   // Streaks
-  const journalDays = new Set(store.journalEntries.map((e) => new Date(e.createdAt).toDateString())).size;
+  const journalDays = new Set(store.journalEntries.map((e) => new Date(e.createdAt).toDateString()))
+    .size;
 
   // Urgents
-  const overdueTasks = activeTasks.filter(
-    (t) => t.deadline && new Date(t.deadline) < new Date()
-  );
+  const overdueTasks = activeTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date());
   const upcomingDeadlines = activeTasks
     .filter((t) => t.deadline && new Date(t.deadline) > new Date())
     .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
@@ -32,12 +32,16 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
+      <OnboardingModal />
       {/* Bento Grid Layout */}
       <div className="grid grid-cols-12 gap-6 items-start">
         {/* Main Content Column */}
         <div className="col-span-12 lg:col-span-8 space-y-6">
           {/* AI Coach Featured Insight Card */}
-          <Link href="/coach" className="glass-card p-8 rounded-2xl relative overflow-hidden group block hover:border-[#C17A72]/40 transition-all duration-500 hover:shadow-[0_0_40px_rgba(193,122,114,0.15)]">
+          <Link
+            href="/coach"
+            className="glass-card p-8 rounded-2xl relative overflow-hidden group block hover:border-[#C17A72]/40 transition-all duration-500 hover:shadow-[0_0_40px_rgba(193,122,114,0.15)]"
+          >
             <div className="absolute top-0 right-0 w-32 h-32 opacity-10 group-hover:opacity-20 transition-opacity">
               <div className="absolute inset-0 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] blur-3xl rounded-full"></div>
             </div>
@@ -45,7 +49,10 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3 mb-5">
                 <div className="relative">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)] group-hover:shadow-[0_0_30px_rgba(193,122,114,0.5)] transition-shadow">
-                    <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <span
+                      className="material-symbols-outlined text-white text-xl"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
                       smart_toy
                     </span>
                   </div>
@@ -61,14 +68,18 @@ export default function DashboardPage() {
                 </div>
               </div>
               <h3 className="text-3xl font-['Playfair_Display'] italic text-white mb-4 leading-snug">
-                "The quietest hours often hold the loudest truths. You've been most productive at 7:00 AM this week—try leaning into that stillness tomorrow."
+                "The quietest hours often hold the loudest truths. You've been most productive at
+                7:00 AM this week—try leaning into that stillness tomorrow."
               </h3>
               <p className="text-[#BEC6DF] font-['Space_Grotesk'] text-sm leading-relaxed mb-6">
-                Based on your recent journal entries and task completion patterns, your creative energy peaks when your environment is at its lowest frequency.
+                Based on your recent journal entries and task completion patterns, your creative
+                energy peaks when your environment is at its lowest frequency.
               </p>
               <div className="flex items-center gap-2 text-[#C17A72] font-['Space_Grotesk'] text-sm font-semibold group-hover:gap-3 transition-all">
                 <span>Talk to Your Coach</span>
-                <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                  arrow_forward
+                </span>
               </div>
             </div>
           </Link>
@@ -76,13 +87,17 @@ export default function DashboardPage() {
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-3 gap-6">
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">{activeGoals.length}</span>
+              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">
+                {activeGoals.length}
+              </span>
               <span className="font-['Space_Grotesk'] text-xs text-on-secondary-container uppercase tracking-widest">
                 Active Goals
               </span>
             </div>
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center border-l-2 border-l-[#C17A72]/30">
-              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">{activeTasks.length}</span>
+              <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">
+                {activeTasks.length}
+              </span>
               <span className="font-['Space_Grotesk'] text-xs text-on-secondary-container uppercase tracking-widest">
                 Tasks Due Today
               </span>
@@ -97,7 +112,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-
           {/* Goals Section */}
           <div className="pt-8">
             <div className="flex justify-between items-center mb-6">
@@ -110,7 +124,11 @@ export default function DashboardPage() {
               </Link>
             </div>
             {activeGoals.length === 0 ? (
-              <EmptyCard message="No goals yet. Define your vision to get started." linkText="Create a goal" linkHref="/goals" />
+              <EmptyCard
+                message="No goals yet. Define your vision to get started."
+                linkText="Create a goal"
+                linkHref="/goals"
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeGoals.slice(0, 4).map((goal) => {
@@ -121,8 +139,15 @@ export default function DashboardPage() {
                       href={`/goals/${goal.id}`}
                       className="glass-card p-6 rounded-2xl flex items-center gap-4 group hover:scale-[1.02] transition-all duration-300"
                     >
-                      <ProgressRing progress={progress} size={56} strokeWidth={4} color={goal.color}>
-                        <span className="text-xs font-mono font-bold text-[#F5F5F5]">{progress}%</span>
+                      <ProgressRing
+                        progress={progress}
+                        size={56}
+                        strokeWidth={4}
+                        color={goal.color}
+                      >
+                        <span className="text-xs font-mono font-bold text-[#F5F5F5]">
+                          {progress}%
+                        </span>
                       </ProgressRing>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-label text-white group-hover:text-[#C17A72] transition-colors truncate mb-1">
@@ -159,7 +184,11 @@ export default function DashboardPage() {
               </Link>
             </div>
             {store.journalEntries.length === 0 ? (
-              <EmptyCard message="No journal entries yet. Start capturing your thoughts." linkText="Write entry" linkHref="/journal" />
+              <EmptyCard
+                message="No journal entries yet. Start capturing your thoughts."
+                linkText="Write entry"
+                linkHref="/journal"
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {store.journalEntries.slice(0, 2).map((entry) => (
@@ -169,12 +198,18 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center gap-4 mb-4">
                       <span className="font-mono text-xs text-[#C17A72]">
-                        {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
+                        {new Date(entry.createdAt)
+                          .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          .toUpperCase()}
                       </span>
                       <div className="h-px flex-1 bg-white/10"></div>
                     </div>
                     <h5 className="text-lg font-serif text-white mb-2">
-                      {new Date(entry.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} Entry
+                      {new Date(entry.createdAt).toLocaleTimeString([], {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}{' '}
+                      Entry
                     </h5>
                     <p className="text-on-secondary-container font-body text-sm line-clamp-3 leading-relaxed opacity-70">
                       {entry.content}
@@ -204,18 +239,19 @@ export default function DashboardPage() {
                   <div key={event.id} className="flex gap-4 group cursor-pointer">
                     <div className="flex flex-col items-center">
                       <span className="font-mono text-sm text-[#C17A72] font-bold">
-                        {new Date(event.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        {new Date(event.start).toLocaleTimeString([], {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
                       </span>
-                      {idx < arr.length - 1 && (
-                        <div className="w-px h-full bg-white/10 my-2"></div>
-                      )}
+                      {idx < arr.length - 1 && <div className="w-px h-full bg-white/10 my-2"></div>}
                     </div>
-                    <div className={idx < arr.length - 1 ? "pb-6" : ""}>
+                    <div className={idx < arr.length - 1 ? 'pb-6' : ''}>
                       <p className="text-sm font-label text-white group-hover:text-[#C17A72] transition-colors">
                         {event.title}
                       </p>
                       <p className="text-xs text-[#9CA3AF] mt-1">
-                        {event.description || "No description"}
+                        {event.description || 'No description'}
                       </p>
                     </div>
                   </div>
@@ -243,7 +279,6 @@ export default function DashboardPage() {
   );
 }
 
-
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
@@ -253,11 +288,23 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EmptyCard({ message, linkText, linkHref }: { message: string; linkText: string; linkHref: string }) {
+function EmptyCard({
+  message,
+  linkText,
+  linkHref,
+}: {
+  message: string;
+  linkText: string;
+  linkHref: string;
+}) {
   return (
     <div className="glass-static p-8 text-center">
-      <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>{message}</p>
-      <Link href={linkHref} className="text-xs font-medium" style={{ color: "var(--accent)" }}>{linkText} &rarr;</Link>
+      <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
+        {message}
+      </p>
+      <Link href={linkHref} className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+        {linkText} &rarr;
+      </Link>
     </div>
   );
 }
