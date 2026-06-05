@@ -1,0 +1,54 @@
+'area:calendar':
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*calendar*'
+    - any-glob-to-any-file: 'src/**/*Calendar*'
+    - any-glob-to-any-file: 'src/app/**/calendar/**'
+
+'area:goals':
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*goal*'
+    - any-glob-to-any-file: 'src/**/*Goal*'
+    - any-glob-to-any-file: 'src/app/**/goals/**'
+
+'area:tasks':
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*task*'
+    - any-glob-to-any-file: 'src/**/*Task*'
+    - any-glob-to-any-file: 'src/app/**/tasks/**'
+
+'area:ai':
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*ai*'
+    - any-glob-to-any-file: 'src/**/*AI*'
+    - any-glob-to-any-file: 'src/app/**/ai-coach/**'
+    - any-glob-to-any-file: 'src/app/**/ai-memory/**'
+
+'area:journal':
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*journal*'
+    - any-glob-to-any-file: 'src/**/*Journal*'
+    - any-glob-to-any-file: 'src/app/**/journal/**'
+
+'area:db':
+  - changed-files:
+    - any-glob-to-any-file: 'src/db/**'
+    - any-glob-to-any-file: 'drizzle/**'
+    - any-glob-to-any-file: 'drizzle.config.*'
+
+'area:infra':
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+    - any-glob-to-any-file: 'Dockerfile*'
+    - any-glob-to-any-file: 'docker-compose*'
+
+'area:config':
+  - changed-files:
+    - any-glob-to-any-file: '*.config.*'
+    - any-glob-to-any-file: 'tsconfig*'
+    - any-glob-to-any-file: '.eslintrc*'
+    - any-glob-to-any-file: '.prettierrc*'
+
+'area:ui':
+  - changed-files:
+    - any-glob-to-any-file: 'src/components/**'
+    - any-glob-to-any-file: 'src/app/**/*.css'
