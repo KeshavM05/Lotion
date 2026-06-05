@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { useStore, type TaskList } from '@/lib/store';
+import { useState, useRef } from 'react';
+import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 // Preset colors for list creation

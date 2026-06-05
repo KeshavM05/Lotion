@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTasks } from '@/lib/hooks/useTasks';
 import { useGoals } from '@/lib/hooks/useGoals';
 
