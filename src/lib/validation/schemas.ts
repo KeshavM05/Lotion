@@ -42,31 +42,23 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   scheduleScore: z.number().int().optional().nullable(),
 });
 
-// Journal schemas
-export const createJournalEntrySchema = z.object({
-  content: z.string().min(1, 'Content is required').max(50000, 'Content too long'),
-  mood: z.enum(['great', 'good', 'okay', 'bad', 'terrible']).optional().nullable(),
-  linkedGoalIds: z.array(z.string().uuid('Invalid goal ID')).optional().default([]),
-});
-
-export const updateJournalEntrySchema = createJournalEntrySchema.partial();
-
 // Milestone schemas
 export const createMilestoneSchema = z.object({
   goalId: z.string().uuid('Invalid goal ID'),
   title: z.string().min(1, 'Title is required').max(300, 'Title too long'),
   description: z.string().max(2000, 'Description too long').optional().default(''),
   targetDate: z.string().datetime({ offset: true }).optional().nullable(),
-  order: z.number().int().nonnegative().optional().default(0),
+  order: z.number().int().min(0).optional().default(0),
 });
 
-export const updateMilestoneSchema = createMilestoneSchema
-  .omit({ goalId: true })
-  .partial()
-  .extend({
-    completed: z.boolean().optional(),
-    completedAt: z.string().datetime({ offset: true }).optional().nullable(),
-  });
+export const updateMilestoneSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(300, 'Title too long').optional(),
+  description: z.string().max(2000, 'Description too long').optional(),
+  targetDate: z.string().datetime({ offset: true }).optional().nullable(),
+  completed: z.boolean().optional(),
+  completedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  order: z.number().int().min(0).optional(),
+});
 
 // Calendar event schemas
 export const createEventSchema = z.object({
@@ -75,25 +67,52 @@ export const createEventSchema = z.object({
   start: z.string().datetime({ offset: true }),
   end: z.string().datetime({ offset: true }),
   allDay: z.boolean().optional().default(false),
-  color: z.string().optional().default('#8b5cf6'),
+  color: z.string().max(20).optional().default('#8b5cf6'),
   taskId: z.string().uuid('Invalid task ID').optional().nullable(),
   source: z.enum(['local', 'google', 'outlook']).optional().default('local'),
+  isRecurring: z.boolean().optional().default(false),
   recurrenceFrequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional().nullable(),
+  recurrenceInterval: z.number().int().positive().optional(),
   recurrenceEndDate: z.string().datetime({ offset: true }).optional().nullable(),
   recurrenceDaysOfWeek: z.array(z.number().int().min(0).max(6)).optional().nullable(),
 });
 
-export const updateEventSchema = createEventSchema.partial();
+export const updateEventSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(300, 'Title too long').optional(),
+  description: z.string().max(2000, 'Description too long').optional(),
+  start: z.string().datetime({ offset: true }).optional(),
+  end: z.string().datetime({ offset: true }).optional(),
+  allDay: z.boolean().optional(),
+  color: z.string().max(20).optional(),
+  taskId: z.string().uuid('Invalid task ID').optional().nullable(),
+  isRecurring: z.boolean().optional(),
+  recurrenceFrequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional().nullable(),
+  recurrenceInterval: z.number().int().positive().optional(),
+  recurrenceEndDate: z.string().datetime({ offset: true }).optional().nullable(),
+  recurrenceDaysOfWeek: z.array(z.number().int().min(0).max(6)).optional().nullable(),
+});
 
 // Task list schemas
 export const createTaskListSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-  color: z.string().optional().default('#8b5cf6'),
-  icon: z.string().optional().default('circle'),
-  order: z.number().int().nonnegative().optional().default(0),
+  color: z.string().max(20).optional().default('#8b5cf6'),
+  icon: z.string().max(50).optional().default('circle'),
+  order: z.number().int().min(0).optional().default(0),
 });
 
-export const updateTaskListSchema = createTaskListSchema.partial();
+export const updateTaskListSchema = createTaskListSchema.partial().extend({
+  archived: z.boolean().optional(),
+  archivedAt: z.string().datetime().optional().nullable(),
+});
+
+// Journal schemas
+export const createJournalEntrySchema = z.object({
+  content: z.string().min(1, 'Content is required').max(50000, 'Content too long'),
+  mood: z.enum(['great', 'good', 'okay', 'bad', 'terrible']).optional().nullable(),
+  linkedGoalIds: z.array(z.string().uuid('Invalid goal ID')).optional().default([]),
+});
+
+export const updateJournalEntrySchema = createJournalEntrySchema.partial();
 
 // Chat message schema
 export const chatMessageSchema = z.object({
@@ -113,14 +132,12 @@ export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
-export type CreateJournalEntryInput = z.infer<typeof createJournalEntrySchema>;
-export type UpdateJournalEntryInput = z.infer<typeof updateJournalEntrySchema>;
-export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
-export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
-export type ChatRequestInput = z.infer<typeof chatRequestSchema>;
-export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
-export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
 export type CreateMilestoneInput = z.infer<typeof createMilestoneSchema>;
 export type UpdateMilestoneInput = z.infer<typeof updateMilestoneSchema>;
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
+export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
+export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
+export type CreateJournalEntryInput = z.infer<typeof createJournalEntrySchema>;
+export type UpdateJournalEntryInput = z.infer<typeof updateJournalEntrySchema>;
+export type ChatRequestInput = z.infer<typeof chatRequestSchema>;

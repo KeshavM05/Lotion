@@ -60,7 +60,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .update(goals)
       .set({
         ...rest,
-        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
+        ...(targetDate !== undefined && {
+          targetDate: targetDate ? new Date(targetDate) : null,
+        }),
         updatedAt: new Date(),
       })
       .where(and(eq(goals.id, id), eq(goals.userId, user.id)))

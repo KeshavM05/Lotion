@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { data, error } = await validateBody(request, updateMilestoneSchema);
     if (error) return error;
 
-    // Verify ownership via goal relation
+    // Get milestone with goal to verify ownership
     const milestone = await db.query.milestones.findFirst({
       where: eq(milestones.id, id),
       with: { goal: true },
@@ -30,16 +30,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Milestone not found' }, { status: 404 });
     }
 
-    const { targetDate, completed, completedAt, ...rest } = data;
+    const { targetDate, completedAt, completed, ...rest } = data;
 
     const [updated] = await db
       .update(milestones)
       .set({
         ...rest,
-        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
         ...(completed !== undefined && { completed }),
-        completedAt:
-          completed && !completedAt ? new Date() : completedAt ? new Date(completedAt) : undefined,
+        ...(targetDate !== undefined && {
+          targetDate: targetDate ? new Date(targetDate) : null,
+        }),
+        ...(completed && !completedAt
+          ? { completedAt: new Date() }
+          : completedAt !== undefined && {
+              completedAt: completedAt ? new Date(completedAt) : null,
+            }),
       })
       .where(eq(milestones.id, id))
       .returning();
@@ -67,7 +72,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify ownership via goal relation
+    // Get milestone with goal to verify ownership
     const milestone = await db.query.milestones.findFirst({
       where: eq(milestones.id, id),
       with: { goal: true },

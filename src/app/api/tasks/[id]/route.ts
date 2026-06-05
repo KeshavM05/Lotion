@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { data, error } = await validateBody(request, updateTaskSchema);
     if (error) return error;
 
-    const { deadline, scheduledStart, scheduledEnd, ...rest } = data;
+    const { deadline, scheduledStart, scheduledEnd, completed, completedAt, ...rest } = data;
 
     const [updated] = await db
       .update(tasks)
@@ -33,6 +33,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ...(scheduledEnd !== undefined && {
           scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         }),
+        ...(completed !== undefined && { completed }),
+        ...(completed && !completedAt
+          ? { completedAt: new Date() }
+          : completedAt !== undefined && {
+              completedAt: completedAt ? new Date(completedAt) : null,
+            }),
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))

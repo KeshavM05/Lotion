@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
       color,
       taskId,
       source,
+      isRecurring,
       recurrenceFrequency,
+      recurrenceInterval,
       recurrenceEndDate,
       recurrenceDaysOfWeek,
     } = data;
@@ -84,9 +86,13 @@ export async function POST(request: NextRequest) {
         color: color ?? '#8b5cf6',
         taskId: taskId ?? null,
         source: source ?? 'local',
-        recurrenceFrequency: recurrenceFrequency ?? null,
-        recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
-        recurrenceDaysOfWeek: recurrenceDaysOfWeek ?? null,
+        isRecurring: isRecurring ?? false,
+        ...(recurrenceFrequency !== undefined && { recurrenceFrequency }),
+        ...(recurrenceInterval !== undefined && { recurrenceInterval }),
+        ...(recurrenceEndDate !== undefined && {
+          recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+        }),
+        ...(recurrenceDaysOfWeek !== undefined && { recurrenceDaysOfWeek }),
       })
       .returning();
 
