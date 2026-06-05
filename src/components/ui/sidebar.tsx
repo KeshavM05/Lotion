@@ -30,7 +30,9 @@ export function Sidebar() {
     >
       {/* Logo + Toggle */}
       <div className="mb-10 px-4">
-        <div className="flex items-center gap-3 mb-2">
+        <div
+          className={`relative flex items-center mb-2 ${collapsed ? 'justify-center' : 'gap-3'}`}
+        >
           <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
               <span
@@ -49,7 +51,7 @@ export function Sidebar() {
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors flex-shrink-0"
+            className={`flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors flex-shrink-0 ${collapsed ? 'absolute right-0' : ''}`}
           >
             <span className="material-symbols-outlined text-lg">
               {collapsed ? 'chevron_right' : 'chevron_left'}
