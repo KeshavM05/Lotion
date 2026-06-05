@@ -84,6 +84,8 @@ const sampleTaskList: TaskList = {
   color: '#C17A72',
   icon: 'briefcase',
   order: 1,
+  archived: false,
+  archivedAt: null,
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 

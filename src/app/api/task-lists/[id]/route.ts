@@ -1,19 +1,16 @@
-import { NextRequest } from "next/server";
-import { db } from "@/db";
-import { taskLists, tasks } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { requireAuth, getInternalUser } from "@/lib/auth-server";
+import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { taskLists, tasks } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { requireAuth, getInternalUser } from '@/lib/auth-server';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabaseUserId = await requireAuth(request);
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { id } = await params;
@@ -25,7 +22,7 @@ export async function PATCH(
     });
 
     if (!list) {
-      return Response.json({ error: "List not found or unauthorized" }, { status: 404 });
+      return Response.json({ error: 'List not found or unauthorized' }, { status: 404 });
     }
 
     const updated = await db
@@ -35,14 +32,21 @@ export async function PATCH(
         color: body.color !== undefined ? body.color : list.color,
         icon: body.icon !== undefined ? body.icon : list.icon,
         order: body.order !== undefined ? body.order : list.order,
+        archived: body.archived !== undefined ? body.archived : list.archived,
+        archivedAt:
+          body.archivedAt !== undefined
+            ? body.archivedAt
+              ? new Date(body.archivedAt)
+              : null
+            : list.archivedAt,
       })
       .where(eq(taskLists.id, id))
       .returning();
 
     return Response.json(updated[0]);
   } catch (error) {
-    console.error("PATCH /api/task-lists/[id] error:", error);
-    return Response.json({ error: "Failed to update list" }, { status: 500 });
+    console.error('PATCH /api/task-lists/[id] error:', error);
+    return Response.json({ error: 'Failed to update list' }, { status: 500 });
   }
 }
 
@@ -55,7 +59,7 @@ export async function DELETE(
     const user = await getInternalUser(supabaseUserId);
 
     if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
+      return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { id } = await params;
@@ -66,7 +70,7 @@ export async function DELETE(
     });
 
     if (!list) {
-      return Response.json({ error: "List not found or unauthorized" }, { status: 404 });
+      return Response.json({ error: 'List not found or unauthorized' }, { status: 404 });
     }
 
     // Delete the list (cascade takes care of it or sets list_id to null per schema)
@@ -74,7 +78,7 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
-    console.error("DELETE /api/task-lists/[id] error:", error);
-    return Response.json({ error: "Failed to delete list" }, { status: 500 });
+    console.error('DELETE /api/task-lists/[id] error:', error);
+    return Response.json({ error: 'Failed to delete list' }, { status: 500 });
   }
 }
