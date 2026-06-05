@@ -44,21 +44,18 @@ export async function POST(request: NextRequest) {
 
     const { title, description, category, priority, targetDate, color, status } = data;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const insertData = {
-      userId: user.id,
-      title,
-      description: description ?? '',
-      category,
-      priority,
-      targetDate: targetDate ? new Date(targetDate) : null,
-      color,
-      status,
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [goal] = await db
       .insert(goals)
-      .values(insertData as any)
+      .values({
+        userId: user.id,
+        title,
+        description: description ?? '',
+        category,
+        priority,
+        targetDate: targetDate ? new Date(targetDate) : null,
+        color,
+        status,
+      })
       .returning();
 
     return Response.json(goal, { status: 201 });
