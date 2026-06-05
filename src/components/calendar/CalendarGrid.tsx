@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
 import type { CalendarEvent } from '@/lib/store';
-import { isSameDay, formatTime } from '@/lib/utils';
+import { isSameDay, formatTime, isSameDayTz, minutesInDayTz, getUserTimezone } from '@/lib/utils';
 import { getWeekDates } from '@/lib/utils';
 import EventCard from './EventCard';
 import {
@@ -44,10 +44,13 @@ function getEventsOverlap(event1: CalendarEvent, event2: CalendarEvent) {
 }
 
 function getEventStyle(event: CalendarEvent) {
-  const start = new Date(event.start);
-  const end = new Date(event.end);
-  const startMin = start.getHours() * 60 + start.getMinutes();
-  const endMin = end.getHours() * 60 + end.getMinutes();
+  const tz = getUserTimezone();
+  const startMin = minutesInDayTz(event.start, tz);
+  const endMin = minutesInDayTz(event.end, tz);
+  // All-day events span the full day column
+  if (event.allDay) {
+    return { top: '0px', height: `${HOUR_HEIGHT}px`, backgroundColor: event.color };
+  }
   const duration = Math.max(endMin - startMin, 30);
   return {
     top: `${(startMin / 60) * HOUR_HEIGHT}px`,
@@ -267,7 +270,7 @@ export default function CalendarGrid({
                     >
                       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                       {hour === 0 &&
-                        renderEventCards(events.filter((e) => isSameDay(new Date(e.start), date)))}
+                        renderEventCards(events.filter((e) => isSameDayTz(e.start, date)))}
                     </div>
                   ))}
                 </div>
@@ -400,9 +403,7 @@ export default function CalendarGrid({
                   >
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                     {hour === 0 &&
-                      renderEventCards(
-                        events.filter((e) => isSameDay(new Date(e.start), currentDate))
-                      )}
+                      renderEventCards(events.filter((e) => isSameDayTz(e.start, currentDate)))}
                   </div>
                 </div>
               ))}
@@ -504,7 +505,7 @@ export default function CalendarGrid({
           {days.map((date) => {
             const isCurrentMonth = date.getMonth() === currentDate.getMonth();
             const isToday = isSameDay(date, today);
-            const dayEvents = events.filter((e) => isSameDay(new Date(e.start), date));
+            const dayEvents = events.filter((e) => isSameDayTz(e.start, date));
 
             return (
               <div

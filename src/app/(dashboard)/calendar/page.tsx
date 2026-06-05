@@ -4,7 +4,7 @@ import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useStore, type CalendarEvent } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
-import { isSameDay, toLocalDatetimeString, getWeekDates } from '@/lib/utils';
+import { isSameDay, toLocalDatetimeStringTz, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 
 import CalendarHeader from '@/components/calendar/CalendarHeader';
@@ -384,8 +384,8 @@ export default function CalendarPage() {
       form: {
         title: '',
         description: '',
-        start: toLocalDatetimeString(s),
-        end: toLocalDatetimeString(e),
+        start: toLocalDatetimeStringTz(s),
+        end: toLocalDatetimeStringTz(e),
         color: '#8b5cf6',
         isRecurring: false,
         recurrenceFrequency: 'weekly',
@@ -403,8 +403,8 @@ export default function CalendarPage() {
       form: {
         title: event.title,
         description: event.description,
-        start: toLocalDatetimeString(new Date(event.start)),
-        end: toLocalDatetimeString(new Date(event.end)),
+        start: toLocalDatetimeStringTz(new Date(event.start)),
+        end: toLocalDatetimeStringTz(new Date(event.end)),
         color: event.color,
         isRecurring: event.isRecurring || false,
         recurrenceFrequency: event.recurrenceFrequency || 'weekly',
