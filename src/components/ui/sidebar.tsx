@@ -13,6 +13,7 @@ const navItems = [
   { href: "/coach", label: "AI Coach", icon: "smart_toy" },
   { href: "/journal", label: "Journal", icon: "edit_note" },
   { href: "/memory", label: "AI Memory", icon: "psychology" },
+  { href: "/ritual", label: "Weekly Ritual", icon: "self_improvement" },
 ];
 
 export function Sidebar() {

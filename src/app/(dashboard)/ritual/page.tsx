@@ -27,7 +27,8 @@ export default function WeeklyRitualPage() {
   const activeGoals = store.goals.filter((g) => g.status === "active");
 
   function handleComplete() {
-    // Create tasks from priorities
+    // Create tasks from priorities — track how many were actually created
+    const tasksCreated = priorities.filter((p) => p.title.trim()).length;
     priorities.forEach((p) => {
       if (!p.title.trim()) return;
       store.addTask({
@@ -45,27 +46,38 @@ export default function WeeklyRitualPage() {
       });
     });
 
-    // Add journal entry for the ritual
-    store.addJournalEntry({
-      content: `## Weekly Ritual - ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}\n\n**Goal reflections:**\n${Object.entries(goalNotes)
-        .filter(([, note]) => note.trim())
-        .map(([goalId, note]) => {
-          const goal = store.goals.find((g) => g.id === goalId);
-          return `- **${goal?.title}**: ${note}`;
-        })
-        .join("\n")}\n\n**Top 3 priorities this week:**\n${priorities.filter((p) => p.title.trim()).map((p, i) => `${i + 1}. ${p.title}`).join("\n")}`,
-      mood: null,
-      linkedGoalIds: Object.keys(goalNotes).filter((id) => goalNotes[id]?.trim()),
-    });
+    // Add journal entry only when there is actual content to record
+    const goalReflections = Object.entries(goalNotes).filter(([, note]) => note.trim());
+    const priorityLines = priorities.filter((p) => p.title.trim());
+    const hasContent = goalReflections.length > 0 || priorityLines.length > 0;
 
-    // Auto-schedule
-    store.autoSchedule();
+    if (hasContent) {
+      store.addJournalEntry({
+        content: `## Weekly Ritual - ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}\n\n**Goal reflections:**\n${goalReflections
+          .map(([goalId, note]) => {
+            const goal = store.goals.find((g) => g.id === goalId);
+            return `- **${goal?.title}**: ${note}`;
+          })
+          .join("\n")}\n\n**Top 3 priorities this week:**\n${priorityLines.map((p, i) => `${i + 1}. ${p.title}`).join("\n")}`,
+        mood: null,
+        linkedGoalIds: goalReflections.map(([id]) => id),
+      });
+    }
+
+    // Auto-schedule only when at least one priority task was created
+    if (tasksCreated > 0) {
+      store.autoSchedule();
+    }
+
     router.push("/dashboard");
   }
 
   function getEndOfWeek() {
     const d = new Date();
-    d.setDate(d.getDate() + (7 - d.getDay()));
+    // Target Friday (day 5); if today is Saturday (6) or Sunday (0), go to next Friday
+    const day = d.getDay();
+    const daysUntilFriday = day <= 5 ? 5 - day : 5 + (7 - day);
+    d.setDate(d.getDate() + daysUntilFriday);
     d.setHours(23, 59, 59, 999);
     return d.toISOString();
   }
