@@ -93,8 +93,11 @@ export const tasksApi = {
     return apiRequest(`/tasks/${id}`, { method: "DELETE" });
   },
 
-  autoSchedule: async (): Promise<{ message: string; scheduledCount: number }> => {
-    return apiRequest("/tasks/auto-schedule", { method: "POST" });
+  autoSchedule: async (timezone?: string): Promise<{ message: string; scheduledCount: number }> => {
+    return apiRequest("/tasks/auto-schedule", {
+      method: "POST",
+      body: JSON.stringify({ timezone }),
+    });
   },
 };
 

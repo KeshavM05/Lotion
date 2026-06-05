@@ -1,6 +1,9 @@
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { validateBody } from "@/lib/api-middleware";
+import { chatRequestSchema } from "@/lib/validation/schemas";
 
 const bedrock = new BedrockRuntimeClient({
   region: env.AWS_REGION,
@@ -13,9 +16,34 @@ const bedrock = new BedrockRuntimeClient({
 const MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0";
 
 export async function POST(request: NextRequest) {
+  // Rate limiting — key by IP (or forwarded header in prod)
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "anonymous";
+
+  const rateCheck = checkRateLimit(`ai:${ip}`, RATE_LIMITS.ai);
+  if (!rateCheck.allowed) {
+    return Response.json(
+      {
+        error: "Too many requests",
+        retryAfterMs: rateCheck.retryAfterMs,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)),
+        },
+      }
+    );
+  }
+
+  // Validate request body
+  const { data, error } = await validateBody(request, chatRequestSchema);
+  if (error) return error;
+
   try {
-    const body = await request.json();
-    const { messages, goalContext, aiMemory, calendarContext, tasksContext } = body;
+    const { messages, goalContext, aiMemory, calendarContext, tasksContext } = data;
 
     const systemPrompt = buildSystemPrompt({
       goalContext,
@@ -27,7 +55,7 @@ export async function POST(request: NextRequest) {
     const command = new ConverseCommand({
       modelId: MODEL_ID,
       system: [{ text: systemPrompt }],
-      messages: messages.map((m: { role: string; content: string }) => ({
+      messages: messages.map((m) => ({
         role: m.role as "user" | "assistant",
         content: [{ text: m.content }],
       })),

@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+// Goal schemas
+export const createGoalSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(2000, "Description too long").optional().default(""),
+  category: z.string().min(1, "Category is required"),
+  priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  targetDate: z.string().datetime({ offset: true }).optional().nullable(),
+  color: z.string().min(1, "Color is required"),
+  status: z.enum(["active", "completed", "paused", "archived"]).optional().default("active"),
+});
+
+export const updateGoalSchema = createGoalSchema.partial();
+
+// Task schemas
+export const createTaskSchema = z.object({
+  title: z.string().min(1, "Title is required").max(300, "Title too long"),
+  description: z.string().max(2000, "Description too long").optional().default(""),
+  status: z.enum(["todo", "in_progress", "done", "cancelled"]).optional().default("todo"),
+  priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  goalId: z.string().uuid("Invalid goal ID").optional().nullable(),
+  milestoneId: z.string().uuid("Invalid milestone ID").optional().nullable(),
+  listId: z.string().uuid("Invalid list ID").optional().nullable(),
+  durationMinutes: z.number().int().positive().optional().default(30),
+  deadline: z.string().datetime({ offset: true }).optional().nullable(),
+  scheduledStart: z.string().datetime({ offset: true }).optional().nullable(),
+  scheduledEnd: z.string().datetime({ offset: true }).optional().nullable(),
+  energyLevel: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  timePreference: z.enum(["morning", "afternoon", "evening", "anytime"]).optional().default("anytime"),
+  tags: z.array(z.string()).optional().default([]),
+});
+
+export const updateTaskSchema = createTaskSchema.partial();
+
+// Journal schemas
+export const createJournalEntrySchema = z.object({
+  content: z.string().min(1, "Content is required").max(50000, "Content too long"),
+  mood: z.string().max(50, "Mood value too long").optional().nullable(),
+  linkedGoalIds: z.array(z.string().uuid("Invalid goal ID")).optional().default([]),
+});
+
+export const updateJournalEntrySchema = createJournalEntrySchema.partial();
+
+// Chat message schema
+export const chatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1, "Message content is required").max(10000, "Message too long"),
+});
+
+export const chatRequestSchema = z.object({
+  messages: z.array(chatMessageSchema).min(1, "At least one message is required"),
+  goalContext: z.string().max(5000).optional(),
+  aiMemory: z.string().max(10000).optional(),
+  calendarContext: z.string().max(5000).optional(),
+  tasksContext: z.string().max(5000).optional(),
+});
+
+export type CreateGoalInput = z.infer<typeof createGoalSchema>;
+export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type CreateJournalEntryInput = z.infer<typeof createJournalEntrySchema>;
+export type UpdateJournalEntryInput = z.infer<typeof updateJournalEntrySchema>;
+export type ChatRequestInput = z.infer<typeof chatRequestSchema>;
