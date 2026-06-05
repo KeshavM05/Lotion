@@ -4,18 +4,31 @@ import { env } from '@/lib/env';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { validateBody } from '@/lib/api-middleware';
 import { chatRequestSchema } from '@/lib/validation/schemas';
+import { requireAuth } from '@/lib/auth-server';
 
-const bedrock = new BedrockRuntimeClient({
-  region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+// Bedrock client is null when AWS credentials are not configured (AI gracefully degraded)
+const bedrock =
+  env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
+    ? new BedrockRuntimeClient({
+        region: env.AWS_REGION,
+        credentials: {
+          accessKeyId: env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+        },
+      })
+    : null;
 
 const MODEL_ID = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
 
 export async function POST(request: NextRequest) {
+  // Require authentication
+  try {
+    await requireAuth(request);
+  } catch (error) {
+    if (error instanceof Response) return error;
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   // Rate limiting — key by IP (or forwarded header in prod)
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -36,6 +49,10 @@ export async function POST(request: NextRequest) {
         },
       }
     );
+  }
+
+  if (!bedrock) {
+    return Response.json({ error: 'AI not configured' }, { status: 503 });
   }
 
   // Validate request body
