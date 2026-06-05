@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 
@@ -6,17 +6,18 @@ export const metadata: Metadata = {
   title: 'Lotion — AI Life Coach',
   description: 'Your AI-powered life coach. Goals, calendar, and clarity in one place.',
   manifest: '/manifest.json',
-  themeColor: '#0F1729',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Lotion',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0F1729',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
