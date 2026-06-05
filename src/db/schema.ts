@@ -267,3 +267,11 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export const journalEntriesRelations = relations(journalEntries, ({ one }) => ({
   user: one(users, { fields: [journalEntries.userId], references: [users.id] }),
 }));
+
+export const autoScheduleSettingsRelations = relations(autoScheduleSettings, ({ one }) => ({
+  user: one(users, { fields: [autoScheduleSettings.userId], references: [users.id] }),
+}));
+
+export const oauthConnectionsRelations = relations(oauthConnections, ({ one }) => ({
+  user: one(users, { fields: [oauthConnections.userId], references: [users.id] }),
+}));
