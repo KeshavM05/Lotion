@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Toaster } from "sonner";
+import { toast } from "sonner";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 import { CommandPalette } from "@/components/ui/command-palette";
@@ -19,6 +21,20 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { isOpen, close } = useQuickCapture();
   const { collapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
+
+  // Global unhandled rejection listener
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection:", event.reason);
+      const message =
+        event.reason instanceof Error
+          ? event.reason.message
+          : "An unexpected error occurred";
+      toast.error("Unexpected error", { description: message });
+    };
+    window.addEventListener("unhandledrejection", handler);
+    return () => window.removeEventListener("unhandledrejection", handler);
+  }, []);
 
   // Initialize user and load data
   useEffect(() => {
@@ -95,6 +111,17 @@ export default function DashboardLayout({
       <SidebarProvider>
         <PageHeaderProvider>
           <DashboardInner>{children}</DashboardInner>
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "#1F2D47",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#F1F5F9",
+                fontFamily: "Inter, sans-serif",
+              },
+            }}
+          />
         </PageHeaderProvider>
       </SidebarProvider>
     </StoreProvider>
