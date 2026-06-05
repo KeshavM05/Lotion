@@ -111,16 +111,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Auto-schedule & Bottom Actions */}
+      {/* Bottom Actions */}
       <div className="flex-shrink-0 space-y-2 pt-4 mt-4 border-t border-white/5">
-        <button
-          onClick={() => store.autoSchedule()}
-          title={collapsed ? 'Auto-schedule' : undefined}
-          className={`w-full flex items-center justify-center ${collapsed ? '' : 'gap-2'} bg-[#C17A72] text-[#F5F5F5] py-2.5 rounded-xl font-bold text-sm mb-3 transition-transform active:scale-95 duration-200`}
-        >
-          <span className="material-symbols-outlined text-lg">bolt</span>
-          {!collapsed && 'Auto-schedule'}
-        </button>
         <Link
           href="/settings"
           title={collapsed ? 'Settings' : undefined}
