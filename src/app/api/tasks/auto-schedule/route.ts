@@ -67,8 +67,12 @@ export async function POST(request: NextRequest) {
       scheduleLocked: t.scheduleLocked
     })) as ScorerTask[];
 
-    // 3. Run Scheduling Engine
-    const service = new SchedulingService(settings as TAutoScheduleSettings);
+    // 3. Parse optional timezone from request body
+    const body = await request.json().catch(() => ({}));
+    const timezone: string = (body?.timezone && typeof body.timezone === "string") ? body.timezone : "UTC";
+
+    // 4. Run Scheduling Engine
+    const service = new SchedulingService(settings as TAutoScheduleSettings, timezone);
     const scheduledTasks = await service.scheduleMultipleTasks(scorerTasks, user.id);
 
     return Response.json({ 

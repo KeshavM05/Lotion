@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, getInternalUser } from "@/lib/auth-server";
+import { validateBody } from "@/lib/api-middleware";
+import { createTaskSchema } from "@/lib/validation/schemas";
 
 // GET /api/tasks - Get all tasks for user
 export async function GET(request: NextRequest) {
@@ -36,7 +38,9 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const body = await request.json();
+    const { data, error } = await validateBody(request, createTaskSchema);
+    if (error) return error;
+
     const {
       title,
       description,
@@ -52,30 +56,26 @@ export async function POST(request: NextRequest) {
       energyLevel,
       timePreference,
       tags,
-    } = body;
-
-    if (!title) {
-      return Response.json({ error: "Missing required field: title" }, { status: 400 });
-    }
+    } = data;
 
     const [task] = await db
       .insert(tasks)
       .values({
         userId: user.id,
         title,
-        description: description || "",
-        status: status || "todo",
-        priority: priority || "medium",
-        goalId: goalId || null,
-        milestoneId: milestoneId || null,
-        listId: listId || null,
-        durationMinutes: durationMinutes || 30,
+        description: description ?? "",
+        status,
+        priority,
+        goalId: goalId ?? null,
+        milestoneId: milestoneId ?? null,
+        listId: listId ?? null,
+        durationMinutes,
         deadline: deadline ? new Date(deadline) : null,
         scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
-        energyLevel: energyLevel || "medium",
-        timePreference: timePreference || "anytime",
-        tags: tags || [],
+        energyLevel,
+        timePreference,
+        tags,
       })
       .returning();
 

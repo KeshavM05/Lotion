@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { goals } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, getInternalUser } from "@/lib/auth-server";
+import { validateBody } from "@/lib/api-middleware";
+import { createGoalSchema } from "@/lib/validation/schemas";
 
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
@@ -36,24 +38,22 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { title, description, category, priority, targetDate, color, status } = body;
+    const { data, error } = await validateBody(request, createGoalSchema);
+    if (error) return error;
 
-    if (!title || !category || !color) {
-      return Response.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    const { title, description, category, priority, targetDate, color, status } = data;
 
     const [goal] = await db
       .insert(goals)
       .values({
         userId: user.id,
         title,
-        description: description || "",
+        description: description ?? "",
         category,
-        priority: priority || "medium",
+        priority,
         targetDate: targetDate ? new Date(targetDate) : null,
         color,
-        status: status || "active",
+        status,
       })
       .returning();
 
