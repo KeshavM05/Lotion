@@ -18,6 +18,7 @@ import { Modal } from '@/components/ui/modal';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
+import { InlineTaskInput } from '@/components/tasks/InlineTaskInput';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
@@ -686,7 +687,35 @@ export default function TasksPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {viewMode === 'list' && <div className="flex-1 overflow-auto">{renderListContent()}</div>}
+        {viewMode === 'list' && (
+          <div className="flex-1 overflow-auto flex flex-col gap-2">
+            {renderListContent()}
+            <InlineTaskInput
+              goalId={
+                projectFilter !== 'all' && projectFilter !== 'unassigned' ? projectFilter : null
+              }
+              goals={goals.filter((g) => g.status === 'active')}
+              onSave={({ title, priority, deadline, goalId: gId }) => {
+                createTaskMutation.mutate({
+                  title,
+                  description: '',
+                  priority,
+                  durationMinutes: 30,
+                  deadline,
+                  goalId: gId,
+                  energyLevel: 'medium',
+                  timePreference: 'anytime',
+                  tags: [],
+                  status: 'todo',
+                  milestoneId: null,
+                  listId: null,
+                  scheduledStart: null,
+                  scheduledEnd: null,
+                });
+              }}
+            />
+          </div>
+        )}
 
         {viewMode === 'board' && (
           <div className="flex-1 overflow-auto">
