@@ -11,7 +11,7 @@ interface InlineTaskInputProps {
     deadline: string | null;
     goalId: string | null;
   }) => void;
-  goals?: { id: string; title: string; color: string }[];
+  goals?: { id: string; title: string; color: string; status?: string }[];
 }
 
 const PRIORITY_COLORS: Record<Priority, string> = {
@@ -34,7 +34,6 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
     if (expanded) inputRef.current?.focus();
   }, [expanded]);
 
-  // Close on outside click
   useEffect(() => {
     if (!expanded) return;
     function handleClick(e: MouseEvent) {
@@ -44,6 +43,7 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
 
   function handleCancel() {
@@ -99,7 +99,6 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
       ref={containerRef}
       className="max-w-3xl rounded-xl border border-[#C17A72]/30 bg-[#1F2D47]/80 backdrop-blur-sm overflow-hidden"
     >
-      {/* Title row */}
       <div className="flex items-center gap-3 px-4 py-3">
         <span className="w-5 h-5 rounded-full border-2 border-white/10 flex-shrink-0" />
         <input
@@ -115,17 +114,13 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
           onClick={handleSubmit}
           disabled={!title.trim()}
           className="w-6 h-6 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
-          style={{
-            background: title.trim() ? '#C17A72' : 'rgba(255,255,255,0.05)',
-          }}
+          style={{ background: title.trim() ? '#C17A72' : 'rgba(255,255,255,0.05)' }}
         >
           <span className="material-symbols-outlined text-xs text-white">check</span>
         </button>
       </div>
 
-      {/* Quick options row */}
       <div className="flex items-center gap-2 px-4 pb-3 border-t border-white/5 pt-2">
-        {/* Priority selector */}
         <div className="flex items-center gap-1">
           {(['low', 'medium', 'high', 'critical'] as Priority[]).map((p) => (
             <button
@@ -144,7 +139,6 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
 
         <div className="h-3 w-px bg-white/10" />
 
-        {/* Deadline */}
         <div className="flex items-center gap-1">
           <span className="material-symbols-outlined text-xs text-[#6B7280]">event</span>
           <input
@@ -155,7 +149,6 @@ export function InlineTaskInput({ goalId, onSave, goals = [] }: InlineTaskInputP
           />
         </div>
 
-        {/* Goal selector */}
         {goals.length > 0 && (
           <>
             <div className="h-3 w-px bg-white/10" />
