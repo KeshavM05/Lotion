@@ -1,359 +1,440 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useStore, type CalendarEvent } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
-import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from '@/lib/utils';
+import { isSameDay, toLocalDatetimeString, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
-import { expandRecurringEvent } from '@/lib/recurrence';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-const HOUR_HEIGHT = 60;
-const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
+import CalendarHeader from '@/components/calendar/CalendarHeader';
+import CalendarGrid from '@/components/calendar/CalendarGrid';
+import EventModal from '@/components/calendar/EventModal';
+import TaskSidebar from '@/components/calendar/TaskSidebar';
 
-type ViewMode = 'day' | 'week' | 'month';
+import {
+  HOUR_HEIGHT,
+  type ViewMode,
+  type DragState,
+  type EventDragState,
+  type ResizeState,
+  type ViewMenuPreferences,
+  type EventFormState,
+} from '@/components/calendar/types';
 
-// Helper Components
-function TaskSection({
-  title,
-  count,
-  icon,
-  color,
-  defaultExpanded = true,
-  children,
-}: {
-  title: string;
-  count: number;
-  icon?: React.ReactNode;
-  color?: string;
-  defaultExpanded?: boolean;
-  children: React.ReactNode;
-}) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  return (
-    <div>
-      <div
-        className="flex items-center gap-2 mb-2 cursor-pointer hover:bg-white/5 p-1 rounded-md transition-colors select-none"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <span
-          className="material-symbols-outlined text-sm transition-transform"
-          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        >
-          chevron_right
-        </span>
-        {icon &&
-          (typeof icon === 'string' ? (
-            <span className="material-symbols-outlined text-[16px]" style={{ color }}>
-              {icon}
-            </span>
-          ) : (
-            icon
-          ))}
-        <h4 className="text-[13px] font-semibold flex-1" style={{ color: color || '#E5E7EB' }}>
-          {title}
-        </h4>
-        {count > 0 && (
-          <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full text-[#9CA3AF] font-medium min-w-[20px] text-center">
-            {count}
-          </span>
-        )}
-      </div>
-      {isExpanded && <div className="space-y-1 pl-5">{children}</div>}
-    </div>
-  );
+// ─── State Shape ─────────────────────────────────────────────────────────────
+
+interface CalendarState {
+  currentDate: Date;
+  viewMode: ViewMode;
+  currentTime: Date;
+
+  // Sidebar
+  taskSidebarCollapsed: boolean;
+  viewMenuPreferences: ViewMenuPreferences;
+
+  // Modals
+  modalOpen: boolean;
+  editingEvent: CalendarEvent | null;
+  taskModalOpen: boolean;
+  newListModalOpen: boolean;
+  newListForm: { name: string; color: string; icon: string };
+  taskFormTitle: string;
+  taskFormDeadline: string;
+  taskFormEnergy: 'high' | 'medium' | 'low';
+
+  // Quick view
+  quickViewEvent: CalendarEvent | null;
+  quickViewAnchor: HTMLElement | null;
+
+  // Event form
+  form: EventFormState;
+
+  // Drag-to-create
+  drag: DragState;
+
+  // Event drag-to-move
+  eventDrag: EventDragState;
+
+  // Event resize
+  resize: ResizeState;
+
+  // Task drag
+  draggingTask: any | null;
 }
 
-function TaskItem({
-  task,
-  store,
-  onDragStart,
-  onDragEnd,
-}: {
-  task: any;
-  store: any;
-  onDragStart: (task: any, e: React.DragEvent) => void;
-  onDragEnd: () => void;
-}) {
-  return (
-    <div
-      draggable={!task.completed}
-      onDragStart={(e) => onDragStart(task, e)}
-      onDragEnd={onDragEnd}
-      className={`flex items-start gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors group ${
-        !task.completed ? 'cursor-grab active:cursor-grabbing' : ''
-      }`}
-    >
-      <button
-        onClick={() => store.updateTask(task.id, { completed: !task.completed })}
-        className="mt-0.5 flex-shrink-0"
-      >
-        <span
-          className={`material-symbols-outlined text-base transition-colors ${
-            task.completed ? 'text-[#C17A72]' : 'text-[#9CA3AF] hover:text-[#C17A72]'
-          }`}
-          style={task.completed ? { fontVariationSettings: "'FILL' 1" } : {}}
-        >
-          {task.completed ? 'check_circle' : 'radio_button_unchecked'}
-        </span>
-      </button>
-      <div className="flex-1 min-w-0">
-        <p
-          className={`text-xs font-['Space_Grotesk'] ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
-        >
-          {task.title}
-        </p>
-        {task.deadline && (
-          <p className="text-[10px] text-[#9CA3AF] mt-0.5">
-            {new Date(task.deadline).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-            })}
-          </p>
-        )}
-      </div>
-      {!task.completed && (
-        <span className="material-symbols-outlined text-sm text-[#9CA3AF] opacity-0 group-hover:opacity-100 transition-opacity">
-          drag_indicator
-        </span>
-      )}
-    </div>
-  );
+// ─── Actions ─────────────────────────────────────────────────────────────────
+
+type Action =
+  | { type: 'TICK' }
+  | { type: 'SET_VIEW'; mode: ViewMode }
+  | { type: 'SET_DATE'; date: Date }
+  | { type: 'TOGGLE_SIDEBAR' }
+  | { type: 'PATCH_VIEW_PREFS'; patch: Partial<ViewMenuPreferences> }
+  | { type: 'OPEN_MODAL'; editingEvent?: CalendarEvent; form?: Partial<EventFormState> }
+  | { type: 'CLOSE_MODAL' }
+  | { type: 'PATCH_FORM'; patch: Partial<EventFormState> }
+  | { type: 'OPEN_TASK_MODAL' }
+  | { type: 'CLOSE_TASK_MODAL' }
+  | {
+      type: 'PATCH_TASK_FORM';
+      patch: Partial<Pick<CalendarState, 'taskFormTitle' | 'taskFormDeadline' | 'taskFormEnergy'>>;
+    }
+  | { type: 'OPEN_NEW_LIST_MODAL' }
+  | { type: 'CLOSE_NEW_LIST_MODAL' }
+  | { type: 'PATCH_NEW_LIST_FORM'; patch: Partial<CalendarState['newListForm']> }
+  | { type: 'SET_QUICK_VIEW'; event: CalendarEvent | null; anchor: HTMLElement | null }
+  | { type: 'DRAG_START'; date: Date; hour: number; minutes: number }
+  | { type: 'DRAG_MOVE'; date: Date; hour: number; minutes: number }
+  | { type: 'DRAG_END' }
+  | { type: 'EVENT_DRAG_START'; event: CalendarEvent; offset: { x: number; y: number } }
+  | { type: 'EVENT_DRAG_MOVE'; date: Date; time: number }
+  | { type: 'EVENT_DRAG_END' }
+  | { type: 'RESIZE_START'; event: CalendarEvent; edge: 'top' | 'bottom' }
+  | { type: 'RESIZE_END' }
+  | { type: 'TASK_DRAG_START'; task: any }
+  | { type: 'TASK_DRAG_END' };
+
+// ─── Defaults ────────────────────────────────────────────────────────────────
+
+const defaultForm: EventFormState = {
+  title: '',
+  description: '',
+  start: '',
+  end: '',
+  color: '#8b5cf6',
+  isRecurring: false,
+  recurrenceFrequency: 'weekly',
+  recurrenceInterval: 1,
+  recurrenceEndDate: '',
+  recurrenceDaysOfWeek: [],
+};
+
+const defaultViewPrefs: ViewMenuPreferences = {
+  manageDueDates: true,
+  showScheduledTasks: false,
+  enableDueToday: true,
+  enableDueTomorrow: true,
+  enableDueSoon: true,
+  hiddenLists: [],
+};
+
+const initialState: CalendarState = {
+  currentDate: new Date(),
+  viewMode: 'week',
+  currentTime: new Date(),
+  taskSidebarCollapsed: false,
+  viewMenuPreferences: defaultViewPrefs,
+  modalOpen: false,
+  editingEvent: null,
+  taskModalOpen: false,
+  newListModalOpen: false,
+  newListForm: { name: '', color: '#8b5cf6', icon: 'circle' },
+  taskFormTitle: '',
+  taskFormDeadline: '',
+  taskFormEnergy: 'medium',
+  quickViewEvent: null,
+  quickViewAnchor: null,
+  form: defaultForm,
+  drag: { isDragging: false, dragStart: null, dragEnd: null },
+  eventDrag: { draggingEvent: null, eventDragOffset: { x: 0, y: 0 }, eventDragPosition: null },
+  resize: {
+    resizingEvent: null,
+    resizeEdge: null,
+    resizeOriginalStart: null,
+    resizeOriginalEnd: null,
+  },
+  draggingTask: null,
+};
+
+// ─── Reducer ─────────────────────────────────────────────────────────────────
+
+function reducer(state: CalendarState, action: Action): CalendarState {
+  switch (action.type) {
+    case 'TICK':
+      return { ...state, currentTime: new Date() };
+
+    case 'SET_VIEW': {
+      const d = new Date(state.currentDate);
+      return { ...state, viewMode: action.mode, currentDate: d };
+    }
+
+    case 'SET_DATE':
+      return { ...state, currentDate: action.date };
+
+    case 'TOGGLE_SIDEBAR':
+      return { ...state, taskSidebarCollapsed: !state.taskSidebarCollapsed };
+
+    case 'PATCH_VIEW_PREFS':
+      return { ...state, viewMenuPreferences: { ...state.viewMenuPreferences, ...action.patch } };
+
+    case 'OPEN_MODAL':
+      return {
+        ...state,
+        modalOpen: true,
+        editingEvent: action.editingEvent ?? null,
+        form: { ...defaultForm, ...(action.form ?? {}) },
+      };
+
+    case 'CLOSE_MODAL':
+      return { ...state, modalOpen: false };
+
+    case 'PATCH_FORM':
+      return { ...state, form: { ...state.form, ...action.patch } };
+
+    case 'OPEN_TASK_MODAL':
+      return { ...state, taskModalOpen: true };
+
+    case 'CLOSE_TASK_MODAL':
+      return { ...state, taskModalOpen: false, taskFormTitle: '', taskFormDeadline: '' };
+
+    case 'PATCH_TASK_FORM':
+      return { ...state, ...action.patch };
+
+    case 'OPEN_NEW_LIST_MODAL':
+      return { ...state, newListModalOpen: true };
+
+    case 'CLOSE_NEW_LIST_MODAL':
+      return {
+        ...state,
+        newListModalOpen: false,
+        newListForm: { name: '', color: '#8b5cf6', icon: 'circle' },
+      };
+
+    case 'PATCH_NEW_LIST_FORM':
+      return { ...state, newListForm: { ...state.newListForm, ...action.patch } };
+
+    case 'SET_QUICK_VIEW':
+      return { ...state, quickViewEvent: action.event, quickViewAnchor: action.anchor };
+
+    case 'DRAG_START':
+      return {
+        ...state,
+        drag: {
+          isDragging: true,
+          dragStart: { date: action.date, hour: action.hour, minutes: action.minutes },
+          dragEnd: { date: action.date, hour: action.hour, minutes: action.minutes },
+        },
+      };
+
+    case 'DRAG_MOVE':
+      if (!state.drag.isDragging || !state.drag.dragStart) return state;
+      return {
+        ...state,
+        drag: {
+          ...state.drag,
+          dragEnd: { date: state.drag.dragStart.date, hour: action.hour, minutes: action.minutes },
+        },
+      };
+
+    case 'DRAG_END':
+      return { ...state, drag: { isDragging: false, dragStart: null, dragEnd: null } };
+
+    case 'EVENT_DRAG_START':
+      return {
+        ...state,
+        eventDrag: {
+          draggingEvent: action.event,
+          eventDragOffset: action.offset,
+          eventDragPosition: null,
+        },
+      };
+
+    case 'EVENT_DRAG_MOVE':
+      if (!state.eventDrag.draggingEvent) return state;
+      return {
+        ...state,
+        eventDrag: {
+          ...state.eventDrag,
+          eventDragPosition: { date: action.date, time: action.time },
+        },
+      };
+
+    case 'EVENT_DRAG_END':
+      return {
+        ...state,
+        eventDrag: {
+          draggingEvent: null,
+          eventDragOffset: { x: 0, y: 0 },
+          eventDragPosition: null,
+        },
+      };
+
+    case 'RESIZE_START':
+      return {
+        ...state,
+        resize: {
+          resizingEvent: action.event,
+          resizeEdge: action.edge,
+          resizeOriginalStart: new Date(action.event.start),
+          resizeOriginalEnd: new Date(action.event.end),
+        },
+      };
+
+    case 'RESIZE_END':
+      return {
+        ...state,
+        resize: {
+          resizingEvent: null,
+          resizeEdge: null,
+          resizeOriginalStart: null,
+          resizeOriginalEnd: null,
+        },
+      };
+
+    case 'TASK_DRAG_START':
+      return { ...state, draggingTask: action.task };
+
+    case 'TASK_DRAG_END':
+      return { ...state, draggingTask: null };
+
+    default:
+      return state;
+  }
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
   const store = useStore();
   const { setPageControls } = usePageHeader();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [taskSidebarCollapsed, setTaskSidebarCollapsed] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-  // New Sidebar UI state
-  const [viewMenuOpen, setViewMenuOpen] = useState(false);
-  const [viewMenuPreferences, setViewMenuPreferences] = useState({
-    manageDueDates: true,
-    showScheduledTasks: false,
-    enableDueToday: true,
-    enableDueTomorrow: true,
-    enableDueSoon: true,
-    hiddenLists: [] as string[],
-  });
+  const {
+    currentDate,
+    viewMode,
+    currentTime,
+    taskSidebarCollapsed,
+    viewMenuPreferences,
+    modalOpen,
+    editingEvent,
+    form,
+    taskModalOpen,
+    taskFormTitle,
+    taskFormDeadline,
+    taskFormEnergy,
+    newListModalOpen,
+    newListForm,
+    quickViewEvent,
+    quickViewAnchor,
+    drag,
+    eventDrag,
+    resize,
+    draggingTask,
+  } = state;
 
-  // New List Modal State
-  const [newListModalOpen, setNewListModalOpen] = useState(false);
-  const [newListForm, setNewListForm] = useState({ name: '', color: '#8b5cf6', icon: 'circle' });
-
-  // Task creation state
-  const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [taskFormTitle, setTaskFormTitle] = useState('');
-  const [taskFormDeadline, setTaskFormDeadline] = useState('');
-  const [taskFormEnergy, setTaskFormEnergy] = useState<'high' | 'medium' | 'low'>('medium');
-
-  // Quick view state
-  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
-  const [quickViewAnchor, setQuickViewAnchor] = useState<HTMLElement | null>(null);
-
-  // Recurring edit scope: "this" edits only this instance, "all" edits the master event
-  const [recurringEditScope, setRecurringEditScope] = useState<'this' | 'all'>('this');
-
-  // Drag-to-create state
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ date: Date; hour: number; minutes: number } | null>(
-    null
-  );
-  const [dragEnd, setDragEnd] = useState<{ date: Date; hour: number; minutes: number } | null>(
-    null
-  );
-
-  // Event drag-to-move state
-  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
-  const [eventDragOffset, setEventDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [eventDragPosition, setEventDragPosition] = useState<{ date: Date; time: number } | null>(
-    null
-  );
-
-  // Event resize state
-  const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
-  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
-  const [resizeOriginalStart, setResizeOriginalStart] = useState<Date | null>(null);
-  const [resizeOriginalEnd, setResizeOriginalEnd] = useState<Date | null>(null);
-
-  // Task drag state
-  const [draggingTask, setDraggingTask] = useState<any | null>(null);
-
-  const weekDates = getWeekDates(currentDate);
-  const today = new Date();
-
-  // Update current time every minute
+  // Tick every minute
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    const timer = setInterval(() => dispatch({ type: 'TICK' }), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Set header controls
+  // Page header controls
   useEffect(() => {
     setPageControls(
-      <div className="flex items-center justify-between w-full">
-        {/* Month/Year Display */}
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-['Playfair_Display'] text-white">
-            {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigateDate('prev')}
-              className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_left</span>
-            </button>
-            <button
-              onClick={() => navigateDate('today')}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium border border-white/10 text-[#F5F5F5] hover:bg-white/5 transition-colors"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => navigateDate('next')}
-              className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_right</span>
-            </button>
-          </div>
-        </div>
-
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => store.autoSchedule()}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-[#8b5cf6] to-[#ec4899] text-white shadow-lg hover:shadow-xl transition-all mr-2"
-          >
-            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-            Auto-Schedule
-          </button>
-          {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
-                viewMode === mode
-                  ? 'bg-[#C17A72] text-white'
-                  : 'border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
-        </div>
-      </div>
+      <CalendarHeader
+        currentDate={currentDate}
+        viewMode={viewMode}
+        onNavigate={navigateDate}
+        onViewChange={(mode) => dispatch({ type: 'SET_VIEW', mode })}
+      />
     );
-
     return () => setPageControls(null);
-  }, [currentDate, viewMode, setPageControls]);
+  }, [currentDate, viewMode]);
 
-  // Scroll to current time on mount
-  useEffect(() => {
-    if (scrollRef.current && isSameDay(currentDate, today)) {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const scrollTo = (currentHour - 2) * HOUR_HEIGHT; // Scroll to 2 hours before current time
-      scrollRef.current.scrollTop = Math.max(0, scrollTo);
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  function navigateDate(direction: 'prev' | 'next' | 'today') {
+    if (direction === 'today') {
+      dispatch({ type: 'SET_DATE', date: new Date() });
+    } else {
+      const d = new Date(currentDate);
+      if (viewMode === 'day') d.setDate(d.getDate() + (direction === 'next' ? 1 : -1));
+      else if (viewMode === 'week') d.setDate(d.getDate() + (direction === 'next' ? 7 : -7));
+      else d.setMonth(d.getMonth() + (direction === 'next' ? 1 : -1));
+      dispatch({ type: 'SET_DATE', date: d });
     }
-  }, []);
+  }
 
-  // Task organization
-  const overdueTasks = store.tasks.filter(
-    (t) => !t.completed && t.deadline && new Date(t.deadline) < today
-  );
-  const todayTasks = store.tasks.filter(
-    (t) => !t.completed && t.deadline && isSameDay(new Date(t.deadline), today)
-  );
-  const tomorrowTasks = store.tasks.filter((t) => {
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return !t.completed && t.deadline && isSameDay(new Date(t.deadline), tomorrow);
-  });
-  const upcomingTasks = store.tasks.filter((t) => {
-    if (!t.deadline || t.completed) return false;
-    const deadline = new Date(t.deadline);
-    const twoDaysOut = new Date(today);
-    twoDaysOut.setDate(twoDaysOut.getDate() + 2);
-    return deadline > twoDaysOut;
-  });
+  function getEventsForDisplay(): CalendarEvent[] {
+    const regularEvents = store.events;
+    const scheduledTasksAsEvents: CalendarEvent[] = store.tasks
+      .filter((t) => !t.completed && t.scheduledStart && t.scheduledEnd)
+      .map((t) => ({
+        id: t.id,
+        title: `[Task] ${t.title}`,
+        description: t.description || '',
+        start: t.scheduledStart as string,
+        end: t.scheduledEnd as string,
+        color: '#10b981',
+        allDay: false,
+        source: 'task' as const,
+        taskId: t.id,
+        isRecurring: false,
+        createdAt: t.createdAt,
+      }));
+    return [...regularEvents, ...scheduledTasksAsEvents];
+  }
 
-  // Form state
-  const [formTitle, setFormTitle] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [formStart, setFormStart] = useState('');
-  const [formEnd, setFormEnd] = useState('');
-  const [formColor, setFormColor] = useState('#8b5cf6');
-  const [formIsRecurring, setFormIsRecurring] = useState(false);
-  const [formRecurrenceFrequency, setFormRecurrenceFrequency] = useState<
-    'daily' | 'weekly' | 'monthly' | 'yearly'
-  >('weekly');
-  const [formRecurrenceInterval, setFormRecurrenceInterval] = useState(1);
-  const [formRecurrenceEndDate, setFormRecurrenceEndDate] = useState('');
-  const [formRecurrenceDaysOfWeek, setFormRecurrenceDaysOfWeek] = useState<number[]>([]);
+  function openCreate(start?: Date, end?: Date) {
+    const s = start || new Date();
+    const e = end || new Date(s.getTime() + 60 * 60 * 1000);
+    dispatch({
+      type: 'OPEN_MODAL',
+      form: {
+        title: '',
+        description: '',
+        start: toLocalDatetimeString(s),
+        end: toLocalDatetimeString(e),
+        color: '#8b5cf6',
+        isRecurring: false,
+        recurrenceFrequency: 'weekly',
+        recurrenceInterval: 1,
+        recurrenceEndDate: '',
+        recurrenceDaysOfWeek: [],
+      },
+    });
+  }
 
   function openEdit(event: CalendarEvent) {
-    setEditingEvent(event);
-    setFormTitle(event.title);
-    setFormDescription(event.description);
-    setFormStart(toLocalDatetimeString(new Date(event.start)));
-    setFormEnd(toLocalDatetimeString(new Date(event.end)));
-    setFormColor(event.color);
-    setFormIsRecurring(event.isRecurring || false);
-    setFormRecurrenceFrequency(event.recurrenceFrequency || 'weekly');
-    setFormRecurrenceInterval(event.recurrenceInterval || 1);
-    setFormRecurrenceEndDate(
-      event.recurrenceEndDate ? new Date(event.recurrenceEndDate).toISOString().split('T')[0] : ''
-    );
-    setFormRecurrenceDaysOfWeek(event.recurrenceDaysOfWeek || []);
-    setRecurringEditScope('this');
-    setModalOpen(true);
+    dispatch({
+      type: 'OPEN_MODAL',
+      editingEvent: event,
+      form: {
+        title: event.title,
+        description: event.description,
+        start: toLocalDatetimeString(new Date(event.start)),
+        end: toLocalDatetimeString(new Date(event.end)),
+        color: event.color,
+        isRecurring: event.isRecurring || false,
+        recurrenceFrequency: event.recurrenceFrequency || 'weekly',
+        recurrenceInterval: event.recurrenceInterval || 1,
+        recurrenceEndDate: event.recurrenceEndDate
+          ? new Date(event.recurrenceEndDate).toISOString().split('T')[0]
+          : '',
+        recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
+      },
+    });
   }
 
   function handleSave() {
-    if (!formTitle.trim()) return;
+    if (!form.title.trim()) return;
     const data: any = {
-      title: formTitle.trim(),
-      description: formDescription.trim(),
-      start: new Date(formStart).toISOString(),
-      end: new Date(formEnd).toISOString(),
-      color: formColor,
-      isRecurring: formIsRecurring,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      start: new Date(form.start).toISOString(),
+      end: new Date(form.end).toISOString(),
+      color: form.color,
+      isRecurring: form.isRecurring,
     };
-
-    if (formIsRecurring) {
-      data.recurrenceFrequency = formRecurrenceFrequency;
-      data.recurrenceInterval = formRecurrenceInterval;
-      data.recurrenceEndDate = formRecurrenceEndDate
-        ? new Date(formRecurrenceEndDate).toISOString()
+    if (form.isRecurring) {
+      data.recurrenceFrequency = form.recurrenceFrequency;
+      data.recurrenceInterval = form.recurrenceInterval;
+      data.recurrenceEndDate = form.recurrenceEndDate
+        ? new Date(form.recurrenceEndDate).toISOString()
         : null;
       data.recurrenceDaysOfWeek =
-        formRecurrenceFrequency === 'weekly' ? formRecurrenceDaysOfWeek : [];
+        form.recurrenceFrequency === 'weekly' ? form.recurrenceDaysOfWeek : [];
     }
 
     if (editingEvent) {
@@ -364,63 +445,27 @@ export default function CalendarPage() {
           scheduledStart: data.start,
           scheduledEnd: data.end,
         });
-      } else if (editingEvent.isRecurring && recurringEditScope === 'this') {
-        // "Edit this event": create a non-recurring one-off event for this instance
-        // and add a note that this date is excluded (simplified: just create standalone override)
-        store.addEvent({
-          ...data,
-          isRecurring: false,
-          recurrenceFrequency: undefined,
-          recurrenceInterval: undefined,
-          recurrenceEndDate: undefined,
-          recurrenceDaysOfWeek: undefined,
-          allDay: editingEvent.allDay,
-          taskId: editingEvent.taskId ?? null,
-          source: editingEvent.source,
-        });
       } else {
-        // "Edit all events" (or non-recurring): update the master event
-        const masterId = editingEvent.id.includes('_')
-          ? editingEvent.id.split('_')[0]
-          : editingEvent.id;
-        store.updateEvent(masterId, data);
+        store.updateEvent(editingEvent.id, data);
       }
     } else {
       store.addEvent({ ...data, allDay: false, taskId: null, source: 'local' });
     }
-    setModalOpen(false);
+    dispatch({ type: 'CLOSE_MODAL' });
   }
 
-  const handleCreateList = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newListForm.name.trim()) return;
-    try {
-      await store.addTaskList({
-        name: newListForm.name,
-        color: newListForm.color,
-        icon: newListForm.icon,
-        order: store.taskLists.length,
-      });
-      setNewListModalOpen(false);
-      setNewListForm({ name: '', color: '#8b5cf6', icon: 'circle' });
-      setViewMenuOpen(false);
-    } catch (err) {
-      alert('Failed to create list');
+  function handleDelete() {
+    if (!editingEvent) return;
+    if (editingEvent.source === 'task') {
+      store.updateTask(editingEvent.id, { scheduledStart: null, scheduledEnd: null });
+    } else {
+      store.deleteEvent(editingEvent.id);
     }
-  };
-
-  const handleToggleListVisibility = (listId: string) => {
-    setViewMenuPreferences((prev) => ({
-      ...prev,
-      hiddenLists: prev.hiddenLists.includes(listId)
-        ? prev.hiddenLists.filter((id) => id !== listId)
-        : [...prev.hiddenLists, listId],
-    }));
-  };
+    dispatch({ type: 'CLOSE_MODAL' });
+  }
 
   function handleSaveTask() {
     if (!taskFormTitle.trim()) return;
-
     store.addTask({
       title: taskFormTitle.trim(),
       description: '',
@@ -437,343 +482,165 @@ export default function CalendarPage() {
       tags: [],
       listId: null,
     });
-
-    setTaskModalOpen(false);
-    setTaskFormTitle('');
-    setTaskFormDeadline('');
+    dispatch({ type: 'CLOSE_TASK_MODAL' });
   }
 
-  function handleDelete() {
-    if (editingEvent) {
-      if (editingEvent.source === 'task') {
-        // Just unschedule the task from the calendar, don't delete the actual task
-        store.updateTask(editingEvent.id, {
-          scheduledStart: null,
-          scheduledEnd: null,
-        });
-      } else if (editingEvent.isRecurring && recurringEditScope === 'this') {
-        // "Delete this event": nothing to do for a virtual instance —
-        // in a full implementation we'd store exceptions; for now we skip deletion
-        // and inform the user via console (DB-level exception list is out of scope for this fix)
-        console.info(
-          "[recurrence] Single-instance deletion not yet persisted; use 'Edit all events' to remove the series."
-        );
-      } else {
-        // Delete the master event (removes all future instances too)
-        const masterId = editingEvent.id.includes('_')
-          ? editingEvent.id.split('_')[0]
-          : editingEvent.id;
-        store.deleteEvent(masterId);
-      }
-      setModalOpen(false);
-    }
-  }
-
-  function getEventsForDay(date: Date) {
-    // Range covering the full target day
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    // Non-recurring events on this day
-    const nonRecurringEvents = store.events.filter(
-      (e) => !e.isRecurring && isSameDay(new Date(e.start), date)
-    );
-
-    // Original recurring events that start on this day (show the master occurrence)
-    const recurringOrigins = store.events.filter(
-      (e) => e.isRecurring && isSameDay(new Date(e.start), date)
-    );
-
-    // Expand all recurring events and collect instances falling on this day
-    const expandedInstances = store.events
-      .filter((e) => e.isRecurring)
-      .flatMap((e) => expandRecurringEvent(e, { start: dayStart, end: dayEnd }))
-      .filter((e) => isSameDay(new Date(e.start), date));
-
-    const regularEvents = [...nonRecurringEvents, ...recurringOrigins, ...expandedInstances];
-
-    // Map scheduled tasks to look like calendar events
-    const scheduledTasksAsEvents = store.tasks
-      .filter(
-        (t) =>
-          !t.completed &&
-          t.scheduledStart &&
-          t.scheduledEnd &&
-          isSameDay(new Date(t.scheduledStart), date)
-      )
-      .map((t) => ({
-        id: t.id, // Using task id as event id for rendering
-        title: `[Task] ${t.title}`,
-        description: t.description || '',
-        start: t.scheduledStart as string,
-        end: t.scheduledEnd as string,
-        color: '#10b981', // green for tasks
-        allDay: false,
-        source: 'task',
-        taskId: t.id,
-        isRecurring: false,
-        createdAt: t.createdAt,
-      })) as CalendarEvent[];
-
-    return [...regularEvents, ...scheduledTasksAsEvents];
-  }
-
-  function getEventStyle(event: CalendarEvent) {
-    const start = new Date(event.start);
-    const end = new Date(event.end);
-    const startMin = start.getHours() * 60 + start.getMinutes();
-    const endMin = end.getHours() * 60 + end.getMinutes();
-    const duration = Math.max(endMin - startMin, 30);
-    return {
-      top: `${(startMin / 60) * HOUR_HEIGHT}px`,
-      height: `${(duration / 60) * HOUR_HEIGHT}px`,
-      backgroundColor: event.color,
-    };
-  }
-
-  // Check if two events overlap
-  function eventsOverlap(event1: CalendarEvent, event2: CalendarEvent) {
-    const start1 = new Date(event1.start).getTime();
-    const end1 = new Date(event1.end).getTime();
-    const start2 = new Date(event2.start).getTime();
-    const end2 = new Date(event2.end).getTime();
-    return start1 < end2 && start2 < end1;
-  }
-
-  // Calculate event layout for overlapping events
-  function getEventLayout(event: CalendarEvent, dayEvents: CalendarEvent[]) {
-    // Find all events that overlap with this event
-    const overlapping = dayEvents.filter((e) => e.id !== event.id && eventsOverlap(event, e));
-
-    if (overlapping.length === 0) {
-      return { left: '0.25rem', right: '0.25rem', zIndex: 10 };
-    }
-
-    // Sort all overlapping events including current by start time
-    const allEvents = [event, ...overlapping].sort(
-      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-    );
-
-    // Calculate columns
-    const columns: CalendarEvent[][] = [];
-    for (const evt of allEvents) {
-      let placed = false;
-      for (const column of columns) {
-        const lastInColumn = column[column.length - 1];
-        if (!eventsOverlap(evt, lastInColumn)) {
-          column.push(evt);
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) {
-        columns.push([evt]);
-      }
-    }
-
-    // Find which column this event is in
-    let columnIndex = 0;
-    for (let i = 0; i < columns.length; i++) {
-      if (columns[i].some((e) => e.id === event.id)) {
-        columnIndex = i;
-        break;
-      }
-    }
-
-    const totalColumns = columns.length;
-    const width = `calc(${100 / totalColumns}% - 0.5rem)`;
-    const left = `calc(${(columnIndex * 100) / totalColumns}% + 0.25rem)`;
-
-    return {
-      left,
-      width,
-      right: 'auto',
-      zIndex: 10 + columnIndex,
-    };
-  }
-
-  const navigateDate = (direction: 'prev' | 'next' | 'today') => {
-    if (direction === 'today') {
-      setCurrentDate(new Date());
-    } else {
-      const d = new Date(currentDate);
-      if (viewMode === 'day') {
-        d.setDate(d.getDate() + (direction === 'next' ? 1 : -1));
-      } else if (viewMode === 'week') {
-        d.setDate(d.getDate() + (direction === 'next' ? 7 : -7));
-      } else {
-        d.setMonth(d.getMonth() + (direction === 'next' ? 1 : -1));
-      }
-      setCurrentDate(d);
+  const handleCreateList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newListForm.name.trim()) return;
+    try {
+      await store.addTaskList({
+        name: newListForm.name,
+        color: newListForm.color,
+        icon: newListForm.icon,
+        order: store.taskLists.length,
+      });
+      dispatch({ type: 'CLOSE_NEW_LIST_MODAL' });
+    } catch {
+      alert('Failed to create list');
     }
   };
 
-  // Drag-to-create handlers
-  function handleDragStart(date: Date, hour: number, e: React.MouseEvent) {
-    // Prevent text selection
+  // ── Grid interaction handlers ────────────────────────────────────────────────
+
+  const handleCellMouseDown = useCallback((date: Date, hour: number, e: React.MouseEvent) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const minutes = Math.round((y / HOUR_HEIGHT) * 60);
-    setIsDragging(true);
-    setDragStart({ date, hour, minutes });
-    setDragEnd({ date, hour, minutes });
-  }
+    dispatch({ type: 'DRAG_START', date, hour, minutes });
+  }, []);
 
-  function handleDragEnd() {
-    if (!isDragging || !dragStart || !dragEnd) return;
-    setIsDragging(false);
+  const handleMouseUp = useCallback(() => {
+    if (drag.isDragging && drag.dragStart && drag.dragEnd) {
+      const startMinutes = drag.dragStart.hour * 60 + drag.dragStart.minutes;
+      const endMinutes = drag.dragEnd.hour * 60 + drag.dragEnd.minutes;
 
-    // Calculate start and end times
-    const startMinutes = dragStart.hour * 60 + dragStart.minutes;
-    const endMinutes = dragEnd.hour * 60 + dragEnd.minutes;
+      const start = new Date(drag.dragStart.date);
+      start.setHours(Math.floor(Math.min(startMinutes, endMinutes) / 60));
+      start.setMinutes(Math.min(startMinutes, endMinutes) % 60);
+      start.setSeconds(0);
+      start.setMilliseconds(0);
 
-    const start = new Date(dragStart.date);
-    start.setHours(Math.floor(Math.min(startMinutes, endMinutes) / 60));
-    start.setMinutes(Math.min(startMinutes, endMinutes) % 60);
-    start.setSeconds(0);
-    start.setMilliseconds(0);
+      const end = new Date(drag.dragStart.date);
+      end.setHours(Math.floor(Math.max(startMinutes, endMinutes) / 60));
+      end.setMinutes(Math.max(startMinutes, endMinutes) % 60);
+      end.setSeconds(0);
+      end.setMilliseconds(0);
 
-    const end = new Date(dragStart.date);
-    end.setHours(Math.floor(Math.max(startMinutes, endMinutes) / 60));
-    end.setMinutes(Math.max(startMinutes, endMinutes) % 60);
-    end.setSeconds(0);
-    end.setMilliseconds(0);
+      if (end.getTime() - start.getTime() < 30 * 60 * 1000) {
+        end.setTime(start.getTime() + 30 * 60 * 1000);
+      }
 
-    // Ensure minimum 30 minutes
-    if (end.getTime() - start.getTime() < 30 * 60 * 1000) {
-      end.setTime(start.getTime() + 30 * 60 * 1000);
-    }
-
-    setDragStart(null);
-    setDragEnd(null);
-    openCreate(start, end);
-  }
-
-  // Event drag-to-move handlers
-  function handleEventDragStart(event: CalendarEvent, e: React.MouseEvent) {
-    e.stopPropagation();
-    setDraggingEvent(event);
-    const eventEl = e.currentTarget.getBoundingClientRect();
-    setEventDragOffset({
-      x: e.clientX - eventEl.left,
-      y: e.clientY - eventEl.top,
-    });
-  }
-
-  function handleEventDragMove(date: Date, hour: number, minutes: number) {
-    if (!draggingEvent) return;
-    const totalMinutes = hour * 60 + minutes;
-
-    setEventDragPosition({
-      date,
-      time: totalMinutes,
-    });
-  }
-
-  function handleEventDragEnd() {
-    if (!draggingEvent || !eventDragPosition) {
-      setDraggingEvent(null);
-      setEventDragPosition(null);
-      return;
-    }
-
-    // Calculate duration
-    const originalStart = new Date(draggingEvent.start);
-    const originalEnd = new Date(draggingEvent.end);
-    const duration = originalEnd.getTime() - originalStart.getTime();
-
-    // Create new start time
-    const newStart = new Date(eventDragPosition.date);
-    newStart.setHours(Math.floor(eventDragPosition.time / 60));
-    newStart.setMinutes(eventDragPosition.time % 60);
-    newStart.setSeconds(0);
-    newStart.setMilliseconds(0);
-
-    // Create new end time (maintain duration)
-    const newEnd = new Date(newStart.getTime() + duration);
-
-    // Update event or task
-    if (draggingEvent.source === 'task') {
-      store.updateTask(draggingEvent.id, {
-        scheduledStart: newStart.toISOString(),
-        scheduledEnd: newEnd.toISOString(),
-      });
+      dispatch({ type: 'DRAG_END' });
+      openCreate(start, end);
     } else {
-      store.updateEvent(draggingEvent.id, {
-        start: newStart.toISOString(),
-        end: newEnd.toISOString(),
-      });
+      dispatch({ type: 'DRAG_END' });
     }
 
-    setDraggingEvent(null);
-    setEventDragPosition(null);
-  }
+    if (eventDrag.draggingEvent && eventDrag.eventDragPosition) {
+      const originalStart = new Date(eventDrag.draggingEvent.start);
+      const originalEnd = new Date(eventDrag.draggingEvent.end);
+      const duration = originalEnd.getTime() - originalStart.getTime();
 
-  // Event resize handlers
-  function handleResizeStart(event: CalendarEvent, edge: 'top' | 'bottom', e: React.MouseEvent) {
-    e.stopPropagation();
-    setResizingEvent(event);
-    setResizeEdge(edge);
-    setResizeOriginalStart(new Date(event.start));
-    setResizeOriginalEnd(new Date(event.end));
-  }
+      const newStart = new Date(eventDrag.eventDragPosition.date);
+      newStart.setHours(Math.floor(eventDrag.eventDragPosition.time / 60));
+      newStart.setMinutes(eventDrag.eventDragPosition.time % 60);
+      newStart.setSeconds(0);
+      newStart.setMilliseconds(0);
+
+      const newEnd = new Date(newStart.getTime() + duration);
+
+      if (eventDrag.draggingEvent.source === 'task') {
+        store.updateTask(eventDrag.draggingEvent.id, {
+          scheduledStart: newStart.toISOString(),
+          scheduledEnd: newEnd.toISOString(),
+        });
+      } else {
+        store.updateEvent(eventDrag.draggingEvent.id, {
+          start: newStart.toISOString(),
+          end: newEnd.toISOString(),
+        });
+      }
+    }
+    dispatch({ type: 'EVENT_DRAG_END' });
+    dispatch({ type: 'RESIZE_END' });
+  }, [drag, eventDrag, store]);
+
+  const handleGridMouseMove = useCallback(
+    (e: React.MouseEvent, isWeekView: boolean, weekDates: Date[]) => {
+      if (!drag.isDragging && !eventDrag.draggingEvent && !resize.resizingEvent) return;
+
+      const scrollContainer = e.currentTarget as HTMLDivElement;
+      const rect = scrollContainer.getBoundingClientRect();
+      const scrollTop = scrollContainer.scrollTop;
+      const y = e.clientY - rect.top + scrollTop;
+
+      if (isWeekView) {
+        const x = e.clientX - rect.left + scrollContainer.scrollLeft;
+        if (x <= 60) return;
+        const columnWidth = (rect.width - 60) / 7;
+        const dayIndex = Math.floor((x - 60) / columnWidth);
+        if (dayIndex < 0 || dayIndex >= 7) return;
+        const date = weekDates[dayIndex];
+        const hour = Math.floor(y / HOUR_HEIGHT);
+        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+
+        if (drag.isDragging)
+          dispatch({ type: 'DRAG_MOVE', date: drag.dragStart!.date, hour, minutes });
+        else if (eventDrag.draggingEvent)
+          dispatch({ type: 'EVENT_DRAG_MOVE', date, time: hour * 60 + minutes });
+        else if (resize.resizingEvent) handleResizeMove(date, hour, minutes);
+      } else {
+        const hour = Math.floor(y / HOUR_HEIGHT);
+        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+
+        if (drag.isDragging) dispatch({ type: 'DRAG_MOVE', date: currentDate, hour, minutes });
+        else if (eventDrag.draggingEvent)
+          dispatch({ type: 'EVENT_DRAG_MOVE', date: currentDate, time: hour * 60 + minutes });
+        else if (resize.resizingEvent) handleResizeMove(currentDate, hour, minutes);
+      }
+    },
+    [drag, eventDrag, resize, currentDate]
+  );
 
   function handleResizeMove(date: Date, hour: number, minutes: number) {
-    if (!resizingEvent || !resizeEdge || !resizeOriginalStart || !resizeOriginalEnd) return;
+    if (
+      !resize.resizingEvent ||
+      !resize.resizeEdge ||
+      !resize.resizeOriginalStart ||
+      !resize.resizeOriginalEnd
+    )
+      return;
     const totalMinutes = hour * 60 + minutes;
-
     const newTime = new Date(date);
     newTime.setHours(Math.floor(totalMinutes / 60));
     newTime.setMinutes(totalMinutes % 60);
     newTime.setSeconds(0);
     newTime.setMilliseconds(0);
 
-    if (resizeEdge === 'top') {
-      // Ensure minimum 15 minutes
-      if (resizeOriginalEnd.getTime() - newTime.getTime() >= 15 * 60 * 1000) {
-        if (resizingEvent.source === 'task') {
-          store.updateTask(resizingEvent.id, { scheduledStart: newTime.toISOString() });
+    if (resize.resizeEdge === 'top') {
+      if (resize.resizeOriginalEnd.getTime() - newTime.getTime() >= 15 * 60 * 1000) {
+        if (resize.resizingEvent.source === 'task') {
+          store.updateTask(resize.resizingEvent.id, { scheduledStart: newTime.toISOString() });
         } else {
-          store.updateEvent(resizingEvent.id, { start: newTime.toISOString() });
+          store.updateEvent(resize.resizingEvent.id, { start: newTime.toISOString() });
         }
       }
     } else {
-      // Ensure minimum 15 minutes
-      if (newTime.getTime() - resizeOriginalStart.getTime() >= 15 * 60 * 1000) {
-        if (resizingEvent.source === 'task') {
-          store.updateTask(resizingEvent.id, { scheduledEnd: newTime.toISOString() });
+      if (newTime.getTime() - resize.resizeOriginalStart.getTime() >= 15 * 60 * 1000) {
+        if (resize.resizingEvent.source === 'task') {
+          store.updateTask(resize.resizingEvent.id, { scheduledEnd: newTime.toISOString() });
         } else {
-          store.updateEvent(resizingEvent.id, { end: newTime.toISOString() });
+          store.updateEvent(resize.resizingEvent.id, { end: newTime.toISOString() });
         }
       }
     }
   }
 
-  function handleResizeEnd() {
-    setResizingEvent(null);
-    setResizeEdge(null);
-    setResizeOriginalStart(null);
-    setResizeOriginalEnd(null);
-  }
-
-  // Task drag handlers
-  function handleTaskDragStart(task: any, e: React.DragEvent) {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', task.id);
-    setDraggingTask(task);
-  }
-
-  function handleTaskDragEnd() {
-    setDraggingTask(null);
-  }
-
   function handleTaskDrop(date: Date, hour: number, e: React.DragEvent) {
     e.preventDefault();
     if (!draggingTask) return;
-
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const minutes = hour * 60 + Math.round((y / HOUR_HEIGHT) * 60);
@@ -784,10 +651,8 @@ export default function CalendarPage() {
     start.setSeconds(0);
     start.setMilliseconds(0);
 
-    // Default 1-hour duration
     const end = new Date(start.getTime() + 60 * 60 * 1000);
 
-    // Create event from task
     store.addEvent({
       title: draggingTask.title,
       description: `Task: ${draggingTask.title}`,
@@ -798,1207 +663,90 @@ export default function CalendarPage() {
       taskId: draggingTask.id,
       source: 'local',
     });
-
-    setDraggingTask(null);
+    dispatch({ type: 'TASK_DRAG_END' });
   }
 
-  function openCreate(start?: Date, end?: Date) {
-    const s = start || new Date();
-    const e = end || new Date(s.getTime() + 60 * 60 * 1000);
-    setEditingEvent(null);
-    setFormTitle('');
-    setFormDescription('');
-    setFormStart(toLocalDatetimeString(s));
-    setFormEnd(toLocalDatetimeString(e));
-    setFormColor('#8b5cf6');
-    setModalOpen(true);
-  }
+  // ─── Computed ─────────────────────────────────────────────────────────────
 
-  // Get drag preview style
-  function getDragPreviewStyle() {
-    if (!isDragging || !dragStart || !dragEnd) return null;
+  const allEvents = getEventsForDisplay();
 
-    const startMinutes = dragStart.hour * 60 + dragStart.minutes;
-    const endMinutes = dragEnd.hour * 60 + dragEnd.minutes;
-    const top = Math.min(startMinutes, endMinutes);
-    const bottom = Math.max(startMinutes, endMinutes);
-    const height = Math.max(bottom - top, 30); // Minimum 30 minutes
+  const weekDates: Date[] = useMemo(() => getWeekDates(currentDate), [currentDate]);
 
-    return {
-      top: `${(top / 60) * HOUR_HEIGHT}px`,
-      height: `${(height / 60) * HOUR_HEIGHT}px`,
-    };
-  }
-
-  // Get current time position for indicator
-  function getCurrentTimePosition() {
-    const now = currentTime;
-    const minutes = now.getHours() * 60 + now.getMinutes();
-    return (minutes / 60) * HOUR_HEIGHT;
-  }
-
-  const shouldShowTimeIndicator =
-    viewMode === 'week' && weekDates.some((date) => isSameDay(date, today));
+  const weekMouseMove = useCallback(
+    (e: React.MouseEvent) => handleGridMouseMove(e, true, weekDates),
+    [handleGridMouseMove, weekDates]
+  );
+  const dayMouseMove = useCallback(
+    (e: React.MouseEvent) => handleGridMouseMove(e, false, []),
+    [handleGridMouseMove]
+  );
 
   return (
     <div className="flex h-full gap-4">
       {/* Task Sidebar */}
-      <div
-        className={`flex-shrink-0 transition-all duration-300 ${taskSidebarCollapsed ? 'w-16' : 'w-[340px]'} flex flex-col`}
-      >
-        <div className="glass-card rounded-2xl p-4 h-full overflow-visible flex flex-col bg-[#111111]/80 border-r border-white/5">
-          {/* Sidebar Header */}
-          <div className="flex flex-col gap-3 mb-4 border-b border-white/5 pb-3">
-            <div className="flex items-center justify-between">
-              {!taskSidebarCollapsed && (
-                <h3 className="text-xl font-semibold text-[#F5F5F5] font-['Inter']">Tasks</h3>
-              )}
-              <div className="flex items-center gap-1">
-                {!taskSidebarCollapsed && (
-                  <>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors">
-                      <span className="material-symbols-outlined text-sm">search</span>
-                    </button>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors">
-                      <span className="material-symbols-outlined text-sm">filter_list</span>
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setTaskSidebarCollapsed(!taskSidebarCollapsed)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    {taskSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
-                  </span>
-                </button>
-              </div>
-            </div>
+      <TaskSidebar
+        collapsed={taskSidebarCollapsed}
+        onToggleCollapse={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}
+        onAddTask={() => dispatch({ type: 'OPEN_TASK_MODAL' })}
+        onDragStart={(task, e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', task.id);
+          dispatch({ type: 'TASK_DRAG_START', task });
+        }}
+        onDragEnd={() => dispatch({ type: 'TASK_DRAG_END' })}
+        viewMenuPreferences={viewMenuPreferences}
+        onViewMenuPreferencesChange={(patch) => dispatch({ type: 'PATCH_VIEW_PREFS', patch })}
+        onAddList={() => dispatch({ type: 'OPEN_NEW_LIST_MODAL' })}
+      />
 
-            {!taskSidebarCollapsed && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#ff7e67] to-[#ffe3a1] shadow-sm"></div>
-                  <button className="text-[#9CA3AF] hover:text-white transition-colors">
-                    <span className="material-symbols-outlined text-lg">grid_view</span>
-                  </button>
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setViewMenuOpen(!viewMenuOpen)}
-                    className="flex items-center gap-1 text-sm font-semibold hover:bg-white/5 px-2 py-1 rounded text-[#E5E7EB]"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">tune</span>
-                    View
-                  </button>
-                  {/* POPUP MENU */}
-                  {viewMenuOpen && (
-                    <div className="absolute left-full top-0 ml-2 mt-1 w-72 bg-[#1C1C1C] border border-white/10 rounded-xl shadow-2xl z-50 p-2 flex flex-col font-['Inter',sans-serif]">
-                      <button
-                        onClick={() => {
-                          setViewMenuOpen(false);
-                          setNewListModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">add</span>
-                        New task list
-                      </button>
-                      <button className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left">
-                        <span className="material-symbols-outlined text-[16px]">inventory_2</span>
-                        Show archived tasks
-                      </button>
-
-                      <div className="h-px bg-white/10 my-2"></div>
-
-                      <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
-                          Grouping
-                        </div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-[#D1D5DB]">Group by</span>
-                          <select className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white">
-                            <option>Task list</option>
-                          </select>
-                        </div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-[#D1D5DB]">then organise by</span>
-                          <select className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white">
-                            <option>None</option>
-                          </select>
-                        </div>
-                        <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors">
-                            Hide empty groups
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="rounded border-white/20 bg-[#1C1C1C] text-[#C17A72] focus:ring-[#C17A72]"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="h-px bg-white/10 my-2"></div>
-
-                      <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
-                          Filtering
-                        </div>
-                        <div className="flex items-center justify-between mb-2 text-xs text-[#9CA3AF]">
-                          <div className="flex gap-2">
-                            <button className="hover:text-white">Show all</button> |{' '}
-                            <button className="hover:text-white">None</button>
-                          </div>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                          {store.taskLists.map((list) => (
-                            <label
-                              key={list.id}
-                              className="flex items-center justify-between cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[16px] text-white/40 cursor-grab">
-                                  drag_indicator
-                                </span>
-                                <span
-                                  className="material-symbols-outlined text-[12px]"
-                                  style={{ color: list.color }}
-                                >
-                                  {list.icon}
-                                </span>
-                                <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                                  {list.name}
-                                </span>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={!viewMenuPreferences.hiddenLists.includes(list.id)}
-                                onChange={() => handleToggleListVisibility(list.id)}
-                                className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="h-px bg-white/10 my-2"></div>
-
-                      <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
-                          Calendar preferences
-                        </div>
-                        <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                            Manage due dates on the calendar
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={viewMenuPreferences.manageDueDates}
-                            onChange={(e) =>
-                              setViewMenuPreferences((p) => ({
-                                ...p,
-                                manageDueDates: e.target.checked,
-                              }))
-                            }
-                            className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="h-px bg-white/10 my-2"></div>
-
-                      <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
-                          Sidebar preferences
-                        </div>
-                        <div className="space-y-3">
-                          <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                              Show scheduled tasks
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={viewMenuPreferences.showScheduledTasks}
-                              onChange={(e) =>
-                                setViewMenuPreferences((p) => ({
-                                  ...p,
-                                  showScheduledTasks: e.target.checked,
-                                }))
-                              }
-                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                            />
-                          </label>
-                          <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                              Enable Due today list
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={viewMenuPreferences.enableDueToday}
-                              onChange={(e) =>
-                                setViewMenuPreferences((p) => ({
-                                  ...p,
-                                  enableDueToday: e.target.checked,
-                                }))
-                              }
-                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                            />
-                          </label>
-                          <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                              Enable Due tomorrow list
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={viewMenuPreferences.enableDueTomorrow}
-                              onChange={(e) =>
-                                setViewMenuPreferences((p) => ({
-                                  ...p,
-                                  enableDueTomorrow: e.target.checked,
-                                }))
-                              }
-                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                            />
-                          </label>
-                          <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
-                              Enable Due soon list
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={viewMenuPreferences.enableDueSoon}
-                              onChange={(e) =>
-                                setViewMenuPreferences((p) => ({
-                                  ...p,
-                                  enableDueSoon: e.target.checked,
-                                }))
-                              }
-                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Task Lists */}
-          {!taskSidebarCollapsed && (
-            <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-              {/* Time Based Lists */}
-              {overdueTasks.length > 0 && (
-                <TaskSection
-                  title="Overdue"
-                  count={overdueTasks.length}
-                  icon="schedule"
-                  color="#ef4444"
-                  defaultExpanded={false}
-                >
-                  {overdueTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      store={store}
-                      onDragStart={handleTaskDragStart}
-                      onDragEnd={handleTaskDragEnd}
-                    />
-                  ))}
-                </TaskSection>
-              )}
-
-              {viewMenuPreferences.enableDueToday && todayTasks.length > 0 && (
-                <TaskSection
-                  title="Due today"
-                  count={todayTasks.length}
-                  icon="light_mode"
-                  color="#f59e0b"
-                  defaultExpanded={true}
-                >
-                  {todayTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      store={store}
-                      onDragStart={handleTaskDragStart}
-                      onDragEnd={handleTaskDragEnd}
-                    />
-                  ))}
-                </TaskSection>
-              )}
-
-              {viewMenuPreferences.enableDueTomorrow && tomorrowTasks.length > 0 && (
-                <TaskSection
-                  title="Due tomorrow"
-                  count={tomorrowTasks.length}
-                  icon="arrow_forward_ios"
-                  color="#f59e0b"
-                  defaultExpanded={false}
-                >
-                  {tomorrowTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      store={store}
-                      onDragStart={handleTaskDragStart}
-                      onDragEnd={handleTaskDragEnd}
-                    />
-                  ))}
-                </TaskSection>
-              )}
-
-              {viewMenuPreferences.enableDueSoon && upcomingTasks.length > 0 && (
-                <TaskSection
-                  title="Due soon"
-                  count={upcomingTasks.length}
-                  icon="terrain"
-                  color="#f59e0b"
-                  defaultExpanded={false}
-                >
-                  {upcomingTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      store={store}
-                      onDragStart={handleTaskDragStart}
-                      onDragEnd={handleTaskDragEnd}
-                    />
-                  ))}
-                </TaskSection>
-              )}
-
-              {/* Separator */}
-              <div className="h-px bg-white/5 my-3"></div>
-
-              {/* Custom Lists from Store */}
-              {store.taskLists
-                .filter((list) => !viewMenuPreferences.hiddenLists.includes(list.id))
-                .sort((a, b) => a.order - b.order)
-                .map((list) => {
-                  const listTasks = store.tasks.filter(
-                    (t) =>
-                      !t.completed &&
-                      (!viewMenuPreferences.showScheduledTasks ? !t.scheduledStart : true) &&
-                      t.listId === list.id
-                  );
-
-                  return (
-                    <TaskSection
-                      key={list.id}
-                      title={list.name}
-                      count={listTasks.length}
-                      icon={list.icon}
-                      color={list.color}
-                      defaultExpanded={true}
-                    >
-                      {listTasks.map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          store={store}
-                          onDragStart={handleTaskDragStart}
-                          onDragEnd={handleTaskDragEnd}
-                        />
-                      ))}
-                    </TaskSection>
-                  );
-                })}
-
-              {/* Add Task Button */}
-              <button
-                onClick={() => setTaskModalOpen(true)}
-                className="w-full mt-4 flex items-center gap-2 px-2 py-2 rounded-xl text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-all text-left"
-              >
-                <span className="material-symbols-outlined text-lg">add</span>
-                <span className="text-sm font-medium">Add Task</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Calendar */}
+      {/* Calendar Grid */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Calendar Grid */}
-        <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col">
-          {viewMode === 'week' && (
-            <>
-              {/* Week View */}
-              <div className="border-b border-white/10">
-                <div className="grid grid-cols-[60px_repeat(7,1fr)]">
-                  {/* Empty corner */}
-                  <div className="h-16 border-r border-white/5"></div>
-                  {/* Day headers */}
-                  {weekDates.map((date, i) => {
-                    const isToday = isSameDay(date, today);
-                    return (
-                      <div
-                        key={i}
-                        className="h-16 border-r border-white/5 last:border-r-0 px-3 flex flex-col items-center justify-center"
-                      >
-                        <div
-                          className={`text-xs uppercase tracking-wider font-medium ${isToday ? 'text-[#C17A72]' : 'text-[#9CA3AF]'}`}
-                        >
-                          {DAYS_SHORT[date.getDay()]}
-                        </div>
-                        <div
-                          className={`text-2xl font-['Playfair_Display'] mt-1 ${
-                            isToday
-                              ? 'w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center'
-                              : 'text-[#F5F5F5]'
-                          }`}
-                        >
-                          {date.getDate()}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+        <CalendarGrid
+          currentDate={currentDate}
+          viewMode={viewMode}
+          today={new Date()}
+          currentTime={currentTime}
+          events={allEvents}
+          dragState={drag}
+          eventDragState={eventDrag}
+          resizeState={resize}
+          onCellMouseDown={handleCellMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onMouseMove={viewMode === 'week' ? weekMouseMove : dayMouseMove}
+          onTaskDrop={handleTaskDrop}
+          onEventMouseDown={(event, e) => {
+            e.stopPropagation();
+            const eventEl = e.currentTarget.getBoundingClientRect();
+            dispatch({
+              type: 'EVENT_DRAG_START',
+              event,
+              offset: { x: e.clientX - eventEl.left, y: e.clientY - eventEl.top },
+            });
+          }}
+          onEventClick={(event, e) => {
+            dispatch({ type: 'SET_QUICK_VIEW', event, anchor: e.currentTarget as HTMLElement });
+          }}
+          onResizeStart={(event, edge, e) => {
+            e.stopPropagation();
+            dispatch({ type: 'RESIZE_START', event, edge });
+          }}
+          onMonthDayClick={(date) => {
+            dispatch({ type: 'SET_DATE', date });
+            dispatch({ type: 'SET_VIEW', mode: 'day' });
+          }}
+        />
 
-              {/* Time Grid */}
-              <div
-                className="flex-1 overflow-auto"
-                ref={scrollRef}
-                onMouseUp={() => {
-                  handleDragEnd();
-                  handleEventDragEnd();
-                  handleResizeEnd();
-                }}
-                onMouseLeave={() => {
-                  handleDragEnd();
-                  handleEventDragEnd();
-                  handleResizeEnd();
-                }}
-                onMouseMove={(e) => {
-                  if (isDragging || draggingEvent || resizingEvent) {
-                    const scrollContainer = scrollRef.current;
-                    if (!scrollContainer) return;
-
-                    const rect = scrollContainer.getBoundingClientRect();
-                    const x = e.clientX - rect.left + scrollContainer.scrollLeft;
-                    const y = e.clientY - rect.top + scrollContainer.scrollTop;
-
-                    // Calculate which day column (skip 60px time column)
-                    if (x > 60) {
-                      const columnWidth = (rect.width - 60) / 7;
-                      const dayIndex = Math.floor((x - 60) / columnWidth);
-                      if (dayIndex >= 0 && dayIndex < 7) {
-                        const date = weekDates[dayIndex];
-                        const hour = Math.floor(y / HOUR_HEIGHT);
-                        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
-
-                        if (isDragging && dragStart) {
-                          setDragEnd({ date: dragStart.date, hour, minutes });
-                        } else if (draggingEvent) {
-                          handleEventDragMove(date, hour, minutes);
-                        } else if (resizingEvent) {
-                          handleResizeMove(date, hour, minutes);
-                        }
-                      }
-                    }
-                  }
-                }}
-              >
-                <div className="relative min-h-full select-none">
-                  <div className="grid grid-cols-[60px_repeat(7,1fr)]">
-                    {HOURS.map((hour) => (
-                      <div key={`row-${hour}`} className="contents">
-                        {/* Time label */}
-                        <div
-                          className="relative border-r border-white/5 text-right pr-3 py-2"
-                          style={{ height: HOUR_HEIGHT }}
-                        >
-                          <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
-                            {hour === 0
-                              ? '12 AM'
-                              : hour < 12
-                                ? `${hour} AM`
-                                : hour === 12
-                                  ? '12 PM'
-                                  : `${hour - 12} PM`}
-                          </div>
-                        </div>
-                        {/* Day columns */}
-                        {weekDates.map((date, dayIdx) => (
-                          <div
-                            key={`cell-${hour}-${dayIdx}`}
-                            className="relative border-r border-t border-white/5 last:border-r-0 hover:bg-[#C17A72]/5 transition-colors cursor-crosshair group"
-                            style={{ height: HOUR_HEIGHT }}
-                            onMouseDown={(e) => {
-                              if (!draggingEvent && !resizingEvent) {
-                                handleDragStart(date, hour, e);
-                              }
-                            }}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => handleTaskDrop(date, hour, e)}
-                          >
-                            {/* 30-minute line */}
-                            <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
-
-                            {/* Events for this hour */}
-                            {hour === 0 &&
-                              (() => {
-                                const dayEvents = getEventsForDay(date);
-                                return dayEvents.map((event) => {
-                                  const isDragging = draggingEvent?.id === event.id;
-                                  const isResizing = resizingEvent?.id === event.id;
-                                  const layout = getEventLayout(event, dayEvents);
-                                  return (
-                                    <div
-                                      key={event.id}
-                                      className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border border-white/10 group ${
-                                        isDragging ? 'opacity-50' : ''
-                                      } ${isResizing ? 'select-none' : 'cursor-move'}`}
-                                      style={{
-                                        ...getEventStyle(event),
-                                        left: layout.left,
-                                        right: layout.right,
-                                        width: layout.width,
-                                        zIndex: layout.zIndex,
-                                        boxShadow: `0 2px 8px ${event.color}60`,
-                                      }}
-                                      onMouseDown={(e) => {
-                                        // Check if clicking on resize handle
-                                        const target = e.target as HTMLElement;
-                                        if (target.classList.contains('resize-handle')) return;
-                                        handleEventDragStart(event, e);
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!isDragging && !isResizing) {
-                                          setQuickViewEvent(event);
-                                          setQuickViewAnchor(e.currentTarget as HTMLElement);
-                                        }
-                                      }}
-                                    >
-                                      {/* Top resize handle */}
-                                      <div
-                                        className="resize-handle absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t-lg"
-                                        onMouseDown={(e) => handleResizeStart(event, 'top', e)}
-                                      />
-                                      <div className="font-semibold truncate">{event.title}</div>
-                                      <div className="text-[10px] opacity-90 mt-0.5">
-                                        {formatTime(new Date(event.start))}
-                                      </div>
-                                      {/* Bottom resize handle */}
-                                      <div
-                                        className="resize-handle absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b-lg"
-                                        onMouseDown={(e) => handleResizeStart(event, 'bottom', e)}
-                                      />
-                                    </div>
-                                  );
-                                });
-                              })()}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Current Time Indicator */}
-                  {shouldShowTimeIndicator && (
-                    <div
-                      className="absolute left-0 right-0 z-30 pointer-events-none"
-                      style={{ top: `${getCurrentTimePosition()}px` }}
-                    >
-                      <div className="relative">
-                        <div className="absolute left-0 w-full h-[2px] bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
-                        <div className="absolute left-14 w-3 h-3 rounded-full bg-[#ef4444] -mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Drag Preview */}
-                  {isDragging && dragStart && dragEnd && getDragPreviewStyle() && (
-                    <div
-                      className="absolute pointer-events-none z-20"
-                      style={{
-                        ...getDragPreviewStyle(),
-                        left: `calc(60px + ${weekDates.findIndex((d) => isSameDay(d, dragEnd.date))} * ((100% - 60px) / 7))`,
-                        width: `calc((100% - 60px) / 7)`,
-                      }}
-                    >
-                      <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
-                    </div>
-                  )}
-
-                  {/* Event Drag Preview */}
-                  {draggingEvent && eventDragPosition && (
-                    <div
-                      className="absolute pointer-events-none z-30"
-                      style={{
-                        top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
-                        left: `calc(60px + ${weekDates.findIndex((d) => isSameDay(d, eventDragPosition.date))} * ((100% - 60px) / 7))`,
-                        width: `calc((100% - 60px) / 7)`,
-                        height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
-                      }}
-                    >
-                      <div
-                        className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
-                        style={{
-                          backgroundColor: `${draggingEvent.color}40`,
-                          borderColor: draggingEvent.color,
-                        }}
-                      >
-                        <div className="truncate">{draggingEvent.title}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {viewMode === 'day' && (
-            <>
-              {/* Day View Header */}
-              <div className="border-b border-white/10">
-                <div className="h-16 px-3 flex items-center justify-center border-r border-white/5">
-                  <div>
-                    <div
-                      className={`text-xs uppercase tracking-wider font-medium ${
-                        isSameDay(currentDate, today) ? 'text-[#C17A72]' : 'text-[#9CA3AF]'
-                      }`}
-                    >
-                      {DAYS_SHORT[currentDate.getDay()]}
-                    </div>
-                    <div
-                      className={`text-2xl font-['Playfair_Display'] mt-1 ${
-                        isSameDay(currentDate, today)
-                          ? 'w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center mx-auto'
-                          : 'text-[#F5F5F5] text-center'
-                      }`}
-                    >
-                      {currentDate.getDate()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Day View Grid */}
-              <div
-                className="flex-1 overflow-auto"
-                ref={scrollRef}
-                onMouseUp={() => {
-                  handleDragEnd();
-                  handleEventDragEnd();
-                  handleResizeEnd();
-                }}
-                onMouseLeave={() => {
-                  handleDragEnd();
-                  handleEventDragEnd();
-                  handleResizeEnd();
-                }}
-                onMouseMove={(e) => {
-                  if (isDragging || draggingEvent || resizingEvent) {
-                    const scrollContainer = scrollRef.current;
-                    if (!scrollContainer) return;
-
-                    const rect = scrollContainer.getBoundingClientRect();
-                    const y = e.clientY - rect.top + scrollContainer.scrollTop;
-
-                    const hour = Math.floor(y / HOUR_HEIGHT);
-                    const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
-
-                    if (isDragging && dragStart) {
-                      setDragEnd({ date: currentDate, hour, minutes });
-                    } else if (draggingEvent) {
-                      handleEventDragMove(currentDate, hour, minutes);
-                    } else if (resizingEvent) {
-                      handleResizeMove(currentDate, hour, minutes);
-                    }
-                  }
-                }}
-              >
-                <div className="relative min-h-full select-none">
-                  <div className="grid grid-cols-[60px_1fr]">
-                    {HOURS.map((hour) => (
-                      <div key={`row-${hour}`} className="contents">
-                        {/* Time label */}
-                        <div
-                          className="relative border-r border-white/5 text-right pr-3 py-2"
-                          style={{ height: HOUR_HEIGHT }}
-                        >
-                          <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
-                            {hour === 0
-                              ? '12 AM'
-                              : hour < 12
-                                ? `${hour} AM`
-                                : hour === 12
-                                  ? '12 PM'
-                                  : `${hour - 12} PM`}
-                          </div>
-                        </div>
-                        {/* Day column */}
-                        <div
-                          key={`cell-${hour}`}
-                          className="relative border-r border-t border-white/5 hover:bg-[#C17A72]/5 transition-colors cursor-crosshair group"
-                          style={{ height: HOUR_HEIGHT }}
-                          onMouseDown={(e) => {
-                            if (!draggingEvent && !resizingEvent) {
-                              handleDragStart(currentDate, hour, e);
-                            }
-                          }}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => handleTaskDrop(currentDate, hour, e)}
-                        >
-                          {/* 30-minute line */}
-                          <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
-
-                          {/* Events for this hour */}
-                          {hour === 0 &&
-                            (() => {
-                              const dayEvents = getEventsForDay(currentDate);
-                              return dayEvents.map((event) => {
-                                const isDragging = draggingEvent?.id === event.id;
-                                const isResizing = resizingEvent?.id === event.id;
-                                const layout = getEventLayout(event, dayEvents);
-                                return (
-                                  <div
-                                    key={event.id}
-                                    className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border border-white/10 group ${
-                                      isDragging ? 'opacity-50' : ''
-                                    } ${isResizing ? 'select-none' : 'cursor-move'}`}
-                                    style={{
-                                      ...getEventStyle(event),
-                                      left: layout.left,
-                                      right: layout.right,
-                                      width: layout.width,
-                                      zIndex: layout.zIndex,
-                                      boxShadow: `0 2px 8px ${event.color}60`,
-                                    }}
-                                    onMouseDown={(e) => {
-                                      const target = e.target as HTMLElement;
-                                      if (target.classList.contains('resize-handle')) return;
-                                      handleEventDragStart(event, e);
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (!isDragging && !isResizing) {
-                                        setQuickViewEvent(event);
-                                        setQuickViewAnchor(e.currentTarget as HTMLElement);
-                                      }
-                                    }}
-                                  >
-                                    <div
-                                      className="resize-handle absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t-lg"
-                                      onMouseDown={(e) => handleResizeStart(event, 'top', e)}
-                                    />
-                                    <div className="font-semibold truncate">{event.title}</div>
-                                    <div className="text-[10px] opacity-90 mt-0.5">
-                                      {formatTime(new Date(event.start))}
-                                    </div>
-                                    <div
-                                      className="resize-handle absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b-lg"
-                                      onMouseDown={(e) => handleResizeStart(event, 'bottom', e)}
-                                    />
-                                  </div>
-                                );
-                              });
-                            })()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Current Time Indicator for Day View */}
-                  {isSameDay(currentDate, today) && (
-                    <div
-                      className="absolute left-0 right-0 z-30 pointer-events-none"
-                      style={{ top: `${getCurrentTimePosition()}px` }}
-                    >
-                      <div className="relative">
-                        <div className="absolute left-0 w-full h-[2px] bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
-                        <div className="absolute left-14 w-3 h-3 rounded-full bg-[#ef4444] -mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Drag Preview for Day View */}
-                  {isDragging &&
-                    dragStart &&
-                    getDragPreviewStyle() &&
-                    isSameDay(dragStart.date, currentDate) && (
-                      <div
-                        className="absolute pointer-events-none z-20"
-                        style={{
-                          ...getDragPreviewStyle(),
-                          left: '60px',
-                          right: '0',
-                        }}
-                      >
-                        <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
-                      </div>
-                    )}
-
-                  {/* Event Drag Preview for Day View */}
-                  {draggingEvent &&
-                    eventDragPosition &&
-                    isSameDay(eventDragPosition.date, currentDate) && (
-                      <div
-                        className="absolute pointer-events-none z-30"
-                        style={{
-                          top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
-                          left: '60px',
-                          right: '0',
-                          height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
-                        }}
-                      >
-                        <div
-                          className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
-                          style={{
-                            backgroundColor: `${draggingEvent.color}40`,
-                            borderColor: draggingEvent.color,
-                          }}
-                        >
-                          <div className="truncate">{draggingEvent.title}</div>
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {viewMode === 'month' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Month View Header - Days of Week */}
-              <div className="grid grid-cols-7 border-b border-white/10">
-                {DAYS_SHORT.map((day) => (
-                  <div
-                    key={day}
-                    className="px-3 py-3 text-center text-xs uppercase tracking-wider font-medium text-[#9CA3AF] border-r border-white/5 last:border-r-0"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Month View Grid */}
-              <div className="flex-1 overflow-auto">
-                <div className="grid grid-cols-7 auto-rows-fr min-h-full">
-                  {(() => {
-                    // Get first day of month
-                    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-                    // Get last day of month
-                    const lastDay = new Date(
-                      currentDate.getFullYear(),
-                      currentDate.getMonth() + 1,
-                      0
-                    );
-
-                    // Calculate start date (beginning of week containing first day)
-                    const startDate = new Date(firstDay);
-                    startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-                    // Calculate end date (end of week containing last day)
-                    const endDate = new Date(lastDay);
-                    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
-
-                    // Generate array of dates
-                    const days = [];
-                    const current = new Date(startDate);
-                    while (current <= endDate) {
-                      days.push(new Date(current));
-                      current.setDate(current.getDate() + 1);
-                    }
-
-                    return days.map((date) => {
-                      const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-                      const isToday = isSameDay(date, today);
-                      const dayEvents = getEventsForDay(date);
-
-                      return (
-                        <div
-                          key={date.toISOString()}
-                          className={`min-h-[120px] border-r border-b border-white/5 last:border-r-0 p-2 hover:bg-white/5 transition-colors ${
-                            !isCurrentMonth ? 'bg-white/[0.02]' : ''
-                          }`}
-                          onClick={() => {
-                            setCurrentDate(date);
-                            setViewMode('day');
-                          }}
-                        >
-                          {/* Date number */}
-                          <div className="flex items-center justify-between mb-1">
-                            <div
-                              className={`text-sm font-['JetBrains_Mono'] ${
-                                isToday
-                                  ? 'w-6 h-6 rounded-full bg-[#C17A72] text-white flex items-center justify-center text-xs'
-                                  : isCurrentMonth
-                                    ? 'text-[#F5F5F5]'
-                                    : 'text-[#6B7280]'
-                              }`}
-                            >
-                              {date.getDate()}
-                            </div>
-                          </div>
-
-                          {/* Events */}
-                          <div className="space-y-1">
-                            {dayEvents.slice(0, 3).map((event) => (
-                              <div
-                                key={event.id}
-                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
-                                style={{
-                                  backgroundColor: `${event.color}40`,
-                                  borderLeft: `2px solid ${event.color}`,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setQuickViewEvent(event);
-                                  setQuickViewAnchor(e.currentTarget as HTMLElement);
-                                }}
-                              >
-                                <span className="font-medium text-white">
-                                  {!event.allDay && formatTime(new Date(event.start)) + ' '}
-                                  {event.title}
-                                </span>
-                              </div>
-                            ))}
-                            {dayEvents.length > 3 && (
-                              <div className="text-[10px] text-[#9CA3AF] px-1.5">
-                                +{dayEvents.length - 3} more
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal */}
-        <Modal
+        {/* Event Modal */}
+        <EventModal
           open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          title={editingEvent ? 'Edit Event' : 'New Event'}
-        >
-          <div className="flex flex-col gap-4">
-            {/* Scope picker for recurring instances */}
-            {editingEvent?.isRecurring && (
-              <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setRecurringEditScope('this')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    recurringEditScope === 'this'
-                      ? 'bg-[#C17A72] text-white'
-                      : 'text-[#9CA3AF] hover:text-white'
-                  }`}
-                >
-                  Edit this event
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecurringEditScope('all')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    recurringEditScope === 'all'
-                      ? 'bg-[#C17A72] text-white'
-                      : 'text-[#9CA3AF] hover:text-white'
-                  }`}
-                >
-                  Edit all events
-                </button>
-              </div>
-            )}
-            <input
-              type="text"
-              placeholder="Event title"
-              value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              autoFocus
-              className="input-glass text-base"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            />
-            <textarea
-              placeholder="Description (optional)"
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              rows={2}
-              className="input-glass resize-none"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                  Start
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formStart}
-                  onChange={(e) => setFormStart(e.target.value)}
-                  className="input-glass w-full"
-                />
-              </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                  End
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formEnd}
-                  onChange={(e) => setFormEnd(e.target.value)}
-                  className="input-glass w-full"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
-                Color
-              </label>
-              <div className="flex gap-2">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setFormColor(c)}
-                    className="w-7 h-7 rounded-full transition-all"
-                    style={{
-                      backgroundColor: c,
-                      transform: formColor === c ? 'scale(1.15)' : 'scale(1)',
-                      boxShadow:
-                        formColor === c ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${c}` : 'none',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Recurrence Section */}
-            <div className="border-t border-white/10 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                  Repeat
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setFormIsRecurring(!formIsRecurring)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    formIsRecurring ? 'bg-[#C17A72]' : 'bg-white/10'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      formIsRecurring ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {formIsRecurring && (
-                <div className="space-y-3 pl-1">
-                  {/* Frequency & Interval */}
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="text-xs mb-1 block text-[#9CA3AF]">Every</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={formRecurrenceInterval}
-                        onChange={(e) =>
-                          setFormRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))
-                        }
-                        className="input-glass w-full text-sm"
-                      />
-                    </div>
-                    <div className="flex-[2]">
-                      <label className="text-xs mb-1 block text-[#9CA3AF]">Frequency</label>
-                      <select
-                        value={formRecurrenceFrequency}
-                        onChange={(e) => setFormRecurrenceFrequency(e.target.value as any)}
-                        className="input-glass w-full text-sm cursor-pointer"
-                      >
-                        <option value="daily">Day(s)</option>
-                        <option value="weekly">Week(s)</option>
-                        <option value="monthly">Month(s)</option>
-                        <option value="yearly">Year(s)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Days of Week (only for weekly) */}
-                  {formRecurrenceFrequency === 'weekly' && (
-                    <div>
-                      <label className="text-xs mb-2 block text-[#9CA3AF]">Repeat on</label>
-                      <div className="flex gap-1">
-                        {DAYS_SHORT.map((day, index) => {
-                          const isSelected = formRecurrenceDaysOfWeek.includes(index);
-                          return (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => {
-                                setFormRecurrenceDaysOfWeek(
-                                  isSelected
-                                    ? formRecurrenceDaysOfWeek.filter((d) => d !== index)
-                                    : [...formRecurrenceDaysOfWeek, index].sort()
-                                );
-                              }}
-                              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                                isSelected
-                                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
-                                  : 'bg-white/5 text-[#9CA3AF] hover:bg-white/10'
-                              }`}
-                            >
-                              {day}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* End Date */}
-                  <div>
-                    <label className="text-xs mb-1 block text-[#9CA3AF]">End date (optional)</label>
-                    <input
-                      type="date"
-                      value={formRecurrenceEndDate}
-                      onChange={(e) => setFormRecurrenceEndDate(e.target.value)}
-                      className="input-glass w-full text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              {editingEvent ? (
-                <button
-                  onClick={handleDelete}
-                  className="px-3 py-2 text-sm rounded-lg"
-                  style={{ color: 'var(--danger)' }}
-                >
-                  Delete
-                </button>
-              ) : (
-                <div />
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-sm rounded-lg"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="btn-glow px-5 py-2 rounded-xl text-sm font-medium"
-                >
-                  {editingEvent ? 'Save' : 'Create'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </Modal>
+          editingEvent={editingEvent}
+          form={form}
+          onClose={() => dispatch({ type: 'CLOSE_MODAL' })}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onFormChange={(patch) => dispatch({ type: 'PATCH_FORM', patch })}
+        />
 
         {/* New Task List Modal */}
         {newListModalOpen && (
@@ -2013,7 +761,9 @@ export default function CalendarPage() {
                     autoFocus
                     required
                     value={newListForm.name}
-                    onChange={(e) => setNewListForm({ ...newListForm, name: e.target.value })}
+                    onChange={(e) =>
+                      dispatch({ type: 'PATCH_NEW_LIST_FORM', patch: { name: e.target.value } })
+                    }
                     className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#C17A72]"
                     placeholder="e.g., Groceries, Project X"
                   />
@@ -2024,7 +774,9 @@ export default function CalendarPage() {
                     <input
                       type="color"
                       value={newListForm.color}
-                      onChange={(e) => setNewListForm({ ...newListForm, color: e.target.value })}
+                      onChange={(e) =>
+                        dispatch({ type: 'PATCH_NEW_LIST_FORM', patch: { color: e.target.value } })
+                      }
                       className="w-full h-10 rounded-xl cursor-pointer bg-transparent border-0 p-0"
                     />
                   </div>
@@ -2032,7 +784,9 @@ export default function CalendarPage() {
                     <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Icon</label>
                     <select
                       value={newListForm.icon}
-                      onChange={(e) => setNewListForm({ ...newListForm, icon: e.target.value })}
+                      onChange={(e) =>
+                        dispatch({ type: 'PATCH_NEW_LIST_FORM', patch: { icon: e.target.value } })
+                      }
                       className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#C17A72]"
                     >
                       <option value="circle">Circle</option>
@@ -2048,7 +802,7 @@ export default function CalendarPage() {
                 <div className="flex justify-end gap-3 mt-8">
                   <button
                     type="button"
-                    onClick={() => setNewListModalOpen(false)}
+                    onClick={() => dispatch({ type: 'CLOSE_NEW_LIST_MODAL' })}
                     className="px-4 py-2 rounded-xl text-sm font-medium text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-colors"
                   >
                     Cancel
@@ -2067,19 +821,24 @@ export default function CalendarPage() {
         )}
 
         {/* Task Modal */}
-        <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title="New Task">
+        <Modal
+          open={taskModalOpen}
+          onClose={() => dispatch({ type: 'CLOSE_TASK_MODAL' })}
+          title="New Task"
+        >
           <div className="flex flex-col gap-4">
             <input
               type="text"
               placeholder="Task title"
               value={taskFormTitle}
-              onChange={(e) => setTaskFormTitle(e.target.value)}
+              onChange={(e) =>
+                dispatch({ type: 'PATCH_TASK_FORM', patch: { taskFormTitle: e.target.value } })
+              }
               onKeyDown={(e) => e.key === 'Enter' && handleSaveTask()}
               autoFocus
               className="input-glass text-base"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             />
-
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
                 Deadline
@@ -2087,18 +846,24 @@ export default function CalendarPage() {
               <input
                 type="date"
                 value={taskFormDeadline}
-                onChange={(e) => setTaskFormDeadline(e.target.value)}
+                onChange={(e) =>
+                  dispatch({ type: 'PATCH_TASK_FORM', patch: { taskFormDeadline: e.target.value } })
+                }
                 className="input-glass w-full"
               />
             </div>
-
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
                 Energy Required
               </label>
               <select
                 value={taskFormEnergy}
-                onChange={(e) => setTaskFormEnergy(e.target.value as any)}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'PATCH_TASK_FORM',
+                    patch: { taskFormEnergy: e.target.value as any },
+                  })
+                }
                 className="input-glass w-full text-sm"
               >
                 <option value="high">High Energy</option>
@@ -2106,11 +871,10 @@ export default function CalendarPage() {
                 <option value="low">Low Energy</option>
               </select>
             </div>
-
             <div className="flex justify-end pt-4">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setTaskModalOpen(false)}
+                  onClick={() => dispatch({ type: 'CLOSE_TASK_MODAL' })}
                   className="px-4 py-2 text-sm rounded-lg"
                   style={{ color: 'var(--text-secondary)' }}
                 >
@@ -2132,23 +896,18 @@ export default function CalendarPage() {
       <EventQuickView
         event={quickViewEvent}
         isOpen={!!quickViewEvent}
-        onClose={() => {
-          setQuickViewEvent(null);
-          setQuickViewAnchor(null);
-        }}
+        onClose={() => dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null })}
         onEdit={() => {
           if (quickViewEvent) {
             openEdit(quickViewEvent);
-            setQuickViewEvent(null);
-            setQuickViewAnchor(null);
+            dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
           }
         }}
         onDelete={() => {
           if (quickViewEvent) {
             if (confirm('Are you sure you want to delete this event?')) {
               store.deleteEvent(quickViewEvent.id);
-              setQuickViewEvent(null);
-              setQuickViewAnchor(null);
+              dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
             }
           }
         }}
