@@ -28,10 +28,10 @@ export function Sidebar() {
     <aside
       className={`flex-shrink-0 h-screen sticky top-0 ${collapsed ? 'w-20' : 'w-64'} bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-40 flex flex-col py-6 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)] transition-all duration-300`}
     >
-      {/* Logo */}
+      {/* Logo + Toggle */}
       <div className="mb-10 px-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
               <span
                 className="material-symbols-outlined text-white text-xl"
@@ -43,10 +43,18 @@ export function Sidebar() {
             <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#C17A72] rounded-full animate-pulse"></div>
           </div>
           {!collapsed && (
-            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight">
+            <h1 className="text-3xl font-['Playfair_Display'] italic text-[#F5F5F5] tracking-tight flex-1">
               Lotion
             </h1>
           )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors flex-shrink-0"
+          >
+            <span className="material-symbols-outlined text-lg">
+              {collapsed ? 'chevron_right' : 'chevron_left'}
+            </span>
+          </button>
         </div>
         {!collapsed && (
           <div className="flex items-center gap-2 ml-[52px]">
@@ -57,16 +65,6 @@ export function Sidebar() {
           </div>
         )}
       </div>
-
-      {/* Toggle Button */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="mb-4 w-full flex items-center justify-center py-2 rounded-lg hover:bg-white/5 text-[#9CA3AF] transition-colors"
-      >
-        <span className="material-symbols-outlined text-lg">
-          {collapsed ? 'chevron_right' : 'chevron_left'}
-        </span>
-      </button>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto pr-2">
