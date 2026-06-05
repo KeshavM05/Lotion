@@ -17,6 +17,9 @@ const navItems = [
   { href: '/analytics', label: 'Analytics', icon: 'bar_chart' },
 ];
 
+// Collapsed w-20 = 80px, icon w-10 = 40px → need 20px each side = px-5
+// Expanded nav items use the same px-5 so icon never moves horizontally
+
 export function Sidebar() {
   const pathname = usePathname();
   const store = useStore();
@@ -26,13 +29,13 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`flex-shrink-0 h-screen sticky top-0 ${collapsed ? 'w-20' : 'w-64'} bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-40 flex flex-col py-6 px-4 shadow-[0px_20px_40px_rgba(15,23,41,0.4)] transition-all duration-300`}
+      className={`flex-shrink-0 h-screen sticky top-0 ${collapsed ? 'w-20' : 'w-64'} bg-[#060E1F]/80 backdrop-blur-xl border-r border-white/10 z-40 flex flex-col py-6 overflow-hidden shadow-[0px_20px_40px_rgba(15,23,41,0.4)] transition-all duration-300`}
     >
       {/* Logo — click to toggle */}
-      <div className="mb-10 px-2">
+      <div className="mb-10">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3'} mb-2 rounded-xl hover:bg-white/5 py-1.5 px-2 transition-colors`}
+          className="w-full flex items-center gap-3 mb-2 rounded-xl hover:bg-white/5 py-1.5 px-5 transition-colors"
         >
           <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(193,122,114,0.3)]">
@@ -51,14 +54,14 @@ export function Sidebar() {
             </h1>
           )}
         </button>
-        {!collapsed && (
-          <div className="flex items-center gap-2 ml-[52px]">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#C17A72]/50 to-transparent"></div>
-            <p className="text-[10px] text-[#C17A72] font-['Space_Grotesk'] font-bold tracking-[0.15em] uppercase">
-              AI Life Coach
-            </p>
-          </div>
-        )}
+        <div
+          className={`flex items-center gap-2 px-5 transition-opacity duration-200 ${collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        >
+          <div className="h-px flex-1 bg-gradient-to-r from-[#C17A72]/50 to-transparent"></div>
+          <p className="text-[10px] text-[#C17A72] font-['Space_Grotesk'] font-bold tracking-[0.15em] uppercase whitespace-nowrap">
+            AI Life Coach
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -72,14 +75,14 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2.5 rounded-lg transition-colors group ${
+              className={`flex items-center gap-3 px-5 py-2.5 rounded-lg transition-colors group ${
                 isActive
                   ? "relative text-[#F5F5F5] font-bold bg-white/5 before:content-[''] before:absolute before:left-0 before:w-[2px] before:h-6 before:bg-[#C17A72]"
                   : 'text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5'
               }`}
             >
               <span
-                className={`material-symbols-outlined text-xl ${isActive ? 'text-[#C17A72]' : ''}`}
+                className={`material-symbols-outlined text-xl flex-shrink-0 ${isActive ? 'text-[#C17A72]' : ''}`}
               >
                 {item.icon}
               </span>
@@ -109,17 +112,17 @@ export function Sidebar() {
         <Link
           href="/settings"
           title={collapsed ? 'Settings' : undefined}
-          className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
+          className="flex items-center gap-3 px-5 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
         >
-          <span className="material-symbols-outlined text-xl">settings</span>
+          <span className="material-symbols-outlined text-xl flex-shrink-0">settings</span>
           {!collapsed && 'Settings'}
         </Link>
         <Link
           href="/support"
           title={collapsed ? 'Support' : undefined}
-          className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm`}
+          className="flex items-center gap-3 px-5 py-2 text-[#9CA3AF] hover:text-[#BEC6DF] transition-colors hover:bg-white/5 rounded-lg text-sm"
         >
-          <span className="material-symbols-outlined text-xl">help_outline</span>
+          <span className="material-symbols-outlined text-xl flex-shrink-0">help_outline</span>
           {!collapsed && 'Support'}
         </Link>
       </div>
