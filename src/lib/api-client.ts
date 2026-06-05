@@ -3,7 +3,7 @@
  * Provides typed functions for all CRUD operations
  */
 
-import { supabase } from "./supabase";
+import { supabase } from './supabase';
 import type {
   Goal,
   Milestone,
@@ -12,9 +12,9 @@ import type {
   CalendarEvent,
   JournalEntry,
   ChatMessage,
-} from "./store";
+} from './store';
 
-const API_BASE = "/api";
+const API_BASE = '/api';
 
 /** Seconds before expiry at which we proactively refresh (5 minutes). */
 const REFRESH_THRESHOLD_SECONDS = 5 * 60;
@@ -26,9 +26,11 @@ const REFRESH_THRESHOLD_SECONDS = 5 * 60;
  * Throws if there is no session or if a required refresh fails.
  */
 export const getAuthHeaders = async (): Promise<Record<string, string>> => {
-  let { data: { session } } = await supabase.auth.getSession();
+  let {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!session) throw new Error("Not authenticated");
+  if (!session) throw new Error('Not authenticated');
 
   // Proactive refresh: if token expires in less than 5 minutes, refresh now.
   const expiresAt = session.expires_at; // Unix timestamp (seconds)
@@ -38,18 +40,18 @@ export const getAuthHeaders = async (): Promise<Record<string, string>> => {
       const { data, error } = await supabase.auth.refreshSession();
       if (error || !data.session) {
         // Refresh failed — redirect to login.
-        if (typeof window !== "undefined") {
-          window.location.href = "/auth";
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth';
         }
-        throw new Error("Session refresh failed; redirecting to login.");
+        throw new Error('Session refresh failed; redirecting to login.');
       }
       session = data.session;
     }
   }
 
   return {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`,
   };
 };
 
@@ -73,22 +75,22 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
     if (error || !data.session) {
       // Refresh failed — redirect to login.
-      if (typeof window !== "undefined") {
-        window.location.href = "/auth";
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth';
       }
-      throw new Error("Session expired. Please log in again.");
+      throw new Error('Session expired. Please log in again.');
     }
 
     // Rebuild headers with the new token and retry.
     headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${data.session.access_token}`,
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${data.session.access_token}`,
     };
     response = await doFetch();
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Request failed" }));
+    const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || `HTTP ${response.status}`);
   }
 
@@ -99,29 +101,29 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
 export const goalsApi = {
   list: async (): Promise<Goal[]> => {
-    return apiRequest("/goals");
+    return apiRequest('/goals');
   },
 
   get: async (id: string): Promise<Goal & { milestones: Milestone[]; tasks: Task[] }> => {
     return apiRequest(`/goals/${id}`);
   },
 
-  create: async (data: Omit<Goal, "id" | "createdAt" | "updatedAt">): Promise<Goal> => {
-    return apiRequest("/goals", {
-      method: "POST",
+  create: async (data: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>): Promise<Goal> => {
+    return apiRequest('/goals', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<Goal>): Promise<Goal> => {
     return apiRequest(`/goals/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/goals/${id}`, { method: "DELETE" });
+    return apiRequest(`/goals/${id}`, { method: 'DELETE' });
   },
 };
 
@@ -129,32 +131,33 @@ export const goalsApi = {
 
 export const tasksApi = {
   list: async (): Promise<Task[]> => {
-    return apiRequest("/tasks");
+    return apiRequest('/tasks');
   },
 
-  create: async (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "completed" | "completedAt">): Promise<Task> => {
-    return apiRequest("/tasks", {
-      method: "POST",
+  create: async (
+    data: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'>
+  ): Promise<Task> => {
+    return apiRequest('/tasks', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<Task>): Promise<Task> => {
     return apiRequest(`/tasks/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/tasks/${id}`, { method: "DELETE" });
+    return apiRequest(`/tasks/${id}`, { method: 'DELETE' });
   },
 
   autoSchedule: async (timezone?: string): Promise<{ message: string; scheduledCount: number }> => {
-    return apiRequest("/tasks/auto-schedule", {
-      method: "POST",
+    return apiRequest('/tasks/auto-schedule', {
+      method: 'POST',
       body: JSON.stringify({ timezone }),
-
     });
   },
 };
@@ -163,47 +166,51 @@ export const tasksApi = {
 
 export const taskListsApi = {
   list: async (): Promise<TaskList[]> => {
-    return apiRequest("/task-lists");
+    return apiRequest('/task-lists');
   },
 
-  create: async (data: Omit<TaskList, "id" | "createdAt">): Promise<TaskList> => {
-    return apiRequest("/task-lists", {
-      method: "POST",
+  create: async (
+    data: Omit<TaskList, 'id' | 'createdAt' | 'archived' | 'archivedAt'>
+  ): Promise<TaskList> => {
+    return apiRequest('/task-lists', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<TaskList>): Promise<TaskList> => {
     return apiRequest(`/task-lists/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/task-lists/${id}`, { method: "DELETE" });
+    return apiRequest(`/task-lists/${id}`, { method: 'DELETE' });
   },
 };
 
 // ─── Milestones ──────────────────────────────────────────
 
 export const milestonesApi = {
-  create: async (data: Omit<Milestone, "id" | "createdAt" | "completed" | "completedAt">): Promise<Milestone> => {
-    return apiRequest("/milestones", {
-      method: "POST",
+  create: async (
+    data: Omit<Milestone, 'id' | 'createdAt' | 'completed' | 'completedAt'>
+  ): Promise<Milestone> => {
+    return apiRequest('/milestones', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<Milestone>): Promise<Milestone> => {
     return apiRequest(`/milestones/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/milestones/${id}`, { method: "DELETE" });
+    return apiRequest(`/milestones/${id}`, { method: 'DELETE' });
   },
 };
 
@@ -211,25 +218,27 @@ export const milestonesApi = {
 
 export const journalApi = {
   list: async (): Promise<JournalEntry[]> => {
-    return apiRequest("/journal");
+    return apiRequest('/journal');
   },
 
-  create: async (data: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">): Promise<JournalEntry> => {
-    return apiRequest("/journal", {
-      method: "POST",
+  create: async (
+    data: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<JournalEntry> => {
+    return apiRequest('/journal', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<JournalEntry>): Promise<JournalEntry> => {
     return apiRequest(`/journal/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/journal/${id}`, { method: "DELETE" });
+    return apiRequest(`/journal/${id}`, { method: 'DELETE' });
   },
 };
 
@@ -238,28 +247,28 @@ export const journalApi = {
 export const eventsApi = {
   list: async (start?: string, end?: string): Promise<CalendarEvent[]> => {
     const params = new URLSearchParams();
-    if (start) params.set("start", start);
-    if (end) params.set("end", end);
-    const query = params.toString() ? `?${params.toString()}` : "";
+    if (start) params.set('start', start);
+    if (end) params.set('end', end);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return apiRequest(`/events${query}`);
   },
 
-  create: async (data: Omit<CalendarEvent, "id" | "createdAt">): Promise<CalendarEvent> => {
-    return apiRequest("/events", {
-      method: "POST",
+  create: async (data: Omit<CalendarEvent, 'id' | 'createdAt'>): Promise<CalendarEvent> => {
+    return apiRequest('/events', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   update: async (id: string, data: Partial<CalendarEvent>): Promise<CalendarEvent> => {
     return apiRequest(`/events/${id}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/events/${id}`, { method: "DELETE" });
+    return apiRequest(`/events/${id}`, { method: 'DELETE' });
   },
 };
 
@@ -267,12 +276,12 @@ export const eventsApi = {
 
 export const aiMemoryApi = {
   get: async (): Promise<{ memory: string }> => {
-    return apiRequest("/user/memory");
+    return apiRequest('/user/memory');
   },
 
   update: async (memory: string): Promise<{ memory: string }> => {
-    return apiRequest("/user/memory", {
-      method: "PATCH",
+    return apiRequest('/user/memory', {
+      method: 'PATCH',
       body: JSON.stringify({ memory }),
     });
   },
@@ -288,8 +297,8 @@ export const aiChatApi = {
     calendarContext?: string;
     tasksContext?: string;
   }): Promise<{ message: string }> => {
-    return apiRequest("/ai/chat", {
-      method: "POST",
+    return apiRequest('/ai/chat', {
+      method: 'POST',
       body: JSON.stringify(params),
     });
   },
@@ -298,5 +307,5 @@ export const aiChatApi = {
 // ─── User Initialization ─────────────────────────────────
 
 export const initializeUser = async (): Promise<void> => {
-  return apiRequest("/user/init", { method: "POST" });
+  return apiRequest('/user/init', { method: 'POST' });
 };
