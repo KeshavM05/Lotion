@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { journalEntries } from '@/db/schema';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { updateJournalEntrySchema } from '@/lib/validation/schemas';
 import { eq, and } from 'drizzle-orm';
 
 // PATCH /api/journal/[id] - Update journal entry
@@ -15,12 +17,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const { data, error } = await validateBody(request, updateJournalEntrySchema);
+    if (error) return error;
 
     const [updated] = await db
       .update(journalEntries)
       .set({
-        ...body,
+        ...data,
         updatedAt: new Date(),
       })
       .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, user.id)))

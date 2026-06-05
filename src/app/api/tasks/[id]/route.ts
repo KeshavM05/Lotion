@@ -3,6 +3,8 @@ import { db } from '@/db';
 import { tasks } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { updateTaskSchema } from '@/lib/validation/schemas';
 
 // PATCH /api/tasks/[id] - Update task
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,21 +17,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const { data, error } = await validateBody(request, updateTaskSchema);
+    if (error) return error;
+
+    const { deadline, scheduledStart, scheduledEnd, ...rest } = data;
 
     const [updated] = await db
       .update(tasks)
       .set({
-        ...body,
-        deadline: body.deadline ? new Date(body.deadline) : undefined,
-        scheduledStart: body.scheduledStart ? new Date(body.scheduledStart) : undefined,
-        scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : undefined,
-        completedAt:
-          body.completed && !body.completedAt
-            ? new Date()
-            : body.completedAt
-              ? new Date(body.completedAt)
-              : undefined,
+        ...rest,
+        ...(deadline !== undefined && { deadline: deadline ? new Date(deadline) : null }),
+        ...(scheduledStart !== undefined && {
+          scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
+        }),
+        ...(scheduledEnd !== undefined && {
+          scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+        }),
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))

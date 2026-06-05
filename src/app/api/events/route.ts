@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { calendarEvents } from '@/db/schema';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { createEventSchema } from '@/lib/validation/schemas';
 import { eq, and, gte, lte } from 'drizzle-orm';
 
 // GET /api/events - Get calendar events for user (with optional date range)
@@ -53,25 +55,38 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { title, description, start, end, allDay, color, taskId, source } = body;
+    const { data, error } = await validateBody(request, createEventSchema);
+    if (error) return error;
 
-    if (!title || !start || !end) {
-      return Response.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+    const {
+      title,
+      description,
+      start,
+      end,
+      allDay,
+      color,
+      taskId,
+      source,
+      recurrenceFrequency,
+      recurrenceEndDate,
+      recurrenceDaysOfWeek,
+    } = data;
 
     const [event] = await db
       .insert(calendarEvents)
       .values({
         userId: user.id,
         title,
-        description: description || '',
+        description: description ?? '',
         start: new Date(start),
         end: new Date(end),
-        allDay: allDay || false,
-        color: color || '#8b5cf6',
-        taskId: taskId || null,
-        source: source || 'local',
+        allDay: allDay ?? false,
+        color: color ?? '#8b5cf6',
+        taskId: taskId ?? null,
+        source: source ?? 'local',
+        recurrenceFrequency: recurrenceFrequency ?? null,
+        recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+        recurrenceDaysOfWeek: recurrenceDaysOfWeek ?? null,
       })
       .returning();
 

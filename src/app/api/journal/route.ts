@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { journalEntries } from '@/db/schema';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { createJournalEntrySchema } from '@/lib/validation/schemas';
 import { eq } from 'drizzle-orm';
 
 // GET /api/journal - Get all journal entries for user
@@ -37,20 +39,18 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { content, mood, linkedGoalIds } = body;
+    const { data, error } = await validateBody(request, createJournalEntrySchema);
+    if (error) return error;
 
-    if (!content) {
-      return Response.json({ error: 'Missing required field: content' }, { status: 400 });
-    }
+    const { content, mood, linkedGoalIds } = data;
 
     const [entry] = await db
       .insert(journalEntries)
       .values({
         userId: user.id,
         content,
-        mood: mood || null,
-        linkedGoalIds: linkedGoalIds || [],
+        mood: mood ?? null,
+        linkedGoalIds: linkedGoalIds ?? [],
       })
       .returning();
 
