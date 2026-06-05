@@ -42,6 +42,19 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   scheduleScore: z.number().int().optional().nullable(),
 });
 
+// Task list schemas
+export const createTaskListSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  color: z.string().max(20).optional().default('#8b5cf6'),
+  icon: z.string().max(50).optional().default('circle'),
+  order: z.number().int().min(0).optional().default(0),
+});
+
+export const updateTaskListSchema = createTaskListSchema.partial().extend({
+  archived: z.boolean().optional(),
+  archivedAt: z.string().datetime().optional().nullable(),
+});
+
 // Journal schemas
 export const createJournalEntrySchema = z.object({
   content: z.string().min(1, 'Content is required').max(50000, 'Content too long'),
@@ -115,6 +128,8 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateJournalEntryInput = z.infer<typeof createJournalEntrySchema>;
 export type UpdateJournalEntryInput = z.infer<typeof updateJournalEntrySchema>;
+export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
+export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
 export type ChatRequestInput = z.infer<typeof chatRequestSchema>;
 export type CreateTaskListInput = z.infer<typeof createTaskListSchema>;
 export type UpdateTaskListInput = z.infer<typeof updateTaskListSchema>;
