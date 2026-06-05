@@ -18,8 +18,6 @@ import { Modal } from '@/components/ui/modal';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
-import { InlineTaskInput } from '@/components/tasks/InlineTaskInput';
-import { TasksSidebar } from '@/components/tasks/TasksSidebar';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
@@ -69,6 +67,7 @@ export default function TasksPage() {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
   const [showProjects, setShowProjects] = useState(true);
+  const [taskSource, setTaskSource] = useState<'internal' | 'external'>('internal');
 
   // Advanced filters
   const [filterEnergy, setFilterEnergy] = useState<EnergyLevel | 'all'>('all');
@@ -166,65 +165,31 @@ export default function TasksPage() {
   }
 
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart);
+  const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-  const tomorrowEnd = new Date(tomorrowStart);
-  tomorrowEnd.setHours(23, 59, 59, 999);
-  const weekEnd = new Date(todayStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-
-  // Sidebar time-based filters override tab filter
-  const SIDEBAR_TIME_FILTERS = ['overdue', 'today', 'tomorrow', 'upcoming', 'inbox'];
 
   const filtered = tasks.filter((t) => {
-    // Sidebar time-based filter takes precedence over tab
-    if (SIDEBAR_TIME_FILTERS.includes(projectFilter)) {
-      const dl = t.deadline ? new Date(t.deadline) : null;
-      switch (projectFilter) {
-        case 'overdue':
-          if (t.completed || !dl || dl >= todayStart) return false;
-          break;
-        case 'today':
-          if (t.completed || !dl || dl < todayStart || dl > todayEnd) return false;
-          break;
-        case 'tomorrow':
-          if (t.completed || !dl || dl < tomorrowStart || dl > tomorrowEnd) return false;
-          break;
-        case 'upcoming':
-          if (t.completed || !dl || dl <= tomorrowEnd || dl > weekEnd) return false;
-          break;
-        case 'inbox':
-          if (t.completed || dl) return false;
-          break;
-      }
-    } else {
-      // Tab-based filter
-      let tabMatch = false;
-      switch (activeTab) {
-        case 'all':
-          tabMatch = !t.completed;
-          break;
-        case 'today':
-          tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd;
-          break;
-        case 'upcoming':
-          tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd;
-          break;
-        case 'completed':
-          tabMatch = t.completed;
-          break;
-      }
-      if (!tabMatch) return false;
+    let tabMatch = false;
+    switch (activeTab) {
+      case 'all':
+        tabMatch = !t.completed;
+        break;
+      case 'today':
+        tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) <= todayEnd;
+        break;
+      case 'upcoming':
+        tabMatch = !t.completed && !!t.deadline && new Date(t.deadline) > todayEnd;
+        break;
+      case 'completed':
+        tabMatch = t.completed;
+        break;
+    }
+    if (!tabMatch) return false;
 
-      // Project/goal filter
-      if (projectFilter === 'unassigned') {
-        if (t.goalId) return false;
-      } else if (projectFilter !== 'all') {
-        if (t.goalId !== projectFilter) return false;
-      }
+    if (projectFilter === 'unassigned') {
+      if (t.goalId) return false;
+    } else if (projectFilter !== 'all') {
+      if (t.goalId !== projectFilter) return false;
     }
 
     if (filterEnergy !== 'all' && t.energyLevel !== filterEnergy) return false;
@@ -291,6 +256,32 @@ export default function TasksPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Source toggle: In-app vs External */}
+          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            <button
+              onClick={() => setTaskSource('internal')}
+              title="In-app tasks"
+              className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                taskSource === 'internal'
+                  ? 'bg-[#C17A72] text-white'
+                  : 'text-[#9CA3AF] hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">radio_button_checked</span>
+            </button>
+            <button
+              onClick={() => setTaskSource('external')}
+              title="External tasks (Google Tasks, Microsoft Tasks)"
+              className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                taskSource === 'external'
+                  ? 'bg-[#C17A72] text-white'
+                  : 'text-[#9CA3AF] hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">apps</span>
+            </button>
+          </div>
+
           {/* Group mode toggle */}
           <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
             {(
@@ -374,6 +365,7 @@ export default function TasksPage() {
     activeTab,
     viewMode,
     groupMode,
+    taskSource,
     showProjects,
     showAdvancedFilters,
     filterEnergy,
@@ -562,9 +554,82 @@ export default function TasksPage() {
 
   return (
     <div className="flex gap-6 h-full">
-      {/* Tasks Sidebar */}
+      {/* Projects Sidebar */}
       {showProjects && (
-        <TasksSidebar projectFilter={projectFilter} onProjectFilterChange={setProjectFilter} />
+        <div className="w-64 flex-shrink-0 glass-card rounded-2xl p-4 overflow-hidden flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-sm font-['Space_Grotesk'] font-semibold text-[#F5F5F5] mb-1">
+              Projects
+            </h3>
+            <p className="text-xs text-[#9CA3AF]">Filter by goal</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1">
+            <button
+              onClick={() => setProjectFilter('all')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'all'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">inbox</span>
+                <span className="text-xs font-medium">All Tasks</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed).length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setProjectFilter('unassigned')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                projectFilter === 'unassigned'
+                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                  : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-base">radio_button_unchecked</span>
+                <span className="text-xs font-medium">No Project</span>
+              </div>
+              <span className="text-xs font-['JetBrains_Mono']">
+                {tasks.filter((t) => !t.completed && !t.goalId).length}
+              </span>
+            </button>
+
+            <div className="h-px bg-white/5 my-2" />
+
+            {goals
+              .filter((g) => g.status === 'active')
+              .map((goal) => {
+                const taskCount = tasks.filter((t) => !t.completed && t.goalId === goal.id).length;
+                return (
+                  <button
+                    key={goal.id}
+                    onClick={() => setProjectFilter(goal.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors group ${
+                      projectFilter === goal.id
+                        ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                        : 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: goal.color }}
+                      />
+                      <span className="text-xs font-medium truncate">{goal.title}</span>
+                    </div>
+                    <span className="text-xs font-['JetBrains_Mono'] ml-2 flex-shrink-0">
+                      {taskCount}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
       )}
 
       {/* Advanced Filters Sidebar */}
@@ -649,47 +714,34 @@ export default function TasksPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {viewMode === 'list' && (
-          <div className="flex-1 overflow-auto flex flex-col gap-2">
-            {renderListContent()}
-            {activeTab !== 'completed' && (
-              <InlineTaskInput
-                goalId={
-                  projectFilter !== 'all' &&
-                  projectFilter !== 'unassigned' &&
-                  projectFilter !== 'overdue' &&
-                  projectFilter !== 'today' &&
-                  projectFilter !== 'tomorrow' &&
-                  projectFilter !== 'upcoming' &&
-                  projectFilter !== 'inbox'
-                    ? projectFilter
-                    : null
-                }
-                goals={goals.filter((g) => g.status === 'active')}
-                onSave={({ title, priority, deadline, goalId: gId }) => {
-                  createTaskMutation.mutate({
-                    title,
-                    description: '',
-                    priority,
-                    durationMinutes: 30,
-                    deadline,
-                    goalId: gId,
-                    energyLevel: 'medium',
-                    timePreference: 'anytime',
-                    tags: [],
-                    status: 'todo',
-                    milestoneId: null,
-                    listId: null,
-                    scheduledStart: null,
-                    scheduledEnd: null,
-                  });
-                }}
-              />
-            )}
+        {/* External tasks placeholder */}
+        {taskSource === 'external' && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20">
+            <span className="material-symbols-outlined text-5xl text-[#3B5578] opacity-60">
+              cloud_sync
+            </span>
+            <div>
+              <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF] mb-1">
+                No external tasks connected
+              </p>
+              <p className="text-xs text-[#6B7280]">
+                Connect Google Tasks or Microsoft Tasks in Settings to see external tasks here.
+              </p>
+            </div>
+            <button
+              onClick={() => (window.location.href = '/settings')}
+              className="px-4 py-2 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors border border-white/10"
+            >
+              Go to Settings
+            </button>
           </div>
         )}
 
-        {viewMode === 'board' && (
+        {taskSource === 'internal' && viewMode === 'list' && (
+          <div className="flex-1 overflow-auto">{renderListContent()}</div>
+        )}
+
+        {taskSource === 'internal' && viewMode === 'board' && (
           <div className="flex-1 overflow-auto">
             <div className="grid grid-cols-3 gap-4 h-full">
               {(['todo', 'in_progress', 'done'] as const).map((status) => {
