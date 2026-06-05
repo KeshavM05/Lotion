@@ -1,18 +1,20 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Toaster } from "sonner";
-import { toast } from "sonner";
-import { Sidebar } from "@/components/ui/sidebar";
-import { Header } from "@/components/ui/header";
-import { CommandPalette } from "@/components/ui/command-palette";
-import { QuickCaptureOverlay, useQuickCapture } from "@/components/ui/quick-capture";
-import { StoreProvider, useStore } from "@/lib/store";
-import { SidebarProvider, useSidebar } from "@/lib/sidebar-context";
-import { PageHeaderProvider } from "@/lib/page-header-context";
-import { useAuth } from "@/lib/auth-context";
-import { initializeUser } from "@/lib/api-client";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Toaster } from 'sonner';
+import { toast } from 'sonner';
+import { Sidebar } from '@/components/ui/sidebar';
+import { Header } from '@/components/ui/header';
+import { MobileNav } from '@/components/ui/MobileNav';
+import { MobileNav } from '@/components/ui/MobileNav';
+import { CommandPalette } from '@/components/ui/command-palette';
+import { QuickCaptureOverlay, useQuickCapture } from '@/components/ui/quick-capture';
+import { StoreProvider, useStore } from '@/lib/store';
+import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
+import { PageHeaderProvider } from '@/lib/page-header-context';
+import { useAuth } from '@/lib/auth-context';
+import { initializeUser } from '@/lib/api-client';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -21,19 +23,19 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { isOpen, close } = useQuickCapture();
   const { collapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Global unhandled rejection listener
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
-      console.error("Unhandled promise rejection:", event.reason);
+      console.error('Unhandled promise rejection:', event.reason);
       const message =
-        event.reason instanceof Error
-          ? event.reason.message
-          : "An unexpected error occurred";
-      toast.error("Unexpected error", { description: message });
+        event.reason instanceof Error ? event.reason.message : 'An unexpected error occurred';
+      toast.error('Unexpected error', { description: message });
     };
-    window.addEventListener("unhandledrejection", handler);
-    return () => window.removeEventListener("unhandledrejection", handler);
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
   }, []);
 
   // Initialize user and load data
@@ -44,7 +46,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           await initializeUser();
           await loadInitialData();
         } catch (error) {
-          console.error("Failed to initialize:", error);
+          console.error('Failed to initialize:', error);
         } finally {
           setInitializing(false);
         }
@@ -56,14 +58,17 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/auth");
+      router.push('/auth');
     }
   }, [user, authLoading, router]);
 
   // Show loading state
   if (authLoading || initializing) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: "var(--bg-primary)" }}>
+      <div
+        className="flex items-center justify-center h-screen"
+        style={{ background: 'var(--bg-primary)' }}
+      >
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-t-[#C17A72] border-[#1F2D47] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-[#9CA3AF] font-['Space_Grotesk']">Loading...</p>
@@ -80,16 +85,21 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar />
+        {/* Desktop Sidebar � hidden on mobile */}
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        {/* Mobile slide-out nav */}
+        <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex-1 flex flex-col relative">
-          <Header />
+          <Header onMobileMenuOpen={() => setMobileNavOpen(true)} />
           {/* Background Bloom Elements */}
           <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#C17A72]/5 blur-[120px] rounded-full -z-10"></div>
           <div className="fixed bottom-[10%] left-[5%] w-[300px] h-[300px] bg-[#BEC6DF]/5 blur-[100px] rounded-full -z-10"></div>
-          <main className={`flex-1 overflow-y-auto pt-20 pb-8 px-8 transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
+          <main
+            className={`flex-1 overflow-y-auto pt-20 pb-8 px-4 md:px-8 transition-all duration-300 md:${collapsed ? 'ml-20' : 'ml-64'}`}
+          >
+            <div className="max-w-7xl mx-auto">{children}</div>
           </main>
         </div>
       </div>
@@ -101,11 +111,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <StoreProvider>
       <SidebarProvider>
@@ -115,10 +121,10 @@ export default function DashboardLayout({
             position="bottom-right"
             toastOptions={{
               style: {
-                background: "#1F2D47",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#F1F5F9",
-                fontFamily: "Inter, sans-serif",
+                background: '#1F2D47',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#F1F5F9',
+                fontFamily: 'Inter, sans-serif',
               },
             }}
           />

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useStore, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/store';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { formatRelativeDate } from '@/lib/utils';
-import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 
 export default function DashboardPage() {
   const store = useStore();
@@ -32,7 +31,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <OnboardingModal />
       {/* Bento Grid Layout */}
       <div className="grid grid-cols-12 gap-6 items-start">
         {/* Main Content Column */}
@@ -85,7 +83,7 @@ export default function DashboardPage() {
           </Link>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="glass-card p-6 rounded-2xl flex flex-col items-center justify-center text-center">
               <span className="font-['JetBrains_Mono'] text-4xl text-[#C17A72] mb-1">
                 {activeGoals.length}
