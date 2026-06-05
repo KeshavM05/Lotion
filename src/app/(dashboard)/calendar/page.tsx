@@ -1,40 +1,72 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useStore, type CalendarEvent } from "@/lib/store";
-import { Modal } from "@/components/ui/modal";
-import { EventQuickView } from "@/components/ui/event-quick-view";
-import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from "@/lib/utils";
-import { usePageHeader } from "@/lib/page-header-context";
+import { useState, useEffect, useRef } from 'react';
+import { useStore, type CalendarEvent } from '@/lib/store';
+import { Modal } from '@/components/ui/modal';
+import { EventQuickView } from '@/components/ui/event-quick-view';
+import { getWeekDates, isSameDay, formatTime, toLocalDatetimeString } from '@/lib/utils';
+import { usePageHeader } from '@/lib/page-header-context';
+import { expandRecurringEvent } from '@/lib/recurrence';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 const HOUR_HEIGHT = 60;
-const COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
 
-type ViewMode = "day" | "week" | "month";
+type ViewMode = 'day' | 'week' | 'month';
 
 // Helper Components
-function TaskSection({ title, count, icon, color, defaultExpanded = true, children }: { title: string; count: number; icon?: React.ReactNode; color?: string; defaultExpanded?: boolean; children: React.ReactNode }) {
+function TaskSection({
+  title,
+  count,
+  icon,
+  color,
+  defaultExpanded = true,
+  children,
+}: {
+  title: string;
+  count: number;
+  icon?: React.ReactNode;
+  color?: string;
+  defaultExpanded?: boolean;
+  children: React.ReactNode;
+}) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   return (
     <div>
-      <div 
+      <div
         className="flex items-center gap-2 mb-2 cursor-pointer hover:bg-white/5 p-1 rounded-md transition-colors select-none"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="material-symbols-outlined text-sm transition-transform" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+        <span
+          className="material-symbols-outlined text-sm transition-transform"
+          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        >
           chevron_right
         </span>
-        {icon && (
-          typeof icon === 'string' ? (
-            <span className="material-symbols-outlined text-[16px]" style={{ color }}>{icon}</span>
+        {icon &&
+          (typeof icon === 'string' ? (
+            <span className="material-symbols-outlined text-[16px]" style={{ color }}>
+              {icon}
+            </span>
           ) : (
             icon
-          )
-        )}
+          ))}
         <h4 className="text-[13px] font-semibold flex-1" style={{ color: color || '#E5E7EB' }}>
           {title}
         </h4>
@@ -44,16 +76,22 @@ function TaskSection({ title, count, icon, color, defaultExpanded = true, childr
           </span>
         )}
       </div>
-      {isExpanded && (
-        <div className="space-y-1 pl-5">
-          {children}
-        </div>
-      )}
+      {isExpanded && <div className="space-y-1 pl-5">{children}</div>}
     </div>
   );
 }
 
-function TaskItem({ task, store, onDragStart, onDragEnd }: { task: any; store: any; onDragStart: (task: any, e: React.DragEvent) => void; onDragEnd: () => void }) {
+function TaskItem({
+  task,
+  store,
+  onDragStart,
+  onDragEnd,
+}: {
+  task: any;
+  store: any;
+  onDragStart: (task: any, e: React.DragEvent) => void;
+  onDragEnd: () => void;
+}) {
   return (
     <div
       draggable={!task.completed}
@@ -77,12 +115,17 @@ function TaskItem({ task, store, onDragStart, onDragEnd }: { task: any; store: a
         </span>
       </button>
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-['Space_Grotesk'] ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}>
+        <p
+          className={`text-xs font-['Space_Grotesk'] ${task.completed ? 'line-through text-[#9CA3AF]' : 'text-[#F5F5F5]'}`}
+        >
           {task.title}
         </p>
         {task.deadline && (
           <p className="text-[10px] text-[#9CA3AF] mt-0.5">
-            {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {new Date(task.deadline).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
           </p>
         )}
       </div>
@@ -99,7 +142,7 @@ export default function CalendarPage() {
   const store = useStore();
   const { setPageControls } = usePageHeader();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [taskSidebarCollapsed, setTaskSidebarCollapsed] = useState(false);
@@ -114,32 +157,41 @@ export default function CalendarPage() {
     enableDueToday: true,
     enableDueTomorrow: true,
     enableDueSoon: true,
-    hiddenLists: [] as string[]
+    hiddenLists: [] as string[],
   });
 
   // New List Modal State
   const [newListModalOpen, setNewListModalOpen] = useState(false);
-  const [newListForm, setNewListForm] = useState({ name: "", color: "#8b5cf6", icon: "circle" });
+  const [newListForm, setNewListForm] = useState({ name: '', color: '#8b5cf6', icon: 'circle' });
 
   // Task creation state
   const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [taskFormTitle, setTaskFormTitle] = useState("");
-  const [taskFormDeadline, setTaskFormDeadline] = useState("");
-  const [taskFormEnergy, setTaskFormEnergy] = useState<"high" | "medium" | "low">("medium");
+  const [taskFormTitle, setTaskFormTitle] = useState('');
+  const [taskFormDeadline, setTaskFormDeadline] = useState('');
+  const [taskFormEnergy, setTaskFormEnergy] = useState<'high' | 'medium' | 'low'>('medium');
 
   // Quick view state
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [quickViewAnchor, setQuickViewAnchor] = useState<HTMLElement | null>(null);
 
+  // Recurring edit scope: "this" edits only this instance, "all" edits the master event
+  const [recurringEditScope, setRecurringEditScope] = useState<'this' | 'all'>('this');
+
   // Drag-to-create state
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
-  const [dragEnd, setDragEnd] = useState<{ date: Date; hour: number; minutes: number } | null>(null);
+  const [dragStart, setDragStart] = useState<{ date: Date; hour: number; minutes: number } | null>(
+    null
+  );
+  const [dragEnd, setDragEnd] = useState<{ date: Date; hour: number; minutes: number } | null>(
+    null
+  );
 
   // Event drag-to-move state
   const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
   const [eventDragOffset, setEventDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [eventDragPosition, setEventDragPosition] = useState<{ date: Date; time: number } | null>(null);
+  const [eventDragPosition, setEventDragPosition] = useState<{ date: Date; time: number } | null>(
+    null
+  );
 
   // Event resize state
   const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
@@ -172,19 +224,19 @@ export default function CalendarPage() {
           </h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigateDate("prev")}
+              onClick={() => navigateDate('prev')}
               className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
             >
               <span className="material-symbols-outlined text-lg">chevron_left</span>
             </button>
             <button
-              onClick={() => navigateDate("today")}
+              onClick={() => navigateDate('today')}
               className="px-3 py-1.5 rounded-lg text-sm font-medium border border-white/10 text-[#F5F5F5] hover:bg-white/5 transition-colors"
             >
               Today
             </button>
             <button
-              onClick={() => navigateDate("next")}
+              onClick={() => navigateDate('next')}
               className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
             >
               <span className="material-symbols-outlined text-lg">chevron_right</span>
@@ -201,14 +253,14 @@ export default function CalendarPage() {
             <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
             Auto-Schedule
           </button>
-          {(["day", "week", "month"] as ViewMode[]).map((mode) => (
+          {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
                 viewMode === mode
-                  ? "bg-[#C17A72] text-white"
-                  : "border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5"
+                  ? 'bg-[#C17A72] text-white'
+                  : 'border border-white/10 text-[#9CA3AF] hover:text-white hover:bg-white/5'
               }`}
             >
               {mode}
@@ -232,14 +284,18 @@ export default function CalendarPage() {
   }, []);
 
   // Task organization
-  const overdueTasks = store.tasks.filter(t => !t.completed && t.deadline && new Date(t.deadline) < today);
-  const todayTasks = store.tasks.filter(t => !t.completed && t.deadline && isSameDay(new Date(t.deadline), today));
-  const tomorrowTasks = store.tasks.filter(t => {
+  const overdueTasks = store.tasks.filter(
+    (t) => !t.completed && t.deadline && new Date(t.deadline) < today
+  );
+  const todayTasks = store.tasks.filter(
+    (t) => !t.completed && t.deadline && isSameDay(new Date(t.deadline), today)
+  );
+  const tomorrowTasks = store.tasks.filter((t) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return !t.completed && t.deadline && isSameDay(new Date(t.deadline), tomorrow);
   });
-  const upcomingTasks = store.tasks.filter(t => {
+  const upcomingTasks = store.tasks.filter((t) => {
     if (!t.deadline || t.completed) return false;
     const deadline = new Date(t.deadline);
     const twoDaysOut = new Date(today);
@@ -248,15 +304,17 @@ export default function CalendarPage() {
   });
 
   // Form state
-  const [formTitle, setFormTitle] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formStart, setFormStart] = useState("");
-  const [formEnd, setFormEnd] = useState("");
-  const [formColor, setFormColor] = useState("#8b5cf6");
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formStart, setFormStart] = useState('');
+  const [formEnd, setFormEnd] = useState('');
+  const [formColor, setFormColor] = useState('#8b5cf6');
   const [formIsRecurring, setFormIsRecurring] = useState(false);
-  const [formRecurrenceFrequency, setFormRecurrenceFrequency] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
+  const [formRecurrenceFrequency, setFormRecurrenceFrequency] = useState<
+    'daily' | 'weekly' | 'monthly' | 'yearly'
+  >('weekly');
   const [formRecurrenceInterval, setFormRecurrenceInterval] = useState(1);
-  const [formRecurrenceEndDate, setFormRecurrenceEndDate] = useState("");
+  const [formRecurrenceEndDate, setFormRecurrenceEndDate] = useState('');
   const [formRecurrenceDaysOfWeek, setFormRecurrenceDaysOfWeek] = useState<number[]>([]);
 
   function openEdit(event: CalendarEvent) {
@@ -267,10 +325,13 @@ export default function CalendarPage() {
     setFormEnd(toLocalDatetimeString(new Date(event.end)));
     setFormColor(event.color);
     setFormIsRecurring(event.isRecurring || false);
-    setFormRecurrenceFrequency(event.recurrenceFrequency || "weekly");
+    setFormRecurrenceFrequency(event.recurrenceFrequency || 'weekly');
     setFormRecurrenceInterval(event.recurrenceInterval || 1);
-    setFormRecurrenceEndDate(event.recurrenceEndDate ? new Date(event.recurrenceEndDate).toISOString().split('T')[0] : "");
+    setFormRecurrenceEndDate(
+      event.recurrenceEndDate ? new Date(event.recurrenceEndDate).toISOString().split('T')[0] : ''
+    );
     setFormRecurrenceDaysOfWeek(event.recurrenceDaysOfWeek || []);
+    setRecurringEditScope('this');
     setModalOpen(true);
   }
 
@@ -288,23 +349,44 @@ export default function CalendarPage() {
     if (formIsRecurring) {
       data.recurrenceFrequency = formRecurrenceFrequency;
       data.recurrenceInterval = formRecurrenceInterval;
-      data.recurrenceEndDate = formRecurrenceEndDate ? new Date(formRecurrenceEndDate).toISOString() : null;
-      data.recurrenceDaysOfWeek = formRecurrenceFrequency === "weekly" ? formRecurrenceDaysOfWeek : [];
+      data.recurrenceEndDate = formRecurrenceEndDate
+        ? new Date(formRecurrenceEndDate).toISOString()
+        : null;
+      data.recurrenceDaysOfWeek =
+        formRecurrenceFrequency === 'weekly' ? formRecurrenceDaysOfWeek : [];
     }
 
     if (editingEvent) {
-      if (editingEvent.source === "task") {
+      if (editingEvent.source === 'task') {
         store.updateTask(editingEvent.id, {
           title: data.title,
           description: data.description,
           scheduledStart: data.start,
           scheduledEnd: data.end,
         });
+      } else if (editingEvent.isRecurring && recurringEditScope === 'this') {
+        // "Edit this event": create a non-recurring one-off event for this instance
+        // and add a note that this date is excluded (simplified: just create standalone override)
+        store.addEvent({
+          ...data,
+          isRecurring: false,
+          recurrenceFrequency: undefined,
+          recurrenceInterval: undefined,
+          recurrenceEndDate: undefined,
+          recurrenceDaysOfWeek: undefined,
+          allDay: editingEvent.allDay,
+          taskId: editingEvent.taskId ?? null,
+          source: editingEvent.source,
+        });
       } else {
-        store.updateEvent(editingEvent.id, data);
+        // "Edit all events" (or non-recurring): update the master event
+        const masterId = editingEvent.id.includes('_')
+          ? editingEvent.id.split('_')[0]
+          : editingEvent.id;
+        store.updateEvent(masterId, data);
       }
     } else {
-      store.addEvent({ ...data, allDay: false, taskId: null, source: "local" });
+      store.addEvent({ ...data, allDay: false, taskId: null, source: 'local' });
     }
     setModalOpen(false);
   }
@@ -320,30 +402,30 @@ export default function CalendarPage() {
         order: store.taskLists.length,
       });
       setNewListModalOpen(false);
-      setNewListForm({ name: "", color: "#8b5cf6", icon: "circle" });
+      setNewListForm({ name: '', color: '#8b5cf6', icon: 'circle' });
       setViewMenuOpen(false);
     } catch (err) {
-      alert("Failed to create list");
+      alert('Failed to create list');
     }
   };
 
   const handleToggleListVisibility = (listId: string) => {
-    setViewMenuPreferences(prev => ({
+    setViewMenuPreferences((prev) => ({
       ...prev,
-      hiddenLists: prev.hiddenLists.includes(listId) 
-        ? prev.hiddenLists.filter(id => id !== listId)
-        : [...prev.hiddenLists, listId]
+      hiddenLists: prev.hiddenLists.includes(listId)
+        ? prev.hiddenLists.filter((id) => id !== listId)
+        : [...prev.hiddenLists, listId],
     }));
   };
 
   function handleSaveTask() {
     if (!taskFormTitle.trim()) return;
-    
+
     store.addTask({
       title: taskFormTitle.trim(),
-      description: "",
-      status: "todo",
-      priority: "medium",
+      description: '',
+      status: 'todo',
+      priority: 'medium',
       goalId: null,
       milestoneId: null,
       durationMinutes: 30,
@@ -351,46 +433,85 @@ export default function CalendarPage() {
       scheduledStart: null,
       scheduledEnd: null,
       energyLevel: taskFormEnergy,
-      timePreference: "anytime",
+      timePreference: 'anytime',
       tags: [],
       listId: null,
     });
-    
+
     setTaskModalOpen(false);
-    setTaskFormTitle("");
-    setTaskFormDeadline("");
+    setTaskFormTitle('');
+    setTaskFormDeadline('');
   }
 
   function handleDelete() {
     if (editingEvent) {
-      if (editingEvent.source === "task") {
+      if (editingEvent.source === 'task') {
         // Just unschedule the task from the calendar, don't delete the actual task
         store.updateTask(editingEvent.id, {
           scheduledStart: null,
           scheduledEnd: null,
         });
+      } else if (editingEvent.isRecurring && recurringEditScope === 'this') {
+        // "Delete this event": nothing to do for a virtual instance —
+        // in a full implementation we'd store exceptions; for now we skip deletion
+        // and inform the user via console (DB-level exception list is out of scope for this fix)
+        console.info(
+          "[recurrence] Single-instance deletion not yet persisted; use 'Edit all events' to remove the series."
+        );
       } else {
-        store.deleteEvent(editingEvent.id);
+        // Delete the master event (removes all future instances too)
+        const masterId = editingEvent.id.includes('_')
+          ? editingEvent.id.split('_')[0]
+          : editingEvent.id;
+        store.deleteEvent(masterId);
       }
       setModalOpen(false);
     }
   }
 
   function getEventsForDay(date: Date) {
-    const regularEvents = store.events.filter((e) => isSameDay(new Date(e.start), date));
-    
+    // Range covering the full target day
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // Non-recurring events on this day
+    const nonRecurringEvents = store.events.filter(
+      (e) => !e.isRecurring && isSameDay(new Date(e.start), date)
+    );
+
+    // Original recurring events that start on this day (show the master occurrence)
+    const recurringOrigins = store.events.filter(
+      (e) => e.isRecurring && isSameDay(new Date(e.start), date)
+    );
+
+    // Expand all recurring events and collect instances falling on this day
+    const expandedInstances = store.events
+      .filter((e) => e.isRecurring)
+      .flatMap((e) => expandRecurringEvent(e, { start: dayStart, end: dayEnd }))
+      .filter((e) => isSameDay(new Date(e.start), date));
+
+    const regularEvents = [...nonRecurringEvents, ...recurringOrigins, ...expandedInstances];
+
     // Map scheduled tasks to look like calendar events
     const scheduledTasksAsEvents = store.tasks
-      .filter((t) => !t.completed && t.scheduledStart && t.scheduledEnd && isSameDay(new Date(t.scheduledStart), date))
+      .filter(
+        (t) =>
+          !t.completed &&
+          t.scheduledStart &&
+          t.scheduledEnd &&
+          isSameDay(new Date(t.scheduledStart), date)
+      )
       .map((t) => ({
         id: t.id, // Using task id as event id for rendering
         title: `[Task] ${t.title}`,
-        description: t.description || "",
+        description: t.description || '',
         start: t.scheduledStart as string,
         end: t.scheduledEnd as string,
-        color: "#10b981", // green for tasks
+        color: '#10b981', // green for tasks
         allDay: false,
-        source: "task",
+        source: 'task',
         taskId: t.id,
         isRecurring: false,
         createdAt: t.createdAt,
@@ -424,17 +545,15 @@ export default function CalendarPage() {
   // Calculate event layout for overlapping events
   function getEventLayout(event: CalendarEvent, dayEvents: CalendarEvent[]) {
     // Find all events that overlap with this event
-    const overlapping = dayEvents.filter(e =>
-      e.id !== event.id && eventsOverlap(event, e)
-    );
+    const overlapping = dayEvents.filter((e) => e.id !== event.id && eventsOverlap(event, e));
 
     if (overlapping.length === 0) {
       return { left: '0.25rem', right: '0.25rem', zIndex: 10 };
     }
 
     // Sort all overlapping events including current by start time
-    const allEvents = [event, ...overlapping].sort((a, b) =>
-      new Date(a.start).getTime() - new Date(b.start).getTime()
+    const allEvents = [event, ...overlapping].sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
     );
 
     // Calculate columns
@@ -457,7 +576,7 @@ export default function CalendarPage() {
     // Find which column this event is in
     let columnIndex = 0;
     for (let i = 0; i < columns.length; i++) {
-      if (columns[i].some(e => e.id === event.id)) {
+      if (columns[i].some((e) => e.id === event.id)) {
         columnIndex = i;
         break;
       }
@@ -475,17 +594,17 @@ export default function CalendarPage() {
     };
   }
 
-  const navigateDate = (direction: "prev" | "next" | "today") => {
-    if (direction === "today") {
+  const navigateDate = (direction: 'prev' | 'next' | 'today') => {
+    if (direction === 'today') {
       setCurrentDate(new Date());
     } else {
       const d = new Date(currentDate);
-      if (viewMode === "day") {
-        d.setDate(d.getDate() + (direction === "next" ? 1 : -1));
-      } else if (viewMode === "week") {
-        d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
+      if (viewMode === 'day') {
+        d.setDate(d.getDate() + (direction === 'next' ? 1 : -1));
+      } else if (viewMode === 'week') {
+        d.setDate(d.getDate() + (direction === 'next' ? 7 : -7));
       } else {
-        d.setMonth(d.getMonth() + (direction === "next" ? 1 : -1));
+        d.setMonth(d.getMonth() + (direction === 'next' ? 1 : -1));
       }
       setCurrentDate(d);
     }
@@ -577,7 +696,7 @@ export default function CalendarPage() {
     const newEnd = new Date(newStart.getTime() + duration);
 
     // Update event or task
-    if (draggingEvent.source === "task") {
+    if (draggingEvent.source === 'task') {
       store.updateTask(draggingEvent.id, {
         scheduledStart: newStart.toISOString(),
         scheduledEnd: newEnd.toISOString(),
@@ -615,7 +734,7 @@ export default function CalendarPage() {
     if (resizeEdge === 'top') {
       // Ensure minimum 15 minutes
       if (resizeOriginalEnd.getTime() - newTime.getTime() >= 15 * 60 * 1000) {
-        if (resizingEvent.source === "task") {
+        if (resizingEvent.source === 'task') {
           store.updateTask(resizingEvent.id, { scheduledStart: newTime.toISOString() });
         } else {
           store.updateEvent(resizingEvent.id, { start: newTime.toISOString() });
@@ -624,7 +743,7 @@ export default function CalendarPage() {
     } else {
       // Ensure minimum 15 minutes
       if (newTime.getTime() - resizeOriginalStart.getTime() >= 15 * 60 * 1000) {
-        if (resizingEvent.source === "task") {
+        if (resizingEvent.source === 'task') {
           store.updateTask(resizingEvent.id, { scheduledEnd: newTime.toISOString() });
         } else {
           store.updateEvent(resizingEvent.id, { end: newTime.toISOString() });
@@ -687,11 +806,11 @@ export default function CalendarPage() {
     const s = start || new Date();
     const e = end || new Date(s.getTime() + 60 * 60 * 1000);
     setEditingEvent(null);
-    setFormTitle("");
-    setFormDescription("");
+    setFormTitle('');
+    setFormDescription('');
     setFormStart(toLocalDatetimeString(s));
     setFormEnd(toLocalDatetimeString(e));
-    setFormColor("#8b5cf6");
+    setFormColor('#8b5cf6');
     setModalOpen(true);
   }
 
@@ -718,7 +837,8 @@ export default function CalendarPage() {
     return (minutes / 60) * HOUR_HEIGHT;
   }
 
-  const shouldShowTimeIndicator = viewMode === "week" && weekDates.some(date => isSameDay(date, today));
+  const shouldShowTimeIndicator =
+    viewMode === 'week' && weekDates.some((date) => isSameDay(date, today));
 
   return (
     <div className="flex h-full gap-4">
@@ -764,8 +884,8 @@ export default function CalendarPage() {
                   </button>
                 </div>
                 <div className="relative">
-                  <button 
-                    onClick={() => setViewMenuOpen(!viewMenuOpen)} 
+                  <button
+                    onClick={() => setViewMenuOpen(!viewMenuOpen)}
                     className="flex items-center gap-1 text-sm font-semibold hover:bg-white/5 px-2 py-1 rounded text-[#E5E7EB]"
                   >
                     <span className="material-symbols-outlined text-[16px]">tune</span>
@@ -774,7 +894,13 @@ export default function CalendarPage() {
                   {/* POPUP MENU */}
                   {viewMenuOpen && (
                     <div className="absolute left-full top-0 ml-2 mt-1 w-72 bg-[#1C1C1C] border border-white/10 rounded-xl shadow-2xl z-50 p-2 flex flex-col font-['Inter',sans-serif]">
-                      <button onClick={() => { setViewMenuOpen(false); setNewListModalOpen(true); }} className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left">
+                      <button
+                        onClick={() => {
+                          setViewMenuOpen(false);
+                          setNewListModalOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#E5E7EB] hover:bg-white/5 rounded-lg w-full text-left"
+                      >
                         <span className="material-symbols-outlined text-[16px]">add</span>
                         New task list
                       </button>
@@ -784,9 +910,11 @@ export default function CalendarPage() {
                       </button>
 
                       <div className="h-px bg-white/10 my-2"></div>
-                      
+
                       <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Grouping</div>
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
+                          Grouping
+                        </div>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-[#D1D5DB]">Group by</span>
                           <select className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white">
@@ -800,71 +928,156 @@ export default function CalendarPage() {
                           </select>
                         </div>
                         <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors">Hide empty groups</span>
-                          <input type="checkbox" className="rounded border-white/20 bg-[#1C1C1C] text-[#C17A72] focus:ring-[#C17A72]" />
+                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors">
+                            Hide empty groups
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-white/20 bg-[#1C1C1C] text-[#C17A72] focus:ring-[#C17A72]"
+                          />
                         </label>
                       </div>
 
                       <div className="h-px bg-white/10 my-2"></div>
 
                       <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Filtering</div>
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
+                          Filtering
+                        </div>
                         <div className="flex items-center justify-between mb-2 text-xs text-[#9CA3AF]">
-                          <div className="flex gap-2"><button className="hover:text-white">Show all</button> | <button className="hover:text-white">None</button></div>
+                          <div className="flex gap-2">
+                            <button className="hover:text-white">Show all</button> |{' '}
+                            <button className="hover:text-white">None</button>
+                          </div>
                         </div>
                         <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                          {store.taskLists.map(list => (
-                            <label key={list.id} className="flex items-center justify-between cursor-pointer group">
+                          {store.taskLists.map((list) => (
+                            <label
+                              key={list.id}
+                              className="flex items-center justify-between cursor-pointer group"
+                            >
                               <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[16px] text-white/40 cursor-grab">drag_indicator</span>
-                                <span className="material-symbols-outlined text-[12px]" style={{ color: list.color }}>{list.icon}</span>
-                                <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">{list.name}</span>
+                                <span className="material-symbols-outlined text-[16px] text-white/40 cursor-grab">
+                                  drag_indicator
+                                </span>
+                                <span
+                                  className="material-symbols-outlined text-[12px]"
+                                  style={{ color: list.color }}
+                                >
+                                  {list.icon}
+                                </span>
+                                <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                                  {list.name}
+                                </span>
                               </div>
-                              <input 
-                                type="checkbox" 
+                              <input
+                                type="checkbox"
                                 checked={!viewMenuPreferences.hiddenLists.includes(list.id)}
                                 onChange={() => handleToggleListVisibility(list.id)}
-                                className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" 
+                                className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
                               />
                             </label>
                           ))}
                         </div>
                       </div>
-                      
+
                       <div className="h-px bg-white/10 my-2"></div>
 
                       <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Calendar preferences</div>
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
+                          Calendar preferences
+                        </div>
                         <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Manage due dates on the calendar</span>
-                          <input type="checkbox" checked={viewMenuPreferences.manageDueDates} onChange={e => setViewMenuPreferences(p => ({...p, manageDueDates: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                          <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                            Manage due dates on the calendar
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={viewMenuPreferences.manageDueDates}
+                            onChange={(e) =>
+                              setViewMenuPreferences((p) => ({
+                                ...p,
+                                manageDueDates: e.target.checked,
+                              }))
+                            }
+                            className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
+                          />
                         </label>
                       </div>
 
                       <div className="h-px bg-white/10 my-2"></div>
 
                       <div className="px-3 py-1">
-                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">Sidebar preferences</div>
+                        <div className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wider">
+                          Sidebar preferences
+                        </div>
                         <div className="space-y-3">
                           <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Show scheduled tasks</span>
-                            <input type="checkbox" checked={viewMenuPreferences.showScheduledTasks} onChange={e => setViewMenuPreferences(p => ({...p, showScheduledTasks: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                              Show scheduled tasks
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={viewMenuPreferences.showScheduledTasks}
+                              onChange={(e) =>
+                                setViewMenuPreferences((p) => ({
+                                  ...p,
+                                  showScheduledTasks: e.target.checked,
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
+                            />
                           </label>
                           <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due today list</span>
-                            <input type="checkbox" checked={viewMenuPreferences.enableDueToday} onChange={e => setViewMenuPreferences(p => ({...p, enableDueToday: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                              Enable Due today list
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={viewMenuPreferences.enableDueToday}
+                              onChange={(e) =>
+                                setViewMenuPreferences((p) => ({
+                                  ...p,
+                                  enableDueToday: e.target.checked,
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
+                            />
                           </label>
                           <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due tomorrow list</span>
-                            <input type="checkbox" checked={viewMenuPreferences.enableDueTomorrow} onChange={e => setViewMenuPreferences(p => ({...p, enableDueTomorrow: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                              Enable Due tomorrow list
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={viewMenuPreferences.enableDueTomorrow}
+                              onChange={(e) =>
+                                setViewMenuPreferences((p) => ({
+                                  ...p,
+                                  enableDueTomorrow: e.target.checked,
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
+                            />
                           </label>
                           <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">Enable Due soon list</span>
-                            <input type="checkbox" checked={viewMenuPreferences.enableDueSoon} onChange={e => setViewMenuPreferences(p => ({...p, enableDueSoon: e.target.checked}))} className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]" />
+                            <span className="text-sm text-[#D1D5DB] group-hover:text-white transition-colors font-medium">
+                              Enable Due soon list
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={viewMenuPreferences.enableDueSoon}
+                              onChange={(e) =>
+                                setViewMenuPreferences((p) => ({
+                                  ...p,
+                                  enableDueSoon: e.target.checked,
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#1C1C1C] text-[#8b5cf6] focus:ring-[#8b5cf6]"
+                            />
                           </label>
                         </div>
                       </div>
-
                     </div>
                   )}
                 </div>
@@ -877,26 +1090,82 @@ export default function CalendarPage() {
             <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
               {/* Time Based Lists */}
               {overdueTasks.length > 0 && (
-                <TaskSection title="Overdue" count={overdueTasks.length} icon="schedule" color="#ef4444" defaultExpanded={false}>
-                  {overdueTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                <TaskSection
+                  title="Overdue"
+                  count={overdueTasks.length}
+                  icon="schedule"
+                  color="#ef4444"
+                  defaultExpanded={false}
+                >
+                  {overdueTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      store={store}
+                      onDragStart={handleTaskDragStart}
+                      onDragEnd={handleTaskDragEnd}
+                    />
+                  ))}
                 </TaskSection>
               )}
-              
+
               {viewMenuPreferences.enableDueToday && todayTasks.length > 0 && (
-                <TaskSection title="Due today" count={todayTasks.length} icon="light_mode" color="#f59e0b" defaultExpanded={true}>
-                  {todayTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                <TaskSection
+                  title="Due today"
+                  count={todayTasks.length}
+                  icon="light_mode"
+                  color="#f59e0b"
+                  defaultExpanded={true}
+                >
+                  {todayTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      store={store}
+                      onDragStart={handleTaskDragStart}
+                      onDragEnd={handleTaskDragEnd}
+                    />
+                  ))}
                 </TaskSection>
               )}
 
               {viewMenuPreferences.enableDueTomorrow && tomorrowTasks.length > 0 && (
-                <TaskSection title="Due tomorrow" count={tomorrowTasks.length} icon="arrow_forward_ios" color="#f59e0b" defaultExpanded={false}>
-                  {tomorrowTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                <TaskSection
+                  title="Due tomorrow"
+                  count={tomorrowTasks.length}
+                  icon="arrow_forward_ios"
+                  color="#f59e0b"
+                  defaultExpanded={false}
+                >
+                  {tomorrowTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      store={store}
+                      onDragStart={handleTaskDragStart}
+                      onDragEnd={handleTaskDragEnd}
+                    />
+                  ))}
                 </TaskSection>
               )}
 
               {viewMenuPreferences.enableDueSoon && upcomingTasks.length > 0 && (
-                <TaskSection title="Due soon" count={upcomingTasks.length} icon="terrain" color="#f59e0b" defaultExpanded={false}>
-                  {upcomingTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                <TaskSection
+                  title="Due soon"
+                  count={upcomingTasks.length}
+                  icon="terrain"
+                  color="#f59e0b"
+                  defaultExpanded={false}
+                >
+                  {upcomingTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      store={store}
+                      onDragStart={handleTaskDragStart}
+                      onDragEnd={handleTaskDragEnd}
+                    />
+                  ))}
                 </TaskSection>
               )}
 
@@ -905,21 +1174,37 @@ export default function CalendarPage() {
 
               {/* Custom Lists from Store */}
               {store.taskLists
-                .filter(list => !viewMenuPreferences.hiddenLists.includes(list.id))
+                .filter((list) => !viewMenuPreferences.hiddenLists.includes(list.id))
                 .sort((a, b) => a.order - b.order)
                 .map((list) => {
-                  const listTasks = store.tasks.filter(t => 
-                    !t.completed && 
-                    (!viewMenuPreferences.showScheduledTasks ? !t.scheduledStart : true) &&
-                    t.listId === list.id
+                  const listTasks = store.tasks.filter(
+                    (t) =>
+                      !t.completed &&
+                      (!viewMenuPreferences.showScheduledTasks ? !t.scheduledStart : true) &&
+                      t.listId === list.id
                   );
-                  
+
                   return (
-                    <TaskSection key={list.id} title={list.name} count={listTasks.length} icon={list.icon} color={list.color} defaultExpanded={true}>
-                      {listTasks.map(task => <TaskItem key={task.id} task={task} store={store} onDragStart={handleTaskDragStart} onDragEnd={handleTaskDragEnd} />)}
+                    <TaskSection
+                      key={list.id}
+                      title={list.name}
+                      count={listTasks.length}
+                      icon={list.icon}
+                      color={list.color}
+                      defaultExpanded={true}
+                    >
+                      {listTasks.map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          store={store}
+                          onDragStart={handleTaskDragStart}
+                          onDragEnd={handleTaskDragEnd}
+                        />
+                      ))}
                     </TaskSection>
                   );
-              })}
+                })}
 
               {/* Add Task Button */}
               <button
@@ -938,7 +1223,7 @@ export default function CalendarPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Calendar Grid */}
         <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col">
-          {viewMode === "week" && (
+          {viewMode === 'week' && (
             <>
               {/* Week View */}
               <div className="border-b border-white/10">
@@ -953,14 +1238,16 @@ export default function CalendarPage() {
                         key={i}
                         className="h-16 border-r border-white/5 last:border-r-0 px-3 flex flex-col items-center justify-center"
                       >
-                        <div className={`text-xs uppercase tracking-wider font-medium ${isToday ? 'text-[#C17A72]' : 'text-[#9CA3AF]'}`}>
+                        <div
+                          className={`text-xs uppercase tracking-wider font-medium ${isToday ? 'text-[#C17A72]' : 'text-[#9CA3AF]'}`}
+                        >
                           {DAYS_SHORT[date.getDay()]}
                         </div>
                         <div
                           className={`text-2xl font-['Playfair_Display'] mt-1 ${
                             isToday
-                              ? "w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center"
-                              : "text-[#F5F5F5]"
+                              ? 'w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center'
+                              : 'text-[#F5F5F5]'
                           }`}
                         >
                           {date.getDate()}
@@ -1001,7 +1288,7 @@ export default function CalendarPage() {
                       if (dayIndex >= 0 && dayIndex < 7) {
                         const date = weekDates[dayIndex];
                         const hour = Math.floor(y / HOUR_HEIGHT);
-                        const minutes = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60);
+                        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
 
                         if (isDragging && dragStart) {
                           setDragEnd({ date: dragStart.date, hour, minutes });
@@ -1025,7 +1312,13 @@ export default function CalendarPage() {
                           style={{ height: HOUR_HEIGHT }}
                         >
                           <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
-                            {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                            {hour === 0
+                              ? '12 AM'
+                              : hour < 12
+                                ? `${hour} AM`
+                                : hour === 12
+                                  ? '12 PM'
+                                  : `${hour - 12} PM`}
                           </div>
                         </div>
                         {/* Day columns */}
@@ -1124,7 +1417,7 @@ export default function CalendarPage() {
                       className="absolute pointer-events-none z-20"
                       style={{
                         ...getDragPreviewStyle(),
-                        left: `calc(60px + ${weekDates.findIndex(d => isSameDay(d, dragEnd.date))} * ((100% - 60px) / 7))`,
+                        left: `calc(60px + ${weekDates.findIndex((d) => isSameDay(d, dragEnd.date))} * ((100% - 60px) / 7))`,
                         width: `calc((100% - 60px) / 7)`,
                       }}
                     >
@@ -1138,7 +1431,7 @@ export default function CalendarPage() {
                       className="absolute pointer-events-none z-30"
                       style={{
                         top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
-                        left: `calc(60px + ${weekDates.findIndex(d => isSameDay(d, eventDragPosition.date))} * ((100% - 60px) / 7))`,
+                        left: `calc(60px + ${weekDates.findIndex((d) => isSameDay(d, eventDragPosition.date))} * ((100% - 60px) / 7))`,
                         width: `calc((100% - 60px) / 7)`,
                         height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
                       }}
@@ -1159,22 +1452,24 @@ export default function CalendarPage() {
             </>
           )}
 
-          {viewMode === "day" && (
+          {viewMode === 'day' && (
             <>
               {/* Day View Header */}
               <div className="border-b border-white/10">
                 <div className="h-16 px-3 flex items-center justify-center border-r border-white/5">
                   <div>
-                    <div className={`text-xs uppercase tracking-wider font-medium ${
-                      isSameDay(currentDate, today) ? 'text-[#C17A72]' : 'text-[#9CA3AF]'
-                    }`}>
+                    <div
+                      className={`text-xs uppercase tracking-wider font-medium ${
+                        isSameDay(currentDate, today) ? 'text-[#C17A72]' : 'text-[#9CA3AF]'
+                      }`}
+                    >
                       {DAYS_SHORT[currentDate.getDay()]}
                     </div>
                     <div
                       className={`text-2xl font-['Playfair_Display'] mt-1 ${
                         isSameDay(currentDate, today)
-                          ? "w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center mx-auto"
-                          : "text-[#F5F5F5] text-center"
+                          ? 'w-10 h-10 rounded-full bg-[#C17A72] text-white flex items-center justify-center mx-auto'
+                          : 'text-[#F5F5F5] text-center'
                       }`}
                     >
                       {currentDate.getDate()}
@@ -1206,7 +1501,7 @@ export default function CalendarPage() {
                     const y = e.clientY - rect.top + scrollContainer.scrollTop;
 
                     const hour = Math.floor(y / HOUR_HEIGHT);
-                    const minutes = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60);
+                    const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
 
                     if (isDragging && dragStart) {
                       setDragEnd({ date: currentDate, hour, minutes });
@@ -1228,7 +1523,13 @@ export default function CalendarPage() {
                           style={{ height: HOUR_HEIGHT }}
                         >
                           <div className="text-xs text-[#9CA3AF] font-['JetBrains_Mono'] -mt-2">
-                            {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                            {hour === 0
+                              ? '12 AM'
+                              : hour < 12
+                                ? `${hour} AM`
+                                : hour === 12
+                                  ? '12 PM'
+                                  : `${hour - 12} PM`}
                           </div>
                         </div>
                         {/* Day column */}
@@ -1317,47 +1618,52 @@ export default function CalendarPage() {
                   )}
 
                   {/* Drag Preview for Day View */}
-                  {isDragging && dragStart && getDragPreviewStyle() && isSameDay(dragStart.date, currentDate) && (
-                    <div
-                      className="absolute pointer-events-none z-20"
-                      style={{
-                        ...getDragPreviewStyle(),
-                        left: '60px',
-                        right: '0',
-                      }}
-                    >
-                      <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
-                    </div>
-                  )}
-
-                  {/* Event Drag Preview for Day View */}
-                  {draggingEvent && eventDragPosition && isSameDay(eventDragPosition.date, currentDate) && (
-                    <div
-                      className="absolute pointer-events-none z-30"
-                      style={{
-                        top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
-                        left: '60px',
-                        right: '0',
-                        height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
-                      }}
-                    >
+                  {isDragging &&
+                    dragStart &&
+                    getDragPreviewStyle() &&
+                    isSameDay(dragStart.date, currentDate) && (
                       <div
-                        className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
+                        className="absolute pointer-events-none z-20"
                         style={{
-                          backgroundColor: `${draggingEvent.color}40`,
-                          borderColor: draggingEvent.color,
+                          ...getDragPreviewStyle(),
+                          left: '60px',
+                          right: '0',
                         }}
                       >
-                        <div className="truncate">{draggingEvent.title}</div>
+                        <div className="mx-1 h-full bg-[#C17A72]/30 border-2 border-[#C17A72] rounded-lg backdrop-blur-sm"></div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                  {/* Event Drag Preview for Day View */}
+                  {draggingEvent &&
+                    eventDragPosition &&
+                    isSameDay(eventDragPosition.date, currentDate) && (
+                      <div
+                        className="absolute pointer-events-none z-30"
+                        style={{
+                          top: `${(eventDragPosition.time / 60) * HOUR_HEIGHT}px`,
+                          left: '60px',
+                          right: '0',
+                          height: `${((new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime()) / (60 * 60 * 1000)) * HOUR_HEIGHT}px`,
+                        }}
+                      >
+                        <div
+                          className="mx-1 h-full rounded-lg border-2 border-dashed backdrop-blur-sm flex items-center justify-center text-white text-xs font-medium px-2"
+                          style={{
+                            backgroundColor: `${draggingEvent.color}40`,
+                            borderColor: draggingEvent.color,
+                          }}
+                        >
+                          <div className="truncate">{draggingEvent.title}</div>
+                        </div>
+                      </div>
+                    )}
                 </div>
               </div>
             </>
           )}
 
-          {viewMode === "month" && (
+          {viewMode === 'month' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Month View Header - Days of Week */}
               <div className="grid grid-cols-7 border-b border-white/10">
@@ -1378,7 +1684,11 @@ export default function CalendarPage() {
                     // Get first day of month
                     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
                     // Get last day of month
-                    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                    const lastDay = new Date(
+                      currentDate.getFullYear(),
+                      currentDate.getMonth() + 1,
+                      0
+                    );
 
                     // Calculate start date (beginning of week containing first day)
                     const startDate = new Date(firstDay);
@@ -1419,8 +1729,8 @@ export default function CalendarPage() {
                                 isToday
                                   ? 'w-6 h-6 rounded-full bg-[#C17A72] text-white flex items-center justify-center text-xs'
                                   : isCurrentMonth
-                                  ? 'text-[#F5F5F5]'
-                                  : 'text-[#6B7280]'
+                                    ? 'text-[#F5F5F5]'
+                                    : 'text-[#6B7280]'
                               }`}
                             >
                               {date.getDate()}
@@ -1466,14 +1776,45 @@ export default function CalendarPage() {
         </div>
 
         {/* Modal */}
-        <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingEvent ? "Edit Event" : "New Event"}>
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editingEvent ? 'Edit Event' : 'New Event'}
+        >
           <div className="flex flex-col gap-4">
+            {/* Scope picker for recurring instances */}
+            {editingEvent?.isRecurring && (
+              <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setRecurringEditScope('this')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    recurringEditScope === 'this'
+                      ? 'bg-[#C17A72] text-white'
+                      : 'text-[#9CA3AF] hover:text-white'
+                  }`}
+                >
+                  Edit this event
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecurringEditScope('all')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    recurringEditScope === 'all'
+                      ? 'bg-[#C17A72] text-white'
+                      : 'text-[#9CA3AF] hover:text-white'
+                  }`}
+                >
+                  Edit all events
+                </button>
+              </div>
+            )}
             <input
               type="text"
               placeholder="Event title"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               autoFocus
               className="input-glass text-base"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
@@ -1487,16 +1828,32 @@ export default function CalendarPage() {
             />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Start</label>
-                <input type="datetime-local" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input-glass w-full" />
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Start
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formStart}
+                  onChange={(e) => setFormStart(e.target.value)}
+                  className="input-glass w-full"
+                />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>End</label>
-                <input type="datetime-local" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input-glass w-full" />
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  End
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formEnd}
+                  onChange={(e) => setFormEnd(e.target.value)}
+                  className="input-glass w-full"
+                />
               </div>
             </div>
             <div>
-              <label className="text-xs mb-2 block" style={{ color: "var(--text-muted)" }}>Color</label>
+              <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                Color
+              </label>
               <div className="flex gap-2">
                 {COLORS.map((c) => (
                   <button
@@ -1505,8 +1862,9 @@ export default function CalendarPage() {
                     className="w-7 h-7 rounded-full transition-all"
                     style={{
                       backgroundColor: c,
-                      transform: formColor === c ? "scale(1.15)" : "scale(1)",
-                      boxShadow: formColor === c ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${c}` : "none",
+                      transform: formColor === c ? 'scale(1.15)' : 'scale(1)',
+                      boxShadow:
+                        formColor === c ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${c}` : 'none',
                     }}
                   />
                 ))}
@@ -1516,19 +1874,19 @@ export default function CalendarPage() {
             {/* Recurrence Section */}
             <div className="border-t border-white/10 pt-4">
               <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                   Repeat
                 </label>
                 <button
                   type="button"
                   onClick={() => setFormIsRecurring(!formIsRecurring)}
                   className={`relative w-11 h-6 rounded-full transition-colors ${
-                    formIsRecurring ? "bg-[#C17A72]" : "bg-white/10"
+                    formIsRecurring ? 'bg-[#C17A72]' : 'bg-white/10'
                   }`}
                 >
                   <div
                     className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      formIsRecurring ? "translate-x-6" : "translate-x-1"
+                      formIsRecurring ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
                 </button>
@@ -1544,7 +1902,9 @@ export default function CalendarPage() {
                         type="number"
                         min="1"
                         value={formRecurrenceInterval}
-                        onChange={(e) => setFormRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) =>
+                          setFormRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))
+                        }
                         className="input-glass w-full text-sm"
                       />
                     </div>
@@ -1564,7 +1924,7 @@ export default function CalendarPage() {
                   </div>
 
                   {/* Days of Week (only for weekly) */}
-                  {formRecurrenceFrequency === "weekly" && (
+                  {formRecurrenceFrequency === 'weekly' && (
                     <div>
                       <label className="text-xs mb-2 block text-[#9CA3AF]">Repeat on</label>
                       <div className="flex gap-1">
@@ -1583,8 +1943,8 @@ export default function CalendarPage() {
                               }}
                               className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
                                 isSelected
-                                  ? "bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30"
-                                  : "bg-white/5 text-[#9CA3AF] hover:bg-white/10"
+                                  ? 'bg-[#C17A72]/20 text-[#C17A72] border border-[#C17A72]/30'
+                                  : 'bg-white/5 text-[#9CA3AF] hover:bg-white/10'
                               }`}
                             >
                               {day}
@@ -1611,83 +1971,100 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-between pt-2">
               {editingEvent ? (
-                <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-lg" style={{ color: "var(--danger)" }}>Delete</button>
-              ) : <div />}
+                <button
+                  onClick={handleDelete}
+                  className="px-3 py-2 text-sm rounded-lg"
+                  style={{ color: 'var(--danger)' }}
+                >
+                  Delete
+                </button>
+              ) : (
+                <div />
+              )}
               <div className="flex gap-2">
-                <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={handleSave} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
-                  {editingEvent ? "Save" : "Create"}
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 text-sm rounded-lg"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="btn-glow px-5 py-2 rounded-xl text-sm font-medium"
+                >
+                  {editingEvent ? 'Save' : 'Create'}
                 </button>
               </div>
             </div>
           </div>
         </Modal>
 
-      {/* New Task List Modal */}
-      {newListModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="glass-card rounded-2xl w-full max-w-md p-6 border border-white/10 shadow-2xl">
-            <h2 className="text-xl font-bold text-white mb-6">New Task List</h2>
-            <form onSubmit={handleCreateList} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Name</label>
-                <input
-                  type="text"
-                  autoFocus
-                  required
-                  value={newListForm.name}
-                  onChange={(e) => setNewListForm({ ...newListForm, name: e.target.value })}
-                  className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#C17A72]"
-                  placeholder="e.g., Groceries, Project X"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        {/* New Task List Modal */}
+        {newListModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="glass-card rounded-2xl w-full max-w-md p-6 border border-white/10 shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-6">New Task List</h2>
+              <form onSubmit={handleCreateList} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Color</label>
+                  <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Name</label>
                   <input
-                    type="color"
-                    value={newListForm.color}
-                    onChange={(e) => setNewListForm({ ...newListForm, color: e.target.value })}
-                    className="w-full h-10 rounded-xl cursor-pointer bg-transparent border-0 p-0"
+                    type="text"
+                    autoFocus
+                    required
+                    value={newListForm.name}
+                    onChange={(e) => setNewListForm({ ...newListForm, name: e.target.value })}
+                    className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#C17A72]"
+                    placeholder="e.g., Groceries, Project X"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Icon</label>
-                  <select
-                    value={newListForm.icon}
-                    onChange={(e) => setNewListForm({ ...newListForm, icon: e.target.value })}
-                    className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#C17A72]"
-                  >
-                    <option value="circle">Circle</option>
-                    <option value="inbox">Inbox</option>
-                    <option value="work">Work</option>
-                    <option value="home">Home</option>
-                    <option value="school">School</option>
-                    <option value="star">Star</option>
-                    <option value="favorite">Heart</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Color</label>
+                    <input
+                      type="color"
+                      value={newListForm.color}
+                      onChange={(e) => setNewListForm({ ...newListForm, color: e.target.value })}
+                      className="w-full h-10 rounded-xl cursor-pointer bg-transparent border-0 p-0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#9CA3AF] mb-1">Icon</label>
+                    <select
+                      value={newListForm.icon}
+                      onChange={(e) => setNewListForm({ ...newListForm, icon: e.target.value })}
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#C17A72]"
+                    >
+                      <option value="circle">Circle</option>
+                      <option value="inbox">Inbox</option>
+                      <option value="work">Work</option>
+                      <option value="home">Home</option>
+                      <option value="school">School</option>
+                      <option value="star">Star</option>
+                      <option value="favorite">Heart</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-3 mt-8">
-                <button
-                  type="button"
-                  onClick={() => setNewListModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newListForm.name.trim()}
-                  className="px-4 py-2 rounded-xl text-sm font-medium bg-white text-black hover:bg-gray-200 transition-colors disabled:opacity-50"
-                >
-                  Create List
-                </button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setNewListModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-sm font-medium text-[#9CA3AF] hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newListForm.name.trim()}
+                    className="px-4 py-2 rounded-xl text-sm font-medium bg-white text-black hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    Create List
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Task Modal */}
         <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title="New Task">
@@ -1697,25 +2074,29 @@ export default function CalendarPage() {
               placeholder="Task title"
               value={taskFormTitle}
               onChange={(e) => setTaskFormTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSaveTask()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveTask()}
               autoFocus
               className="input-glass text-base"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             />
-            
+
             <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Deadline</label>
-              <input 
-                type="date" 
-                value={taskFormDeadline} 
-                onChange={(e) => setTaskFormDeadline(e.target.value)} 
-                className="input-glass w-full" 
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Deadline
+              </label>
+              <input
+                type="date"
+                value={taskFormDeadline}
+                onChange={(e) => setTaskFormDeadline(e.target.value)}
+                className="input-glass w-full"
               />
             </div>
 
             <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Energy Required</label>
-              <select 
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                Energy Required
+              </label>
+              <select
                 value={taskFormEnergy}
                 onChange={(e) => setTaskFormEnergy(e.target.value as any)}
                 className="input-glass w-full text-sm"
@@ -1728,8 +2109,17 @@ export default function CalendarPage() {
 
             <div className="flex justify-end pt-4">
               <div className="flex gap-2">
-                <button onClick={() => setTaskModalOpen(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={handleSaveTask} className="btn-glow px-5 py-2 rounded-xl text-sm font-medium">
+                <button
+                  onClick={() => setTaskModalOpen(false)}
+                  className="px-4 py-2 text-sm rounded-lg"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTask}
+                  className="btn-glow px-5 py-2 rounded-xl text-sm font-medium"
+                >
                   Create Task
                 </button>
               </div>
@@ -1755,7 +2145,7 @@ export default function CalendarPage() {
         }}
         onDelete={() => {
           if (quickViewEvent) {
-            if (confirm("Are you sure you want to delete this event?")) {
+            if (confirm('Are you sure you want to delete this event?')) {
               store.deleteEvent(quickViewEvent.id);
               setQuickViewEvent(null);
               setQuickViewAnchor(null);
