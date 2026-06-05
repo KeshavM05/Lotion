@@ -9,6 +9,7 @@ import { Header } from '@/components/ui/header';
 import { MobileNav } from '@/components/ui/MobileNav';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { QuickCaptureOverlay, useQuickCapture } from '@/components/ui/quick-capture';
+import { OnboardingModal } from '@/components/ui/OnboardingModal';
 import { StoreProvider, useStore } from '@/lib/store';
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
 import { PageHeaderProvider } from '@/lib/page-header-context';
@@ -20,11 +21,12 @@ import { queryClient } from '@/lib/query-client';
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { loadInitialData } = useStore();
+  const { loadInitialData, goals, loading: storeLoading } = useStore();
   const { isOpen, close } = useQuickCapture();
   const { collapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Global unhandled rejection listener
   useEffect(() => {
@@ -54,6 +56,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       init();
     }
   }, [user, authLoading, loadInitialData]);
+
+  // Show onboarding for first-time users (no goals + not previously dismissed)
+  useEffect(() => {
+    if (!initializing && !storeLoading && goals.length === 0) {
+      const done = typeof window !== 'undefined' && localStorage.getItem('onboardingDone');
+      if (!done) setShowOnboarding(true);
+    }
+  }, [initializing, storeLoading, goals.length]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -105,6 +115,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       </div>
       <CommandPalette />
       <QuickCaptureOverlay isOpen={isOpen} onClose={close} />
+      {showOnboarding && (
+        <OnboardingModal
+          onDone={() => {
+            localStorage.setItem('onboardingDone', '1');
+            setShowOnboarding(false);
+          }}
+        />
+      )}
       {/* Noise Texture Overlay */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/p6.png')] z-[100]"></div>
     </>
