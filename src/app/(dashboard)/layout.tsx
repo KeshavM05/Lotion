@@ -14,6 +14,8 @@ import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
 import { PageHeaderProvider } from '@/lib/page-header-context';
 import { useAuth } from '@/lib/auth-context';
 import { initializeUser } from '@/lib/api-client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
