@@ -18,6 +18,11 @@ import { Modal } from '@/components/ui/modal';
 import { formatRelativeDate } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { groupByTime, groupByStatus, groupByPriority, type GroupMode } from '@/lib/task-utils';
+import {
+  ViewOptionsMenu,
+  DEFAULT_VIEW_OPTIONS,
+  type ViewOptions,
+} from '@/components/tasks/ViewOptionsMenu';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'completed';
 type ViewMode = 'list' | 'board';
@@ -62,12 +67,12 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [groupMode, setGroupMode] = useState<GroupMode>('none');
+  const [viewOptions, setViewOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
+  const groupMode: GroupMode = viewOptions.groupMode;
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
   const [showProjects, setShowProjects] = useState(true);
-  const [taskSource, setTaskSource] = useState<'internal' | 'external'>('internal');
 
   // Advanced filters
   const [filterEnergy, setFilterEnergy] = useState<EnergyLevel | 'all'>('all');
@@ -199,9 +204,35 @@ export default function TasksPage() {
     return true;
   });
 
+  const { sortField, sortDir } = viewOptions;
   const pw: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+  const dir = sortDir === 'asc' ? 1 : -1;
   const sorted = [...filtered].sort((a, b) => {
-    if (pw[b.priority] !== pw[a.priority]) return pw[b.priority] - pw[a.priority];
+    switch (sortField) {
+      case 'priority': {
+        const diff = (pw[b.priority] ?? 0) - (pw[a.priority] ?? 0);
+        if (diff !== 0) return diff * dir;
+        break;
+      }
+      case 'deadline': {
+        const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+        const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+        return (da - db) * dir;
+      }
+      case 'created': {
+        const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return (ca - cb) * dir;
+      }
+      case 'updated': {
+        const ua = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const ub = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return (ua - ub) * dir;
+      }
+      case 'title':
+        return a.title.localeCompare(b.title) * dir;
+    }
+    // fallback: deadline ascending
     const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return da - db;
@@ -256,54 +287,8 @@ export default function TasksPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Source toggle: In-app vs External */}
-          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
-            <button
-              onClick={() => setTaskSource('internal')}
-              title="In-app tasks"
-              className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                taskSource === 'internal'
-                  ? 'bg-[#C17A72] text-white'
-                  : 'text-[#9CA3AF] hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm">radio_button_checked</span>
-            </button>
-            <button
-              onClick={() => setTaskSource('external')}
-              title="External tasks (Google Tasks, Microsoft Tasks)"
-              className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                taskSource === 'external'
-                  ? 'bg-[#C17A72] text-white'
-                  : 'text-[#9CA3AF] hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm">apps</span>
-            </button>
-          </div>
-
-          {/* Group mode toggle */}
-          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
-            {(
-              [
-                { mode: 'none', icon: 'format_list_bulleted', title: 'No grouping' },
-                { mode: 'time', icon: 'schedule', title: 'Group by time' },
-                { mode: 'status', icon: 'flag', title: 'Group by status' },
-                { mode: 'priority', icon: 'priority_high', title: 'Group by priority' },
-              ] as const
-            ).map(({ mode, icon, title }) => (
-              <button
-                key={mode}
-                onClick={() => setGroupMode(mode)}
-                title={title}
-                className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                  groupMode === mode ? 'bg-[#C17A72] text-white' : 'text-[#9CA3AF] hover:text-white'
-                }`}
-              >
-                <span className="material-symbols-outlined text-sm">{icon}</span>
-              </button>
-            ))}
-          </div>
+          {/* View options */}
+          <ViewOptionsMenu options={viewOptions} onChange={setViewOptions} />
 
           <button
             onClick={() => setShowAdvancedFilters((v) => !v)}
@@ -364,8 +349,7 @@ export default function TasksPage() {
   }, [
     activeTab,
     viewMode,
-    groupMode,
-    taskSource,
+    viewOptions,
     showProjects,
     showAdvancedFilters,
     filterEnergy,
@@ -714,34 +698,9 @@ export default function TasksPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* External tasks placeholder */}
-        {taskSource === 'external' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20">
-            <span className="material-symbols-outlined text-5xl text-[#3B5578] opacity-60">
-              cloud_sync
-            </span>
-            <div>
-              <p className="text-sm font-['Playfair_Display'] text-[#BEC6DF] mb-1">
-                No external tasks connected
-              </p>
-              <p className="text-xs text-[#6B7280]">
-                Connect Google Tasks or Microsoft Tasks in Settings to see external tasks here.
-              </p>
-            </div>
-            <button
-              onClick={() => (window.location.href = '/settings')}
-              className="px-4 py-2 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-white transition-colors border border-white/10"
-            >
-              Go to Settings
-            </button>
-          </div>
-        )}
+        {viewMode === 'list' && <div className="flex-1 overflow-auto">{renderListContent()}</div>}
 
-        {taskSource === 'internal' && viewMode === 'list' && (
-          <div className="flex-1 overflow-auto">{renderListContent()}</div>
-        )}
-
-        {taskSource === 'internal' && viewMode === 'board' && (
+        {viewMode === 'board' && (
           <div className="flex-1 overflow-auto">
             <div className="grid grid-cols-3 gap-4 h-full">
               {(['todo', 'in_progress', 'done'] as const).map((status) => {

@@ -75,6 +75,7 @@ export default function GoalDetailPage() {
   const tasks = store.getGoalTasks(goalId);
 
   function handleExportGoalMarkdown() {
+    if (!goal) return;
     try {
       const content = exportGoalsMarkdown([goal], milestones, tasks);
       const slug = goal.title
