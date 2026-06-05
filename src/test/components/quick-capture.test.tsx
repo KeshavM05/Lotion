@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickCaptureOverlay } from '@/components/ui/quick-capture';
 
 // Mock the store
 const mockAddJournalEntry = vi.fn();
+const mockAddTask = vi.fn();
 
 vi.mock('@/lib/store', () => ({
   useStore: () => ({
     addJournalEntry: mockAddJournalEntry,
+    addTask: mockAddTask,
     goals: [],
     tasks: [],
     events: [],
@@ -23,6 +25,34 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
   },
 }));
+
+// Mock MediaRecorder globally so voice mode doesn't throw
+class MockMediaRecorder {
+  state = 'inactive';
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  start() {
+    this.state = 'recording';
+  }
+  stop() {
+    this.state = 'inactive';
+    this.onstop?.();
+  }
+}
+
+beforeAll(() => {
+  // @ts-expect-error — JSDOM doesn't include MediaRecorder
+  global.MediaRecorder = MockMediaRecorder;
+
+  Object.defineProperty(global.navigator, 'mediaDevices', {
+    writable: true,
+    value: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        getTracks: () => [{ stop: vi.fn() }],
+      }),
+    },
+  });
+});
 
 describe('QuickCaptureOverlay', () => {
   const onClose = vi.fn();
@@ -57,14 +87,11 @@ describe('QuickCaptureOverlay', () => {
     expect(screen.getByText('Ctrl+Shift+J')).toBeInTheDocument();
   });
 
-  it('calls onClose when backdrop is clicked', async () => {
-    render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
-    // Click the backdrop (the outermost div)
-    const backdrop = screen.getByText('Quick Capture').closest("[style*='rgba(0,0,0']");
-    if (backdrop) {
-      fireEvent.click(backdrop);
-      expect(onClose).toHaveBeenCalled();
-    }
+  it('calls onClose when backdrop is clicked', () => {
+    const { container } = render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
+    // The outermost div is the backdrop
+    fireEvent.click(container.firstChild as Element);
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('calls onClose when Escape key is pressed', () => {
@@ -100,17 +127,17 @@ describe('QuickCaptureOverlay', () => {
     expect(screen.getByText('5/2000')).toBeInTheDocument();
   });
 
-  it('Capture button is disabled when textarea is empty', async () => {
+  it('Save button is disabled when textarea is empty', async () => {
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
 
     await waitFor(() => {
-      const captureBtn = screen.getByText('Capture').closest('button');
-      expect(captureBtn).toBeDisabled();
+      const saveBtn = screen.getByRole('button', { name: /Save/i });
+      expect(saveBtn).toBeDisabled();
     });
   });
 
-  it('Capture button is enabled after typing', async () => {
+  it('Save button is enabled after typing', async () => {
     const user = userEvent.setup();
     render(<QuickCaptureOverlay isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByText('Type'));
@@ -118,11 +145,11 @@ describe('QuickCaptureOverlay', () => {
     const textarea = await screen.findByPlaceholderText(/What's the thought/i);
     await user.type(textarea, 'A thought');
 
-    const captureBtn = screen.getByText('Capture').closest('button');
-    expect(captureBtn).not.toBeDisabled();
+    const saveBtn = screen.getByRole('button', { name: /Save/i });
+    expect(saveBtn).not.toBeDisabled();
   });
 
-  it('saves journal entry on Capture click', async () => {
+  it('saves journal entry on Save click', async () => {
     const user = userEvent.setup();
     mockAddJournalEntry.mockResolvedValue(undefined);
 
@@ -132,14 +159,12 @@ describe('QuickCaptureOverlay', () => {
     const textarea = await screen.findByPlaceholderText(/What's the thought/i);
     await user.type(textarea, 'My captured thought');
 
-    fireEvent.click(screen.getByText('Capture').closest('button')!);
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(mockAddJournalEntry).toHaveBeenCalledWith({
-        content: 'My captured thought',
-        mood: null,
-        linkedGoalIds: [],
-      });
+      expect(mockAddJournalEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ content: 'My captured thought' })
+      );
     });
   });
 

@@ -79,7 +79,8 @@ describe('roundDateUp', () => {
   it('rounds up to next hour when past 30', () => {
     const date = new Date(2024, 0, 15, 10, 45, 0); // 10:45
     const result = roundDateUp(date);
-    expect(result.getMinutes()).toBe(60); // Next interval
+    expect(result.getHours()).toBe(11);
+    expect(result.getMinutes()).toBe(0);
   });
 
   it('accepts custom interval', () => {
