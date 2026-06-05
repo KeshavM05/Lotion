@@ -1,17 +1,14 @@
-import type { Metadata } from "next";
-import { AuthProvider } from "@/lib/auth-context";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { AuthProvider } from '@/lib/auth-context';
+import { WebVitals } from '@/components/web-vitals';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Lotion — AI Life Coach",
-  description: "Your AI-powered life coach. Goals, calendar, and clarity in one place.",
+  title: 'Lotion — AI Life Coach',
+  description: 'Your AI-powered life coach. Goals, calendar, and clarity in one place.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <head>
@@ -27,6 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <WebVitals />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

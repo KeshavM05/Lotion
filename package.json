@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
@@ -66,7 +67,8 @@
     "lint-staged": "^15.0.0",
     "msw": "^2.7.5",
     "prettier": "^3.0.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@next/bundle-analyzer": "^16.1.6"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
