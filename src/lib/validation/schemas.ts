@@ -34,7 +34,13 @@ export const createTaskSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
 });
 
-export const updateTaskSchema = createTaskSchema.partial();
+export const updateTaskSchema = createTaskSchema.partial().extend({
+  completed: z.boolean().optional(),
+  completedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  scheduleLocked: z.boolean().optional(),
+  isAutoScheduled: z.boolean().optional(),
+  scheduleScore: z.number().int().optional().nullable(),
+});
 
 // Journal schemas
 export const createJournalEntrySchema = z.object({
