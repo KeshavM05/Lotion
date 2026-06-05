@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
-import { useStore, type CalendarEvent, type Task } from '@/lib/store';
+import { useStore, type CalendarEvent, type Task, type EnergyLevel } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
 import { isSameDay, toLocalDatetimeString, getWeekDates } from '@/lib/utils';
@@ -861,7 +861,7 @@ export default function CalendarPage() {
                 onChange={(e) =>
                   dispatch({
                     type: 'PATCH_TASK_FORM',
-                    patch: { taskFormEnergy: e.target.value as any },
+                    patch: { taskFormEnergy: e.target.value as EnergyLevel },
                   })
                 }
                 className="input-glass w-full text-sm"
