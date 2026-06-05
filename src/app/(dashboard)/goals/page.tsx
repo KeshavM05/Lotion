@@ -37,6 +37,7 @@ export default function GoalsPage() {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [filterCategory, setFilterCategory] = useState<GoalCategory | 'all'>('all');
   const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Form
   const [formTitle, setFormTitle] = useState('');
@@ -52,6 +53,7 @@ export default function GoalsPage() {
     setFormCategory('career');
     setFormPriority('medium');
     setFormTargetDate('');
+    setConfirmDelete(false);
     setModalOpen(true);
   }
 
@@ -62,6 +64,7 @@ export default function GoalsPage() {
     setFormCategory(goal.category);
     setFormPriority(goal.priority);
     setFormTargetDate(goal.targetDate ? goal.targetDate.split('T')[0] : '');
+    setConfirmDelete(false);
     setModalOpen(true);
   }
 
@@ -96,11 +99,8 @@ export default function GoalsPage() {
   async function handleDelete() {
     if (!editingGoal || loading) return;
 
-    if (
-      !confirm(
-        'Are you sure you want to delete this goal? This will also remove all associated milestones and unlink tasks.'
-      )
-    ) {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
       return;
     }
 
@@ -303,7 +303,10 @@ export default function GoalsPage() {
       {/* Create/Edit Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setConfirmDelete(false);
+        }}
         title={editingGoal ? 'Edit Goal' : 'New Goal'}
       >
         <div className="flex flex-col gap-4">
@@ -393,18 +396,42 @@ export default function GoalsPage() {
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">
             {editingGoal ? (
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="px-3 py-2 text-sm rounded-lg transition-colors disabled:opacity-50"
-                style={{ color: 'var(--danger)' }}
-                onMouseEnter={(e) =>
-                  !loading && (e.currentTarget.style.background = 'rgba(248,113,113,0.1)')
-                }
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                {loading ? 'Deleting...' : 'Delete Goal'}
-              </button>
+              confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Remove goal and all its milestones?
+                  </span>
+                  <button
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="px-3 py-1.5 text-xs rounded-lg font-medium transition-colors disabled:opacity-50"
+                    style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--danger)' }}
+                  >
+                    {loading ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={loading}
+                    className="px-3 py-1.5 text-xs rounded-lg transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="px-3 py-2 text-sm rounded-lg transition-colors disabled:opacity-50"
+                  style={{ color: 'var(--danger)' }}
+                  onMouseEnter={(e) =>
+                    !loading && (e.currentTarget.style.background = 'rgba(248,113,113,0.1)')
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Delete Goal
+                </button>
+              )
             ) : (
               <div />
             )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useStore, type CalendarEvent } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
@@ -497,7 +498,7 @@ export default function CalendarPage() {
       });
       dispatch({ type: 'CLOSE_NEW_LIST_MODAL' });
     } catch {
-      alert('Failed to create list');
+      toast.error('Failed to create list');
     }
   };
 
@@ -905,10 +906,16 @@ export default function CalendarPage() {
         }}
         onDelete={() => {
           if (quickViewEvent) {
-            if (confirm('Are you sure you want to delete this event?')) {
-              store.deleteEvent(quickViewEvent.id);
-              dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
-            }
+            const eventToDelete = quickViewEvent;
+            dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
+            toast('Delete this event?', {
+              action: {
+                label: 'Delete',
+                onClick: () => store.deleteEvent(eventToDelete.id),
+              },
+              cancel: { label: 'Cancel', onClick: () => {} },
+              duration: 6000,
+            });
           }
         }}
         anchorElement={quickViewAnchor}
