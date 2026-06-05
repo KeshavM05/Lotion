@@ -12,6 +12,7 @@ import {
   TIME_PREFERENCE_LABELS,
 } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
+import { NaturalDateInput } from '@/components/ui/NaturalDateInput';
 
 interface TaskModalProps {
   open: boolean;
@@ -149,10 +150,10 @@ export function TaskModal({ open, editingTask, initialValues, onClose, onSaved }
             <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
               Deadline
             </label>
-            <input
-              type="date"
+            <NaturalDateInput
               value={formDeadline}
-              onChange={(e) => setFormDeadline(e.target.value)}
+              onChange={setFormDeadline}
+              placeholder='Date or "tomorrow"'
               className="input-glass w-full"
             />
           </div>
