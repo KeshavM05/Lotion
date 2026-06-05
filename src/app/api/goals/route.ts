@@ -43,8 +43,21 @@ export async function POST(request: NextRequest) {
 
     const { title, description, category, priority, targetDate, color, status } = data;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insertData = {
+      userId: user.id,
+      title,
+      description: description ?? '',
+      category,
+      priority,
+      targetDate: targetDate ? new Date(targetDate) : null,
+      color,
+      status,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [goal] = await db
       .insert(goals)
+<<<<<<< HEAD
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .values({
         userId: user.id,
@@ -56,6 +69,9 @@ export async function POST(request: NextRequest) {
         color,
         status,
       } as any)
+=======
+      .values(insertData as any)
+>>>>>>> 4a81640 (fix: resolve TypeScript errors in goals detail page and API route (issue #124))
       .returning();
 
     return Response.json(goal, { status: 201 });
