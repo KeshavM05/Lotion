@@ -7,6 +7,8 @@ import { useStore, type Priority, CATEGORY_LABELS, PRIORITY_LABELS } from "@/lib
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { Modal } from "@/components/ui/modal";
 import { useAiChat } from "@/lib/use-ai-chat";
+import { exportGoalsMarkdown, exportChatMarkdown, downloadFile } from "@/lib/export";
+import { toast } from "sonner";
 
 type Tab = "milestones" | "tasks" | "chat";
 
@@ -71,6 +73,43 @@ export default function GoalDetailPage() {
   const progress = store.getGoalProgress(goalId);
   const milestones = store.getGoalMilestones(goalId);
   const tasks = store.getGoalTasks(goalId);
+
+  function handleExportGoalMarkdown() {
+    try {
+      const content = exportGoalsMarkdown([goal], milestones, tasks);
+      const slug = goal.title
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+      downloadFile(
+        content,
+        `goal-${slug}-${new Date().toISOString().split("T")[0]}.md`,
+        "text/markdown"
+      );
+      toast.success("Goal exported as Markdown");
+    } catch {
+      toast.error("Failed to export goal");
+    }
+  }
+
+  function handleExportChatMarkdown() {
+    try {
+      const content = exportChatMarkdown(chatMessages, goal.title);
+      const slug = goal.title
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+      downloadFile(
+        content,
+        `chat-${slug}-${new Date().toISOString().split("T")[0]}.md`,
+        "text/markdown"
+      );
+      toast.success("Chat exported as Markdown");
+    } catch {
+      toast.error("Failed to export chat");
+    }
+  }
+
   function addMilestone() {
     if (!msTitle.trim()) return;
     store.addMilestone({
@@ -163,9 +202,79 @@ export default function GoalDetailPage() {
               <p className="text-[#9CA3AF] font-['Space_Grotesk']">{goal.description}</p>
             )}
           </div>
-          <ProgressRing progress={progress} size={80} strokeWidth={4} color={goal.color}>
-            <span className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>{progress}%</span>
-          </ProgressRing>
+          <div className="flex flex-col items-end gap-3">
+            <ProgressRing
+              progress={progress}
+              size={80}
+              strokeWidth={4}
+              color={goal.color}
+            >
+              <span
+                className="text-sm font-bold"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {progress}%
+              </span>
+            </ProgressRing>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportGoalMarkdown}
+                title="Export goal as Markdown"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-['Space_Grotesk'] transition-colors"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                  e.currentTarget.style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                  e.currentTarget.style.color = "var(--text-muted)";
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "14px" }}
+                >
+                  description
+                </span>
+                Export
+              </button>
+              {chatMessages.length > 0 && (
+                <button
+                  onClick={handleExportChatMarkdown}
+                  title="Export chat as Markdown"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-['Space_Grotesk'] transition-colors"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255,255,255,0.1)";
+                    e.currentTarget.style.color = "var(--text-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255,255,255,0.05)";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: "14px" }}
+                  >
+                    chat
+                  </span>
+                  Chat
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}

@@ -5,12 +5,22 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
-import { exportGoalsMarkdown, exportJournalMarkdown, exportAllJSON, downloadFile } from "@/lib/export";
+import {
+  exportGoalsMarkdown,
+  exportJournalMarkdown,
+  exportAllJSON,
+  exportTasksCSV,
+  exportCalendarJSON,
+  exportPDF,
+  downloadFile,
+} from "@/lib/export";
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "export" | "about">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "preferences" | "export" | "about"
+  >("profile");
   const [loading, setLoading] = useState(false);
 
   const handleSignOut = async () => {
@@ -28,7 +38,9 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full">
       <header className="mb-12">
-        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">Settings</h2>
+        <h2 className="text-5xl font-['Playfair_Display'] text-[#F5F5F5] mb-2">
+          Settings
+        </h2>
         <p className="text-on-secondary-container font-['Space_Grotesk'] tracking-wide">
           Manage your account and preferences
         </p>
@@ -68,7 +80,13 @@ export default function SettingsPage() {
         {/* Content Area */}
         <div className="col-span-9">
           <div className="glass-card p-8 rounded-2xl">
-            {activeTab === "profile" && <ProfileSection user={user} onSignOut={handleSignOut} loading={loading} />}
+            {activeTab === "profile" && (
+              <ProfileSection
+                user={user}
+                onSignOut={handleSignOut}
+                loading={loading}
+              />
+            )}
             {activeTab === "preferences" && <PreferencesSection />}
             {activeTab === "export" && <ExportSection />}
             {activeTab === "about" && <AboutSection />}
@@ -79,7 +97,17 @@ export default function SettingsPage() {
   );
 }
 
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: string; label: string }) {
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: string;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -89,7 +117,9 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
           : "text-[#9CA3AF] hover:text-[#BEC6DF] hover:bg-white/5"
       }`}
     >
-      <span className={`material-symbols-outlined text-xl ${active ? "text-[#C17A72]" : ""}`}>
+      <span
+        className={`material-symbols-outlined text-xl ${active ? "text-[#C17A72]" : ""}`}
+      >
         {icon}
       </span>
       <span className="font-['Space_Grotesk'] text-sm">{label}</span>
@@ -97,40 +127,59 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function ProfileSection({ user, onSignOut, loading }: { user: any; onSignOut: () => void; loading: boolean }) {
+function ProfileSection({
+  user,
+  onSignOut,
+  loading,
+}: {
+  user: unknown;
+  onSignOut: () => void;
+  loading: boolean;
+}) {
+  const u = user as { email?: string } | null;
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Profile</h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
+          Profile
+        </h3>
         <div className="space-y-6">
           {/* Avatar */}
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full border-2 border-white/10 bg-gradient-to-br from-[#C17A72] to-[#8b5cf6] flex items-center justify-center text-2xl font-bold text-white">
-              {user?.email?.[0]?.toUpperCase() || "U"}
+              {u?.email?.[0]?.toUpperCase() ?? "U"}
             </div>
             <div>
               <button className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-['Space_Grotesk'] transition-colors">
                 Change Avatar
               </button>
-              <p className="text-xs text-[#9CA3AF] mt-2">JPG, PNG or GIF. Max size 2MB.</p>
+              <p className="text-xs text-[#9CA3AF] mt-2">
+                JPG, PNG or GIF. Max size 2MB.
+              </p>
             </div>
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-2">Email</label>
+            <label className="block text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-2">
+              Email
+            </label>
             <input
               type="email"
-              value={user?.email || ""}
+              value={u?.email ?? ""}
               disabled
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm"
             />
-            <p className="text-xs text-[#9CA3AF] mt-2">Your email cannot be changed</p>
+            <p className="text-xs text-[#9CA3AF] mt-2">
+              Your email cannot be changed
+            </p>
           </div>
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-2">Display Name</label>
+            <label className="block text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-2">
+              Display Name
+            </label>
             <input
               type="text"
               placeholder="Your name"
@@ -146,7 +195,9 @@ function ProfileSection({ user, onSignOut, loading }: { user: any; onSignOut: ()
       </div>
 
       <div className="border-t border-white/10 pt-8">
-        <h4 className="text-lg font-['Playfair_Display'] text-white mb-4">Danger Zone</h4>
+        <h4 className="text-lg font-['Playfair_Display'] text-white mb-4">
+          Danger Zone
+        </h4>
         <button
           onClick={onSignOut}
           disabled={loading}
@@ -163,25 +214,42 @@ function PreferencesSection() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Preferences</h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
+          Preferences
+        </h3>
 
         <div className="space-y-6">
           {/* Notifications */}
           <div>
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Notifications</h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+              Notifications
+            </h4>
             <div className="space-y-3">
-              <ToggleOption label="Email notifications" description="Receive email updates about your goals" />
-              <ToggleOption label="Task reminders" description="Get reminded about upcoming deadlines" />
-              <ToggleOption label="Weekly summary" description="Weekly report of your progress" />
+              <ToggleOption
+                label="Email notifications"
+                description="Receive email updates about your goals"
+              />
+              <ToggleOption
+                label="Task reminders"
+                description="Get reminded about upcoming deadlines"
+              />
+              <ToggleOption
+                label="Weekly summary"
+                description="Weekly report of your progress"
+              />
             </div>
           </div>
 
           {/* Work Hours */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Work Hours</h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+              Work Hours
+            </h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Start Time</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Start Time
+                </label>
                 <input
                   type="time"
                   defaultValue="09:00"
@@ -189,7 +257,9 @@ function PreferencesSection() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">End Time</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  End Time
+                </label>
                 <input
                   type="time"
                   defaultValue="18:00"
@@ -201,24 +271,32 @@ function PreferencesSection() {
 
           {/* Calendar Settings */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Calendar Settings</h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+              Calendar Settings
+            </h4>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Time Format</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Time Format
+                </label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="12h">12-hour (9:00 AM)</option>
                   <option value="24h">24-hour (09:00)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Week Start Day</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Week Start Day
+                </label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="sunday">Sunday</option>
                   <option value="monday">Monday</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Default Event Duration</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Default Event Duration
+                </label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
@@ -228,7 +306,9 @@ function PreferencesSection() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Time Slot Interval</label>
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Time Slot Interval
+                </label>
                 <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
@@ -240,7 +320,9 @@ function PreferencesSection() {
 
           {/* Auto-schedule Settings */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Auto-schedule</h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+              Auto-schedule
+            </h4>
             <div className="space-y-3">
               <ToggleOption
                 label="Auto-decline conflicts"
@@ -259,18 +341,24 @@ function PreferencesSection() {
 
           {/* Calendar Integration */}
           <div className="border-t border-white/10 pt-6">
-            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Calendar Integration</h4>
+            <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+              Calendar Integration
+            </h4>
             <div className="space-y-3">
               <button className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[#C17A72]">calendar_today</span>
+                  <span className="material-symbols-outlined text-[#C17A72]">
+                    calendar_today
+                  </span>
                   <span>Connect Google Calendar</span>
                 </div>
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
               <button className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[#C17A72]">event</span>
+                  <span className="material-symbols-outlined text-[#C17A72]">
+                    event
+                  </span>
                   <span>Connect Outlook</span>
                 </div>
                 <span className="material-symbols-outlined">arrow_forward</span>
@@ -284,53 +372,138 @@ function PreferencesSection() {
 }
 
 function ExportSection() {
-  const { goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory } = useStore();
+  const {
+    goals,
+    milestones,
+    tasks,
+    taskLists,
+    events,
+    chatMessages,
+    journalEntries,
+    aiMemory,
+  } = useStore();
+  const slug = new Date().toISOString().split("T")[0];
 
   const handleMarkdownExport = async () => {
-    const goalsContent = exportGoalsMarkdown(goals, milestones, tasks);
-    const journalContent = exportJournalMarkdown(journalEntries, goals);
-    const combined = goalsContent + "\n\n" + journalContent;
-    downloadFile(combined, `lotion-export-${new Date().toISOString().split("T")[0]}.md`, "text/markdown");
-    toast.success("Markdown export downloaded");
+    try {
+      const goalsContent = exportGoalsMarkdown(goals, milestones, tasks);
+      const journalContent = exportJournalMarkdown(journalEntries, goals);
+      const combined = goalsContent + "\n\n" + journalContent;
+      downloadFile(
+        combined,
+        `lotion-export-${slug}.md`,
+        "text/markdown"
+      );
+      toast.success("Markdown export downloaded");
+    } catch {
+      toast.error("Failed to export Markdown");
+    }
   };
 
   const handleJSONExport = async () => {
-    const content = exportAllJSON({ goals, milestones, tasks, events, chatMessages, journalEntries, aiMemory });
-    downloadFile(content, `lotion-export-${new Date().toISOString().split("T")[0]}.json`, "application/json");
-    toast.success("JSON export downloaded");
+    try {
+      const content = exportAllJSON({
+        goals,
+        milestones,
+        tasks,
+        events,
+        chatMessages,
+        journalEntries,
+        aiMemory,
+      });
+      downloadFile(
+        content,
+        `lotion-export-${slug}.json`,
+        "application/json"
+      );
+      toast.success("JSON export downloaded");
+    } catch {
+      toast.error("Failed to export JSON");
+    }
+  };
+
+  const handleCSVExport = async () => {
+    try {
+      const content = exportTasksCSV(tasks, taskLists, goals);
+      downloadFile(
+        content,
+        `lotion-tasks-${slug}.csv`,
+        "text/csv;charset=utf-8;"
+      );
+      toast.success("Tasks CSV downloaded");
+    } catch {
+      toast.error("Failed to export CSV");
+    }
+  };
+
+  const handleCalendarExport = async () => {
+    try {
+      const content = exportCalendarJSON(events);
+      downloadFile(
+        content,
+        `lotion-calendar-${slug}.json`,
+        "application/json"
+      );
+      toast.success("Calendar JSON downloaded");
+    } catch {
+      toast.error("Failed to export calendar");
+    }
   };
 
   const handlePDFExport = async () => {
-    toast.info("PDF export coming soon");
+    try {
+      exportPDF({ goals, milestones, tasks, journalEntries, aiMemory });
+      toast.success("Print dialog opened — save as PDF");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Failed to open print view", { description: msg });
+    }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">Export Data</h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
+          Export Data
+        </h3>
         <p className="text-sm text-[#9CA3AF] mb-8">
-          Download your data in various formats. All exports include your goals, tasks, journal entries, and AI memory.
+          Download your data in various formats. All exports include your goals,
+          tasks, journal entries, and AI memory.
         </p>
 
         <div className="space-y-4">
           <ExportButton
             icon="description"
             title="Export as Markdown"
-            description="Human-readable format perfect for archiving"
-            format="Markdown"
+            description="Goals, milestones, tasks, and journal — human-readable"
+            format=".md"
             onClick={handleMarkdownExport}
           />
           <ExportButton
             icon="code"
             title="Export as JSON"
-            description="Machine-readable format for data portability"
-            format="JSON"
+            description="Complete data dump — goals, tasks, events, chat, journal"
+            format=".json"
             onClick={handleJSONExport}
+          />
+          <ExportButton
+            icon="table_chart"
+            title="Export Tasks as CSV"
+            description="Spreadsheet-friendly — title, status, priority, due date, list"
+            format=".csv"
+            onClick={handleCSVExport}
+          />
+          <ExportButton
+            icon="calendar_month"
+            title="Export Calendar as JSON"
+            description="All calendar events with recurrence and source info"
+            format=".json"
+            onClick={handleCalendarExport}
           />
           <ExportButton
             icon="picture_as_pdf"
             title="Export as PDF"
-            description="Formatted document with your complete history"
+            description="Formatted printable document — opens browser print dialog"
             format="PDF"
             onClick={handlePDFExport}
           />
@@ -372,7 +545,9 @@ function ExportButton({
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-lg bg-[#C17A72]/20 flex items-center justify-center">
-          <span className="material-symbols-outlined text-[#C17A72]">{icon}</span>
+          <span className="material-symbols-outlined text-[#C17A72]">
+            {icon}
+          </span>
         </div>
         <div className="text-left">
           <p className="text-sm font-['Space_Grotesk'] font-semibold text-white group-hover:text-[#C17A72] transition-colors">
@@ -382,9 +557,13 @@ function ExportButton({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xs font-['JetBrains_Mono'] text-[#9CA3AF]">{format}</span>
+        <span className="text-xs font-['JetBrains_Mono'] text-[#9CA3AF]">
+          {format}
+        </span>
         {loading ? (
-          <span className="material-symbols-outlined text-[#9CA3AF] animate-spin">progress_activity</span>
+          <span className="material-symbols-outlined text-[#9CA3AF] animate-spin">
+            progress_activity
+          </span>
         ) : (
           <span className="material-symbols-outlined text-[#9CA3AF] group-hover:text-white transition-colors">
             download
@@ -399,10 +578,13 @@ function AboutSection() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">About Lotion</h3>
+        <h3 className="text-2xl font-['Playfair_Display'] text-white mb-6">
+          About Lotion
+        </h3>
         <p className="text-sm text-[#9CA3AF] mb-6 leading-relaxed">
-          Lotion is your AI life coach - combining calendar management, goal tracking, and personalized AI guidance
-          to help you achieve what matters most.
+          Lotion is your AI life coach - combining calendar management, goal
+          tracking, and personalized AI guidance to help you achieve what
+          matters most.
         </p>
 
         <div className="space-y-4">
@@ -412,7 +594,9 @@ function AboutSection() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-white/10">
-          <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">Resources</h4>
+          <h4 className="text-sm font-['Space_Grotesk'] text-[#BEC6DF] mb-4">
+            Resources
+          </h4>
           <div className="space-y-3">
             <LinkButton href="#" label="Documentation" icon="book" />
             <LinkButton href="#" label="Privacy Policy" icon="shield" />
@@ -425,7 +609,13 @@ function AboutSection() {
   );
 }
 
-function ToggleOption({ label, description }: { label: string; description: string }) {
+function ToggleOption({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   const [enabled, setEnabled] = useState(true);
   return (
     <div className="flex items-center justify-between py-3">
@@ -458,7 +648,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LinkButton({ href, label, icon }: { href: string; label: string; icon: string }) {
+function LinkButton({
+  href,
+  label,
+  icon,
+}: {
+  href: string;
+  label: string;
+  icon: string;
+}) {
   return (
     <a
       href={href}
