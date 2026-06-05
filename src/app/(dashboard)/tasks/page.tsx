@@ -83,7 +83,7 @@ export default function TasksPage() {
     if (editingTask) {
       store.updateTask(editingTask.id, data);
     } else {
-      store.addTask({ ...data, status: "todo", milestoneId: null, scheduledStart: null, scheduledEnd: null });
+      store.addTask({ ...data, status: "todo", milestoneId: null, listId: null, scheduledStart: null, scheduledEnd: null });
     }
     setModalOpen(false);
   }

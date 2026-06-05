@@ -25,20 +25,24 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1007.0",
-    "@neondatabase/serverless": "^1.0.2",
     "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
     "drizzle-orm": "^0.45.1",
     "next": "^16.1.6",
     "postcss": "^8.5.8",
+    "postgres": "^3.4.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.30.1"
   }
 }

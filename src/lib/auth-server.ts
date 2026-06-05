@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { env } from "@/lib/env";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Server-side Supabase client
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -33,6 +34,30 @@ export async function getAuthUser(request: NextRequest): Promise<string | null> 
     }
 
     return user.id;
+  } catch (error) {
+    console.error("Auth error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get authenticated user object from request
+ */
+export async function getAuthUserObject(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !user) {
+      return null;
+    }
+
+    return user;
   } catch (error) {
     console.error("Auth error:", error);
     return null;

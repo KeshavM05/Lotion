@@ -44,10 +44,14 @@ export async function POST(request: NextRequest) {
       priority,
       goalId,
       milestoneId,
+      listId,
       durationMinutes,
       deadline,
       scheduledStart,
       scheduledEnd,
+      energyLevel,
+      timePreference,
+      tags,
     } = body;
 
     if (!title) {
@@ -64,16 +68,20 @@ export async function POST(request: NextRequest) {
         priority: priority || "medium",
         goalId: goalId || null,
         milestoneId: milestoneId || null,
+        listId: listId || null,
         durationMinutes: durationMinutes || 30,
         deadline: deadline ? new Date(deadline) : null,
         scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+        energyLevel: energyLevel || "medium",
+        timePreference: timePreference || "anytime",
+        tags: tags || [],
       })
       .returning();
 
     return Response.json(task, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST /api/tasks error:", error);
-    return Response.json({ error: "Failed to create task" }, { status: 500 });
+    return Response.json({ error: error.message || "Failed to create task" }, { status: 500 });
   }
 }

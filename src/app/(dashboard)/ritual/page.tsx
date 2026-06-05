@@ -41,6 +41,7 @@ export default function WeeklyRitualPage() {
         deadline: getEndOfWeek(),
         scheduledStart: null,
         scheduledEnd: null,
+        listId: null,
       });
     });
 
