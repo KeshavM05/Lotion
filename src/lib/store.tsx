@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
 import { goalsApi, tasksApi, taskListsApi, milestonesApi, journalApi, eventsApi, aiMemoryApi } from "./api-client";
 
 // ─── Types ───────────────────────────────────────────────
@@ -404,7 +405,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       console.error("Failed to create task:", error);
-      alert("Failed to create task: " + error.message);
+      toast.error("Failed to create task", { description: error.message });
       throw error;
     }
   }, []);
@@ -647,7 +648,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error("Auto-schedule failed:", error);
-      alert("Failed to auto-schedule tasks. Check console for details.");
+      toast.error("Failed to auto-schedule tasks", { description: "Check the console for details." });
     }
   }, []);
 
