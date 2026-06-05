@@ -3,6 +3,8 @@ import { db } from '@/db';
 import { milestones } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { validateBody } from '@/lib/api-middleware';
+import { updateMilestoneSchema } from '@/lib/validation/schemas';
 
 // PATCH /api/milestones/[id] - Update milestone
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,9 +17,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const { data, error } = await validateBody(request, updateMilestoneSchema);
+    if (error) return error;
 
-    // Get milestone with goal to verify ownership
+    // Verify ownership via goal relation
     const milestone = await db.query.milestones.findFirst({
       where: eq(milestones.id, id),
       with: { goal: true },
@@ -27,17 +30,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Milestone not found' }, { status: 404 });
     }
 
+    const { targetDate, completed, completedAt, ...rest } = data;
+
     const [updated] = await db
       .update(milestones)
       .set({
-        ...body,
-        targetDate: body.targetDate ? new Date(body.targetDate) : undefined,
+        ...rest,
+        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
+        ...(completed !== undefined && { completed }),
         completedAt:
-          body.completed && !body.completedAt
-            ? new Date()
-            : body.completedAt
-              ? new Date(body.completedAt)
-              : undefined,
+          completed && !completedAt ? new Date() : completedAt ? new Date(completedAt) : undefined,
       })
       .where(eq(milestones.id, id))
       .returning();
@@ -65,7 +67,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Get milestone with goal to verify ownership
+    // Verify ownership via goal relation
     const milestone = await db.query.milestones.findFirst({
       where: eq(milestones.id, id),
       with: { goal: true },
