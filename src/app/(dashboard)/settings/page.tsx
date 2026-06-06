@@ -218,9 +218,16 @@ function PreferencesSection() {
       .catch(() => {});
   }, []);
 
-  const connectGoogle = () => {
+  const connectGoogle = async () => {
     setGoogleLoading(true);
-    window.location.href = '/api/calendar/google';
+    const { supabase } = await import('@/lib/supabase');
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    window.location.href = token
+      ? `/api/calendar/google?token=${encodeURIComponent(token)}`
+      : '/api/calendar/google';
   };
 
   const disconnectGoogle = async () => {

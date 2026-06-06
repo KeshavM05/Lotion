@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { getInternalUser } from '@/lib/auth-server';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
 
 // GET /api/calendar/google — redirect to Google OAuth
 export async function GET(request: NextRequest) {
@@ -10,16 +12,26 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'Google Calendar not configured' }, { status: 500 });
   }
 
-  let supabaseUserId: string;
-  try {
-    supabaseUserId = await requireAuth(request);
-  } catch {
-    return Response.redirect(new URL('/auth', request.url));
+  // Token passed as query param since this is a browser navigation (no Auth header)
+  const token = request.nextUrl.searchParams.get('token');
+  if (!token) {
+    return Response.redirect(new URL('/settings?error=auth_failed', request.url));
   }
 
-  const user = await getInternalUser(supabaseUserId);
+  const supabase = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+  const {
+    data: { user: supaUser },
+  } = await supabase.auth.getUser(token);
+  if (!supaUser) {
+    return Response.redirect(new URL('/settings?error=auth_failed', request.url));
+  }
+
+  const user = await getInternalUser(supaUser.id);
   if (!user) {
-    return Response.redirect(new URL('/auth', request.url));
+    return Response.redirect(new URL('/settings?error=auth_failed', request.url));
   }
 
   const scopes = [
@@ -34,7 +46,6 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set('scope', scopes.join(' '));
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('prompt', 'consent');
-  // Pass internal user id through state so callback can associate tokens
   authUrl.searchParams.set('state', user.id);
 
   return Response.redirect(authUrl.toString());
