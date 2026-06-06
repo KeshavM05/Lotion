@@ -28,8 +28,19 @@ export default function CalendarHeader({
   useEffect(() => {
     apiClient
       .get('/calendar/google/status')
-      .then((d: { connected: boolean }) => setGoogleConnected(d.connected))
+      .then(async (d: { connected: boolean }) => {
+        setGoogleConnected(d.connected);
+        if (d.connected) {
+          setSyncing(true);
+          try {
+            await store.syncGoogleCalendar();
+          } finally {
+            setSyncing(false);
+          }
+        }
+      })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const syncGoogle = async () => {
