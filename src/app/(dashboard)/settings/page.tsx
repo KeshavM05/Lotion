@@ -207,16 +207,56 @@ function ProfileSection({
   );
 }
 
+interface CalendarPrefs {
+  timezone: string;
+  firstDayOfWeek: number;
+  defaultView: string;
+  timeGridStart: number;
+  timeGridEnd: number;
+  timeDisplayResolution: number;
+  timeDraggingResolution: number;
+  eventsPerDayLimit: number;
+}
+
 function PreferencesSection() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [calendarPrefs, setCalendarPrefs] = useState<CalendarPrefs>({
+    timezone: 'America/Toronto',
+    firstDayOfWeek: 0,
+    defaultView: 'week',
+    timeGridStart: 0,
+    timeGridEnd: 24,
+    timeDisplayResolution: 15,
+    timeDraggingResolution: 15,
+    eventsPerDayLimit: 4,
+  });
+  const [prefsSaving, setPrefsSaving] = useState(false);
 
   useEffect(() => {
     apiClient
       .get('/calendar/google/status')
       .then((d: { connected: boolean }) => setGoogleConnected(d.connected))
       .catch(() => {});
+
+    // Load calendar preferences
+    apiClient
+      .get('/calendar/preferences')
+      .then((prefs: CalendarPrefs) => setCalendarPrefs(prefs))
+      .catch(() => {});
   }, []);
+
+  const savePreferences = async () => {
+    setPrefsSaving(true);
+    try {
+      await apiClient.patch('/calendar/preferences', calendarPrefs);
+      toast.success('Preferences saved');
+    } catch {
+      toast.error('Failed to save preferences');
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
 
   const connectGoogle = async () => {
     setGoogleLoading(true);
@@ -294,37 +334,162 @@ function PreferencesSection() {
             </h4>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Time Format</label>
-                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
-                  <option value="12h">12-hour (9:00 AM)</option>
-                  <option value="24h">24-hour (09:00)</option>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time zone</label>
+                <select
+                  value={calendarPrefs.timezone}
+                  onChange={(e) => setCalendarPrefs({ ...calendarPrefs, timezone: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
+                  <option value="America/Toronto">America/Toronto</option>
+                  <option value="America/New_York">America/New_York</option>
+                  <option value="America/Chicago">America/Chicago</option>
+                  <option value="America/Denver">America/Denver</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="Europe/Paris">Europe/Paris</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo</option>
+                  <option value="Asia/Shanghai">Asia/Shanghai</option>
+                  <option value="Australia/Sydney">Australia/Sydney</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Week Start Day</label>
-                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
-                  <option value="sunday">Sunday</option>
-                  <option value="monday">Monday</option>
+                <label className="block text-xs text-[#9CA3AF] mb-2">First day of the week</label>
+                <select
+                  value={calendarPrefs.firstDayOfWeek}
+                  onChange={(e) =>
+                    setCalendarPrefs({ ...calendarPrefs, firstDayOfWeek: Number(e.target.value) })
+                  }
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
+                  <option value="0">Sunday</option>
+                  <option value="1">Monday</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Default Event Duration</label>
-                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                <label className="block text-xs text-[#9CA3AF] mb-2">Initial calendar view</label>
+                <select
+                  value={calendarPrefs.defaultView}
+                  onChange={(e) =>
+                    setCalendarPrefs({ ...calendarPrefs, defaultView: e.target.value })
+                  }
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-[#9CA3AF] mb-2">Time grid start</label>
+                  <select
+                    value={calendarPrefs.timeGridStart}
+                    onChange={(e) =>
+                      setCalendarPrefs({ ...calendarPrefs, timeGridStart: Number(e.target.value) })
+                    }
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i === 0
+                          ? '12:00 AM'
+                          : i < 12
+                            ? `${i}:00 AM`
+                            : i === 12
+                              ? '12:00 PM'
+                              : `${i - 12}:00 PM`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#9CA3AF] mb-2">Time grid end</label>
+                  <select
+                    value={calendarPrefs.timeGridEnd}
+                    onChange={(e) =>
+                      setCalendarPrefs({ ...calendarPrefs, timeGridEnd: Number(e.target.value) })
+                    }
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                  >
+                    {Array.from({ length: 25 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i === 0
+                          ? '12:00 AM'
+                          : i < 12
+                            ? `${i}:00 AM`
+                            : i === 12
+                              ? '12:00 PM'
+                              : i === 24
+                                ? '12:00 AM (+1)'
+                                : `${i - 12}:00 PM`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Time display resolution</label>
+                <select
+                  value={calendarPrefs.timeDisplayResolution}
+                  onChange={(e) =>
+                    setCalendarPrefs({
+                      ...calendarPrefs,
+                      timeDisplayResolution: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
-                  <option value="60">1 hour</option>
-                  <option value="90">1.5 hours</option>
-                  <option value="120">2 hours</option>
+                  <option value="60">60 minutes</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-2">Time Slot Interval</label>
-                <select className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer">
+                <label className="block text-xs text-[#9CA3AF] mb-2">
+                  Time dragging resolution
+                </label>
+                <select
+                  value={calendarPrefs.timeDraggingResolution}
+                  onChange={(e) =>
+                    setCalendarPrefs({
+                      ...calendarPrefs,
+                      timeDraggingResolution: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
-                  <option value="60">1 hour</option>
+                  <option value="60">60 minutes</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs text-[#9CA3AF] mb-2">Limit events per day</label>
+                <select
+                  value={calendarPrefs.eventsPerDayLimit}
+                  onChange={(e) =>
+                    setCalendarPrefs({
+                      ...calendarPrefs,
+                      eventsPerDayLimit: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-['Space_Grotesk'] text-sm focus:outline-none focus:border-[#C17A72] cursor-pointer"
+                >
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="999">No limit</option>
+                </select>
+              </div>
+              <button
+                onClick={savePreferences}
+                disabled={prefsSaving}
+                className="w-full px-6 py-3 bg-[#C17A72] hover:bg-[#C17A72]/90 text-white rounded-lg font-['Space_Grotesk'] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {prefsSaving ? 'Saving...' : 'Save Calendar Settings'}
+              </button>
             </div>
           </div>
 
