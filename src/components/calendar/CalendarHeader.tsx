@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { getUserTimezone } from '@/lib/utils';
 import { MONTHS, type ViewMode } from './types';
 
 interface CalendarHeaderProps {
@@ -21,7 +20,6 @@ export default function CalendarHeader({
   onViewChange,
 }: CalendarHeaderProps) {
   const store = useStore();
-  const tz = getUserTimezone();
   const [googleConnected, setGoogleConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -66,13 +64,6 @@ export default function CalendarHeader({
         <h2 className="text-xl font-['Playfair_Display'] text-white">
           {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
         </h2>
-        <span
-          className="hidden sm:inline text-[10px] px-2 py-0.5 rounded font-medium"
-          style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}
-          title="Your detected timezone"
-        >
-          {tz}
-        </span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onNavigate('prev')}
