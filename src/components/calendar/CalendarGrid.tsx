@@ -15,6 +15,13 @@ import {
   type ResizeState,
 } from './types';
 
+interface CalendarPreferences {
+  timeGridStart: number;
+  timeGridEnd: number;
+  firstDayOfWeek: number;
+  eventsPerDayLimit: number;
+}
+
 interface CalendarGridProps {
   currentDate: Date;
   viewMode: ViewMode;
@@ -24,6 +31,7 @@ interface CalendarGridProps {
   dragState: DragState;
   eventDragState: EventDragState;
   resizeState: ResizeState;
+  preferences: CalendarPreferences;
   onCellMouseDown: (date: Date, hour: number, e: React.MouseEvent) => void;
   onMouseUp: () => void;
   onMouseLeave: () => void;
@@ -143,6 +151,7 @@ export default function CalendarGrid({
   dragState,
   eventDragState,
   resizeState,
+  preferences,
   onCellMouseDown,
   onMouseUp,
   onMouseLeave,
@@ -154,7 +163,20 @@ export default function CalendarGrid({
   onMonthDayClick,
 }: CalendarGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
+
+  // Filter hours based on preferences
+  const displayHours = useMemo(() => {
+    const hours: number[] = [];
+    for (let i = preferences.timeGridStart; i < preferences.timeGridEnd; i++) {
+      hours.push(i);
+    }
+    return hours;
+  }, [preferences.timeGridStart, preferences.timeGridEnd]);
+
+  const weekDates = useMemo(
+    () => getWeekDates(currentDate, preferences.firstDayOfWeek),
+    [currentDate, preferences.firstDayOfWeek]
+  );
 
   // Scroll to current time on mount / view change
   useEffect(() => {
@@ -247,7 +269,7 @@ export default function CalendarGrid({
         >
           <div className="relative min-h-full select-none">
             <div className="grid grid-cols-[60px_repeat(7,1fr)]">
-              {HOURS.map((hour) => (
+              {displayHours.map((hour) => (
                 <div key={`row-${hour}`} className="contents">
                   <div
                     className="relative border-r border-white/5 text-right pr-3 py-2"
@@ -269,7 +291,7 @@ export default function CalendarGrid({
                       onDrop={(e) => onTaskDrop(date, hour, e)}
                     >
                       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
-                      {hour === 0 &&
+                      {hour === displayHours[0] &&
                         renderEventCards(events.filter((e) => isSameDayTz(e.start, date)))}
                     </div>
                   ))}
@@ -381,7 +403,7 @@ export default function CalendarGrid({
         >
           <div className="relative min-h-full select-none">
             <div className="grid grid-cols-[60px_1fr]">
-              {HOURS.map((hour) => (
+              {displayHours.map((hour) => (
                 <div key={`row-${hour}`} className="contents">
                   <div
                     className="relative border-r border-white/5 text-right pr-3 py-2"
@@ -402,7 +424,7 @@ export default function CalendarGrid({
                     onDrop={(e) => onTaskDrop(currentDate, hour, e)}
                   >
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
-                    {hour === 0 &&
+                    {hour === displayHours[0] &&
                       renderEventCards(events.filter((e) => isSameDayTz(e.start, currentDate)))}
                   </div>
                 </div>

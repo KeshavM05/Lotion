@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { useStore, type CalendarEvent, type Task, type EnergyLevel } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventQuickView } from '@/components/ui/event-quick-view';
 import { toLocalDatetimeString, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
+import { apiClient } from '@/lib/api-client';
 
 import CalendarHeader from '@/components/calendar/CalendarHeader';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
@@ -21,6 +22,19 @@ import {
   type ViewMenuPreferences,
   type EventFormState,
 } from '@/components/calendar/types';
+
+// ─── Calendar Preferences ────────────────────────────────────────────────────
+
+interface CalendarPreferences {
+  timezone: string;
+  firstDayOfWeek: number;
+  defaultView: string;
+  timeGridStart: number;
+  timeGridEnd: number;
+  timeDisplayResolution: number;
+  timeDraggingResolution: number;
+  eventsPerDayLimit: number;
+}
 
 // ─── State Shape ─────────────────────────────────────────────────────────────
 
@@ -299,6 +313,30 @@ export default function CalendarPage() {
   const store = useStore();
   const { setPageControls } = usePageHeader();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [preferences, setPreferences] = useState<CalendarPreferences>({
+    timezone: 'America/Toronto',
+    firstDayOfWeek: 0,
+    defaultView: 'week',
+    timeGridStart: 0,
+    timeGridEnd: 24,
+    timeDisplayResolution: 15,
+    timeDraggingResolution: 15,
+    eventsPerDayLimit: 4,
+  });
+
+  // Load calendar preferences
+  useEffect(() => {
+    apiClient
+      .get('/calendar/preferences')
+      .then((prefs: CalendarPreferences) => {
+        setPreferences(prefs);
+        // Apply default view if this is initial load
+        if (state.viewMode === 'week' && prefs.defaultView !== 'week') {
+          dispatch({ type: 'SET_VIEW', mode: prefs.defaultView as ViewMode });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const {
     currentDate,
@@ -710,6 +748,7 @@ export default function CalendarPage() {
           dragState={drag}
           eventDragState={eventDrag}
           resizeState={resize}
+          preferences={preferences}
           onCellMouseDown={handleCellMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}

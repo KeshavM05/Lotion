@@ -104,9 +104,12 @@ export function formatRelativeDate(dateStr: string): string {
   return formatDate(date);
 }
 
-export function getWeekDates(date: Date): Date[] {
+export function getWeekDates(date: Date, firstDayOfWeek: number = 0): Date[] {
   const start = new Date(date);
-  start.setDate(start.getDate() - start.getDay());
+  const dayOfWeek = start.getDay();
+  // Calculate days to subtract to get to firstDayOfWeek
+  const daysToSubtract = (dayOfWeek - firstDayOfWeek + 7) % 7;
+  start.setDate(start.getDate() - daysToSubtract);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
