@@ -40,6 +40,30 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
+    // Extract only updatable fields (exclude id, userId, createdAt, updatedAt)
+    const {
+      timezone,
+      firstDayOfWeek,
+      defaultView,
+      timeGridStart,
+      timeGridEnd,
+      timeDisplayResolution,
+      timeDraggingResolution,
+      eventsPerDayLimit,
+    } = body;
+
+    const updateData = {
+      timezone,
+      firstDayOfWeek,
+      defaultView,
+      timeGridStart,
+      timeGridEnd,
+      timeDisplayResolution,
+      timeDraggingResolution,
+      eventsPerDayLimit,
+      updatedAt: new Date(),
+    };
+
     // Ensure preferences exist
     let prefs = await db.query.calendarPreferences.findFirst({
       where: eq(calendarPreferences.userId, user.id),
@@ -49,7 +73,7 @@ export async function PATCH(request: NextRequest) {
       // Create if not exists
       const [created] = await db
         .insert(calendarPreferences)
-        .values({ userId: user.id, ...body })
+        .values({ userId: user.id, ...updateData })
         .returning();
       return Response.json(created);
     }
@@ -57,7 +81,7 @@ export async function PATCH(request: NextRequest) {
     // Update existing
     const [updated] = await db
       .update(calendarPreferences)
-      .set({ ...body, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(calendarPreferences.id, prefs.id))
       .returning();
 
