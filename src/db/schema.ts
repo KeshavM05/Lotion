@@ -214,6 +214,25 @@ export const oauthConnections = pgTable('oauth_connections', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Calendar Preferences
+export const calendarPreferences = pgTable('calendar_preferences', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  timezone: text('timezone').default('America/Toronto').notNull(),
+  firstDayOfWeek: integer('first_day_of_week').default(0).notNull(), // 0=Sunday, 1=Monday
+  defaultView: text('default_view').default('week').notNull(), // 'day' | 'week' | 'month'
+  timeGridStart: integer('time_grid_start').default(0).notNull(), // 0-23 (hour)
+  timeGridEnd: integer('time_grid_end').default(24).notNull(), // 0-24 (hour)
+  timeDisplayResolution: integer('time_display_resolution').default(15).notNull(), // minutes
+  timeDraggingResolution: integer('time_dragging_resolution').default(15).notNull(), // minutes
+  eventsPerDayLimit: integer('events_per_day_limit').default(4).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   goals: many(goals),
@@ -225,6 +244,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   autoScheduleSettings: one(autoScheduleSettings, {
     fields: [users.id],
     references: [autoScheduleSettings.userId],
+  }),
+  calendarPreferences: one(calendarPreferences, {
+    fields: [users.id],
+    references: [calendarPreferences.userId],
   }),
   oauthConnections: many(oauthConnections),
 }));
@@ -274,4 +297,8 @@ export const autoScheduleSettingsRelations = relations(autoScheduleSettings, ({ 
 
 export const oauthConnectionsRelations = relations(oauthConnections, ({ one }) => ({
   user: one(users, { fields: [oauthConnections.userId], references: [users.id] }),
+}));
+
+export const calendarPreferencesRelations = relations(calendarPreferences, ({ one }) => ({
+  user: one(users, { fields: [calendarPreferences.userId], references: [users.id] }),
 }));
