@@ -27,7 +27,7 @@ export default function CalendarHeader({
 
   useEffect(() => {
     apiClient
-      .get('/api/calendar/google/status')
+      .get('/calendar/google/status')
       .then((d: { connected: boolean }) => setGoogleConnected(d.connected))
       .catch(() => {});
   }, []);

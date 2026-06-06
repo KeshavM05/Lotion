@@ -213,7 +213,7 @@ function PreferencesSection() {
 
   useEffect(() => {
     apiClient
-      .get('/api/calendar/google/status')
+      .get('/calendar/google/status')
       .then((d: { connected: boolean }) => setGoogleConnected(d.connected))
       .catch(() => {});
   }, []);
@@ -226,7 +226,7 @@ function PreferencesSection() {
   const disconnectGoogle = async () => {
     setGoogleLoading(true);
     try {
-      await apiClient.delete('/api/calendar/google/status');
+      await apiClient.delete('/calendar/google/status');
       setGoogleConnected(false);
       toast.success('Google Calendar disconnected');
     } catch {
