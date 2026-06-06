@@ -138,6 +138,7 @@ export interface CalendarEvent {
   allDay: boolean;
   color: string;
   taskId: string | null;
+  googleEventId?: string | null;
   source: 'local' | 'google' | 'outlook' | 'task';
   isRecurring?: boolean;
   recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -602,6 +603,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [updateTaskList]
   );
 
+  // ─── Google Calendar mirror (fire-and-forget) ────────
+
+  const googleMirror = useRef({
+    async post(endpoint: string, body: unknown) {
+      try {
+        const { getAuthHeaders } = await import('@/lib/api-client');
+        const headers = await getAuthHeaders();
+        await fetch(`/api${endpoint}`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // silent — Google sync is best-effort
+      }
+    },
+    async patch(endpoint: string, body: unknown) {
+      try {
+        const { getAuthHeaders } = await import('@/lib/api-client');
+        const headers = await getAuthHeaders();
+        await fetch(`/api${endpoint}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // silent
+      }
+    },
+    async del(endpoint: string) {
+      try {
+        const { getAuthHeaders } = await import('@/lib/api-client');
+        const headers = await getAuthHeaders();
+        await fetch(`/api${endpoint}`, { method: 'DELETE', headers });
+      } catch {
+        // silent
+      }
+    },
+  });
+
   // ─── Events ──────────────────────────────────────────
 
   const addEvent = useCallback(async (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
@@ -616,6 +657,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const savedEvent = await eventsApi.create(data);
       setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
+
+      // Mirror to Google if connected (source=local means user-created)
+      if (data.source === 'local') {
+        googleMirror.current.post('/calendar/google/events', {
+          title: savedEvent.title,
+          description: savedEvent.description,
+          start: savedEvent.start,
+          end: savedEvent.end,
+          allDay: savedEvent.allDay,
+          localEventId: savedEvent.id,
+        });
+      }
+
       return savedEvent;
     } catch (error) {
       setEvents((prev) => prev.filter((e) => e.id !== tempId));
@@ -632,6 +686,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const updated = await eventsApi.update(id, updates);
       setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+
+      // Mirror to Google if this event has a googleEventId
+      const googleEventId =
+        updated.googleEventId ?? snapshot.find((e) => e.id === id)?.googleEventId;
+      if (googleEventId) {
+        googleMirror.current.patch(`/calendar/google/events/${googleEventId}`, {
+          title: updated.title,
+          description: updated.description,
+          start: updated.start,
+          end: updated.end,
+          allDay: updated.allDay,
+        });
+      }
     } catch (error) {
       setEvents(snapshot);
       console.error('Failed to update event:', error);
@@ -642,10 +709,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteEvent = useCallback(async (id: string) => {
     const snapshot = eventsRef.current;
+    const event = eventsRef.current.find((e) => e.id === id);
     setEvents((prev) => prev.filter((e) => e.id !== id));
 
     try {
       await eventsApi.delete(id);
+
+      // Mirror delete to Google
+      if (event?.googleEventId) {
+        googleMirror.current.del(`/calendar/google/events/${event.googleEventId}`);
+      }
     } catch (error) {
       setEvents(snapshot);
       console.error('Failed to delete event:', error);
