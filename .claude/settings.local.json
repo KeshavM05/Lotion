@@ -5,7 +5,21 @@
       "Bash(npm install:*)",
       "Bash(git add src/app/\\\\\\(dashboard\\\\\\)/goals/[id]/page.tsx src/db/schema.ts package.json)",
       "Bash(node batch-update-auth.js)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(node *)",
+      "Bash(identify public/icons/icon-144x144.png)",
+      "Bash(npx tsc *)",
+      "Bash(npm run db:push)",
+      "Bash(npx tsx scripts/run-migration.ts)",
+      "Bash(npm run tsx scripts/run-migration.ts)",
+      "Bash(grep -r \"GET /api/calendar/preferences error:\" C:/Users/Keshav/AppData/Local/Temp/claude/d--Motion/tasks/*.output)",
+      "Bash(git add src/app/globals.css src/components/ui/event-popover-editor.tsx src/app/\\\\\\(dashboard\\\\\\)/calendar/page.tsx src/components/calendar/CalendarGrid.tsx src/components/calendar/EventCard.tsx src/components/calendar/EventInlineEditor.tsx)"
     ]
   }
 }

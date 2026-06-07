@@ -61,9 +61,6 @@ interface CalendarState {
   quickViewEvent: CalendarEvent | null;
   quickViewAnchor: HTMLElement | null;
 
-  // Inline editing
-  inlineEditingEvent: CalendarEvent | null;
-
   // Event form
   form: EventFormState;
 
@@ -101,7 +98,6 @@ type Action =
   | { type: 'CLOSE_NEW_LIST_MODAL' }
   | { type: 'PATCH_NEW_LIST_FORM'; patch: Partial<CalendarState['newListForm']> }
   | { type: 'SET_QUICK_VIEW'; event: CalendarEvent | null; anchor: HTMLElement | null }
-  | { type: 'SET_INLINE_EDITING'; event: CalendarEvent | null }
   | { type: 'DRAG_START'; date: Date; hour: number; minutes: number }
   | { type: 'DRAG_MOVE'; date: Date; hour: number; minutes: number }
   | { type: 'DRAG_END' }
@@ -154,7 +150,6 @@ const initialState: CalendarState = {
   taskFormEnergy: 'medium',
   quickViewEvent: null,
   quickViewAnchor: null,
-  inlineEditingEvent: null,
   form: defaultForm,
   drag: { isDragging: false, dragStart: null, dragEnd: null },
   eventDrag: { draggingEvent: null, eventDragOffset: { x: 0, y: 0 }, eventDragPosition: null },
@@ -226,9 +221,6 @@ function reducer(state: CalendarState, action: Action): CalendarState {
 
     case 'SET_QUICK_VIEW':
       return { ...state, quickViewEvent: action.event, quickViewAnchor: action.anchor };
-
-    case 'SET_INLINE_EDITING':
-      return { ...state, inlineEditingEvent: action.event };
 
     case 'DRAG_START':
       return {
@@ -365,7 +357,6 @@ export default function CalendarPage() {
     newListForm,
     quickViewEvent,
     quickViewAnchor,
-    inlineEditingEvent,
     drag,
     eventDrag,
     resize,
@@ -600,19 +591,14 @@ export default function CalendarPage() {
       const spansMultipleDays = startDay !== endDay;
 
       // Create event immediately with default title
-      store
-        .addEvent({
-          title: 'Blocked',
-          description: '',
-          start: start.toISOString(),
-          end: end.toISOString(),
-          color: '#EC4899',
-          allDay: spansMultipleDays,
-        })
-        .then((newEvent) => {
-          // Start inline editing
-          dispatch({ type: 'SET_INLINE_EDITING', event: newEvent });
-        });
+      store.addEvent({
+        title: 'Blocked',
+        description: '',
+        start: start.toISOString(),
+        end: end.toISOString(),
+        color: '#EC4899',
+        allDay: spansMultipleDays,
+      });
     } else {
       dispatch({ type: 'DRAG_END' });
     }
@@ -747,32 +733,6 @@ export default function CalendarPage() {
     dispatch({ type: 'TASK_DRAG_END' });
   }
 
-  // ─── Inline editing handlers ──────────────────────────────────────────────────
-
-  const handleInlineEditStart = useCallback((event: CalendarEvent) => {
-    dispatch({ type: 'SET_INLINE_EDITING', event });
-  }, []);
-
-  const handleInlineEditSave = useCallback(
-    (event: CalendarEvent, title: string, description: string) => {
-      store.updateEvent(event.id, { title, description });
-      dispatch({ type: 'SET_INLINE_EDITING', event: null });
-    },
-    [store]
-  );
-
-  const handleInlineEditCancel = useCallback(() => {
-    dispatch({ type: 'SET_INLINE_EDITING', event: null });
-  }, []);
-
-  const handleEventDelete = useCallback(
-    (event: CalendarEvent) => {
-      store.deleteEvent(event.id);
-      dispatch({ type: 'SET_INLINE_EDITING', event: null });
-    },
-    [store]
-  );
-
   // ─── Popover editor handlers ──────────────────────────────────────────────────
 
   const handlePopoverSave = useCallback(
@@ -868,7 +828,6 @@ export default function CalendarPage() {
           eventDragState={eventDrag}
           resizeState={resize}
           preferences={preferences}
-          inlineEditingEvent={inlineEditingEvent}
           onCellMouseDown={handleCellMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -894,10 +853,6 @@ export default function CalendarPage() {
             dispatch({ type: 'SET_DATE', date });
             dispatch({ type: 'SET_VIEW', mode: 'day' });
           }}
-          onInlineEditStart={handleInlineEditStart}
-          onInlineEditSave={handleInlineEditSave}
-          onInlineEditCancel={handleInlineEditCancel}
-          onEventDelete={handleEventDelete}
         />
 
         {/* Event Popover Editor */}
