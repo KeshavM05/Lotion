@@ -3,14 +3,13 @@
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { useStore, type CalendarEvent, type Task, type EnergyLevel } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
-import { EventQuickView } from '@/components/ui/event-quick-view';
+import { EventPopoverEditor } from '@/components/ui/event-popover-editor';
 import { toLocalDatetimeString, getWeekDates } from '@/lib/utils';
 import { usePageHeader } from '@/lib/page-header-context';
 import { apiClient } from '@/lib/api-client';
 
 import CalendarHeader from '@/components/calendar/CalendarHeader';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
-import EventModal from '@/components/calendar/EventModal';
 import TaskSidebar from '@/components/calendar/TaskSidebar';
 
 import {
@@ -47,9 +46,10 @@ interface CalendarState {
   taskSidebarCollapsed: boolean;
   viewMenuPreferences: ViewMenuPreferences;
 
-  // Modals
-  modalOpen: boolean;
+  // Event popover editor
+  popoverOpen: boolean;
   editingEvent: CalendarEvent | null;
+  popoverAnchor: HTMLElement | null;
   taskModalOpen: boolean;
   newListModalOpen: boolean;
   newListForm: { name: string; color: string; icon: string };
@@ -60,6 +60,9 @@ interface CalendarState {
   // Quick view
   quickViewEvent: CalendarEvent | null;
   quickViewAnchor: HTMLElement | null;
+
+  // Inline editing
+  inlineEditingEvent: CalendarEvent | null;
 
   // Event form
   form: EventFormState;
@@ -85,8 +88,8 @@ type Action =
   | { type: 'SET_DATE'; date: Date }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'PATCH_VIEW_PREFS'; patch: Partial<ViewMenuPreferences> }
-  | { type: 'OPEN_MODAL'; editingEvent?: CalendarEvent; form?: Partial<EventFormState> }
-  | { type: 'CLOSE_MODAL' }
+  | { type: 'OPEN_POPOVER'; event: CalendarEvent; anchor: HTMLElement }
+  | { type: 'CLOSE_POPOVER' }
   | { type: 'PATCH_FORM'; patch: Partial<EventFormState> }
   | { type: 'OPEN_TASK_MODAL' }
   | { type: 'CLOSE_TASK_MODAL' }
@@ -98,6 +101,7 @@ type Action =
   | { type: 'CLOSE_NEW_LIST_MODAL' }
   | { type: 'PATCH_NEW_LIST_FORM'; patch: Partial<CalendarState['newListForm']> }
   | { type: 'SET_QUICK_VIEW'; event: CalendarEvent | null; anchor: HTMLElement | null }
+  | { type: 'SET_INLINE_EDITING'; event: CalendarEvent | null }
   | { type: 'DRAG_START'; date: Date; hour: number; minutes: number }
   | { type: 'DRAG_MOVE'; date: Date; hour: number; minutes: number }
   | { type: 'DRAG_END' }
@@ -139,8 +143,9 @@ const initialState: CalendarState = {
   currentTime: new Date(),
   taskSidebarCollapsed: false,
   viewMenuPreferences: defaultViewPrefs,
-  modalOpen: false,
+  popoverOpen: false,
   editingEvent: null,
+  popoverAnchor: null,
   taskModalOpen: false,
   newListModalOpen: false,
   newListForm: { name: '', color: '#8b5cf6', icon: 'circle' },
@@ -149,6 +154,7 @@ const initialState: CalendarState = {
   taskFormEnergy: 'medium',
   quickViewEvent: null,
   quickViewAnchor: null,
+  inlineEditingEvent: null,
   form: defaultForm,
   drag: { isDragging: false, dragStart: null, dragEnd: null },
   eventDrag: { draggingEvent: null, eventDragOffset: { x: 0, y: 0 }, eventDragPosition: null },
@@ -182,16 +188,16 @@ function reducer(state: CalendarState, action: Action): CalendarState {
     case 'PATCH_VIEW_PREFS':
       return { ...state, viewMenuPreferences: { ...state.viewMenuPreferences, ...action.patch } };
 
-    case 'OPEN_MODAL':
+    case 'OPEN_POPOVER':
       return {
         ...state,
-        modalOpen: true,
-        editingEvent: action.editingEvent ?? null,
-        form: { ...defaultForm, ...(action.form ?? {}) },
+        popoverOpen: true,
+        editingEvent: action.event,
+        popoverAnchor: action.anchor,
       };
 
-    case 'CLOSE_MODAL':
-      return { ...state, modalOpen: false };
+    case 'CLOSE_POPOVER':
+      return { ...state, popoverOpen: false, editingEvent: null, popoverAnchor: null };
 
     case 'PATCH_FORM':
       return { ...state, form: { ...state.form, ...action.patch } };
@@ -220,6 +226,9 @@ function reducer(state: CalendarState, action: Action): CalendarState {
 
     case 'SET_QUICK_VIEW':
       return { ...state, quickViewEvent: action.event, quickViewAnchor: action.anchor };
+
+    case 'SET_INLINE_EDITING':
+      return { ...state, inlineEditingEvent: action.event };
 
     case 'DRAG_START':
       return {
@@ -344,8 +353,9 @@ export default function CalendarPage() {
     currentTime,
     taskSidebarCollapsed,
     viewMenuPreferences,
-    modalOpen,
+    popoverOpen,
     editingEvent,
+    popoverAnchor,
     form,
     taskModalOpen,
     taskFormTitle,
@@ -355,6 +365,7 @@ export default function CalendarPage() {
     newListForm,
     quickViewEvent,
     quickViewAnchor,
+    inlineEditingEvent,
     drag,
     eventDrag,
     resize,
@@ -541,13 +552,22 @@ export default function CalendarPage() {
 
   // ── Grid interaction handlers ────────────────────────────────────────────────
 
-  const handleCellMouseDown = useCallback((date: Date, hour: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = Math.round((y / HOUR_HEIGHT) * 60);
-    dispatch({ type: 'DRAG_START', date, hour, minutes });
+  // Helper to snap minutes to the configured interval
+  const snapToInterval = useCallback((minutes: number, interval: number = 15) => {
+    return Math.round(minutes / interval) * interval;
   }, []);
+
+  const handleCellMouseDown = useCallback(
+    (date: Date, hour: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const rawMinutes = Math.round((y / HOUR_HEIGHT) * 60);
+      const minutes = snapToInterval(rawMinutes, preferences.timeDraggingResolution);
+      dispatch({ type: 'DRAG_START', date, hour, minutes });
+    },
+    [preferences.timeDraggingResolution, snapToInterval]
+  );
 
   const handleMouseUp = useCallback(() => {
     if (drag.isDragging && drag.dragStart && drag.dragEnd) {
@@ -566,12 +586,33 @@ export default function CalendarPage() {
       end.setSeconds(0);
       end.setMilliseconds(0);
 
-      if (end.getTime() - start.getTime() < 30 * 60 * 1000) {
-        end.setTime(start.getTime() + 30 * 60 * 1000);
+      // Ensure minimum duration is one interval (e.g., 15 minutes)
+      const minDuration = preferences.timeDraggingResolution * 60 * 1000;
+      if (end.getTime() - start.getTime() < minDuration) {
+        end.setTime(start.getTime() + minDuration);
       }
 
       dispatch({ type: 'DRAG_END' });
-      openCreate(start, end);
+
+      // Check if event spans multiple days
+      const startDay = new Date(start).setHours(0, 0, 0, 0);
+      const endDay = new Date(end).setHours(0, 0, 0, 0);
+      const spansMultipleDays = startDay !== endDay;
+
+      // Create event immediately with default title
+      store
+        .addEvent({
+          title: 'Blocked',
+          description: '',
+          start: start.toISOString(),
+          end: end.toISOString(),
+          color: '#EC4899',
+          allDay: spansMultipleDays,
+        })
+        .then((newEvent) => {
+          // Start inline editing
+          dispatch({ type: 'SET_INLINE_EDITING', event: newEvent });
+        });
     } else {
       dispatch({ type: 'DRAG_END' });
     }
@@ -603,7 +644,7 @@ export default function CalendarPage() {
     }
     dispatch({ type: 'EVENT_DRAG_END' });
     dispatch({ type: 'RESIZE_END' });
-  }, [drag, eventDrag, store]);
+  }, [drag, eventDrag, store, preferences.timeDraggingResolution]);
 
   const handleGridMouseMove = useCallback(
     (e: React.MouseEvent, isWeekView: boolean, weekDates: Date[]) => {
@@ -622,7 +663,8 @@ export default function CalendarPage() {
         if (dayIndex < 0 || dayIndex >= 7) return;
         const date = weekDates[dayIndex];
         const hour = Math.floor(y / HOUR_HEIGHT);
-        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+        const rawMinutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+        const minutes = snapToInterval(rawMinutes, preferences.timeDraggingResolution);
 
         if (drag.isDragging)
           dispatch({ type: 'DRAG_MOVE', date: drag.dragStart!.date, hour, minutes });
@@ -631,7 +673,8 @@ export default function CalendarPage() {
         else if (resize.resizingEvent) handleResizeMove(date, hour, minutes);
       } else {
         const hour = Math.floor(y / HOUR_HEIGHT);
-        const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+        const rawMinutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
+        const minutes = snapToInterval(rawMinutes, preferences.timeDraggingResolution);
 
         if (drag.isDragging) dispatch({ type: 'DRAG_MOVE', date: currentDate, hour, minutes });
         else if (eventDrag.draggingEvent)
@@ -639,7 +682,7 @@ export default function CalendarPage() {
         else if (resize.resizingEvent) handleResizeMove(currentDate, hour, minutes);
       }
     },
-    [drag, eventDrag, resize, currentDate]
+    [drag, eventDrag, resize, currentDate, preferences.timeDraggingResolution, snapToInterval]
   );
 
   function handleResizeMove(date: Date, hour: number, minutes: number) {
@@ -704,6 +747,82 @@ export default function CalendarPage() {
     dispatch({ type: 'TASK_DRAG_END' });
   }
 
+  // ─── Inline editing handlers ──────────────────────────────────────────────────
+
+  const handleInlineEditStart = useCallback((event: CalendarEvent) => {
+    dispatch({ type: 'SET_INLINE_EDITING', event });
+  }, []);
+
+  const handleInlineEditSave = useCallback(
+    (event: CalendarEvent, title: string, description: string) => {
+      store.updateEvent(event.id, { title, description });
+      dispatch({ type: 'SET_INLINE_EDITING', event: null });
+    },
+    [store]
+  );
+
+  const handleInlineEditCancel = useCallback(() => {
+    dispatch({ type: 'SET_INLINE_EDITING', event: null });
+  }, []);
+
+  const handleEventDelete = useCallback(
+    (event: CalendarEvent) => {
+      store.deleteEvent(event.id);
+      dispatch({ type: 'SET_INLINE_EDITING', event: null });
+    },
+    [store]
+  );
+
+  // ─── Popover editor handlers ──────────────────────────────────────────────────
+
+  const handlePopoverSave = useCallback(
+    (data: {
+      title: string;
+      description: string;
+      start: string;
+      end: string;
+      color: string;
+      allDay: boolean;
+    }) => {
+      if (!editingEvent) return;
+
+      const eventData: Partial<CalendarEvent> = {
+        title: data.title,
+        description: data.description,
+        start: new Date(data.start).toISOString(),
+        end: new Date(data.end).toISOString(),
+        color: data.color,
+        allDay: data.allDay,
+      };
+
+      if (editingEvent.source === 'task') {
+        store.updateTask(editingEvent.id, {
+          title: data.title,
+          description: data.description,
+          scheduledStart: eventData.start,
+          scheduledEnd: eventData.end,
+        });
+      } else {
+        store.updateEvent(editingEvent.id, eventData);
+      }
+
+      dispatch({ type: 'CLOSE_POPOVER' });
+    },
+    [store, editingEvent]
+  );
+
+  const handlePopoverDelete = useCallback(() => {
+    if (!editingEvent) return;
+
+    if (editingEvent.source === 'task') {
+      store.updateTask(editingEvent.id, { scheduledStart: null, scheduledEnd: null });
+    } else {
+      store.deleteEvent(editingEvent.id);
+    }
+
+    dispatch({ type: 'CLOSE_POPOVER' });
+  }, [store, editingEvent]);
+
   // ─── Computed ─────────────────────────────────────────────────────────────
 
   const allEvents = getEventsForDisplay();
@@ -749,6 +868,7 @@ export default function CalendarPage() {
           eventDragState={eventDrag}
           resizeState={resize}
           preferences={preferences}
+          inlineEditingEvent={inlineEditingEvent}
           onCellMouseDown={handleCellMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -764,7 +884,7 @@ export default function CalendarPage() {
             });
           }}
           onEventClick={(event, e) => {
-            dispatch({ type: 'SET_QUICK_VIEW', event, anchor: e.currentTarget as HTMLElement });
+            dispatch({ type: 'OPEN_POPOVER', event, anchor: e.currentTarget as HTMLElement });
           }}
           onResizeStart={(event, edge, e) => {
             e.stopPropagation();
@@ -774,17 +894,20 @@ export default function CalendarPage() {
             dispatch({ type: 'SET_DATE', date });
             dispatch({ type: 'SET_VIEW', mode: 'day' });
           }}
+          onInlineEditStart={handleInlineEditStart}
+          onInlineEditSave={handleInlineEditSave}
+          onInlineEditCancel={handleInlineEditCancel}
+          onEventDelete={handleEventDelete}
         />
 
-        {/* Event Modal */}
-        <EventModal
-          open={modalOpen}
-          editingEvent={editingEvent}
-          form={form}
-          onClose={() => dispatch({ type: 'CLOSE_MODAL' })}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onFormChange={(patch) => dispatch({ type: 'PATCH_FORM', patch })}
+        {/* Event Popover Editor */}
+        <EventPopoverEditor
+          event={editingEvent}
+          isOpen={popoverOpen}
+          anchorElement={popoverAnchor}
+          onClose={() => dispatch({ type: 'CLOSE_POPOVER' })}
+          onSave={handlePopoverSave}
+          onDelete={handlePopoverDelete}
         />
 
         {/* New Task List Modal */}
@@ -930,28 +1053,6 @@ export default function CalendarPage() {
           </div>
         </Modal>
       </div>
-
-      {/* Quick View */}
-      <EventQuickView
-        event={quickViewEvent}
-        isOpen={!!quickViewEvent}
-        onClose={() => dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null })}
-        onEdit={() => {
-          if (quickViewEvent) {
-            openEdit(quickViewEvent);
-            dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
-          }
-        }}
-        onDelete={() => {
-          if (quickViewEvent) {
-            if (confirm('Are you sure you want to delete this event?')) {
-              store.deleteEvent(quickViewEvent.id);
-              dispatch({ type: 'SET_QUICK_VIEW', event: null, anchor: null });
-            }
-          }
-        }}
-        anchorElement={quickViewAnchor}
-      />
     </div>
   );
 }

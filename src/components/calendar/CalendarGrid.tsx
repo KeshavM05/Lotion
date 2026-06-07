@@ -32,6 +32,7 @@ interface CalendarGridProps {
   eventDragState: EventDragState;
   resizeState: ResizeState;
   preferences: CalendarPreferences;
+  inlineEditingEvent: CalendarEvent | null;
   onCellMouseDown: (date: Date, hour: number, e: React.MouseEvent) => void;
   onMouseUp: () => void;
   onMouseLeave: () => void;
@@ -41,6 +42,10 @@ interface CalendarGridProps {
   onEventClick: (event: CalendarEvent, e: React.MouseEvent) => void;
   onResizeStart: (event: CalendarEvent, edge: 'top' | 'bottom', e: React.MouseEvent) => void;
   onMonthDayClick: (date: Date) => void;
+  onInlineEditStart: (event: CalendarEvent) => void;
+  onInlineEditSave: (event: CalendarEvent, title: string, description: string) => void;
+  onInlineEditCancel: () => void;
+  onEventDelete: (event: CalendarEvent) => void;
 }
 
 function getEventsOverlap(event1: CalendarEvent, event2: CalendarEvent) {
@@ -152,6 +157,7 @@ export default function CalendarGrid({
   eventDragState,
   resizeState,
   preferences,
+  inlineEditingEvent,
   onCellMouseDown,
   onMouseUp,
   onMouseLeave,
@@ -161,6 +167,10 @@ export default function CalendarGrid({
   onEventClick,
   onResizeStart,
   onMonthDayClick,
+  onInlineEditStart,
+  onInlineEditSave,
+  onInlineEditCancel,
+  onEventDelete,
 }: CalendarGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -197,6 +207,7 @@ export default function CalendarGrid({
     return dayEvents.map((event) => {
       const isDragging = eventDragState.draggingEvent?.id === event.id;
       const isResizing = resizeState.resizingEvent?.id === event.id;
+      const isInlineEditing = inlineEditingEvent?.id === event.id;
       const layout = getEventLayout(event, dayEvents);
       return (
         <EventCard
@@ -204,20 +215,30 @@ export default function CalendarGrid({
           event={event}
           isDragging={isDragging}
           isResizing={isResizing}
+          isInlineEditing={isInlineEditing}
           layout={layout}
           style={getEventStyle(event)}
           onMouseDown={(e) => {
             const target = e.target as HTMLElement;
             if (target.classList.contains('resize-handle')) return;
-            onEventMouseDown(event, e);
+            if (!isInlineEditing) onEventMouseDown(event, e);
           }}
           onClick={(e) => {
             e.stopPropagation();
-            if (!isDragging && !isResizing) {
+            if (!isDragging && !isResizing && !isInlineEditing) {
               onEventClick(event, e);
             }
           }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging && !isResizing && !isInlineEditing) {
+              onInlineEditStart(event);
+            }
+          }}
           onResizeStart={(edge, e) => onResizeStart(event, edge, e)}
+          onInlineEditSave={(title, description) => onInlineEditSave(event, title, description)}
+          onInlineEditCancel={onInlineEditCancel}
+          onDelete={() => onEventDelete(event)}
         />
       );
     });
