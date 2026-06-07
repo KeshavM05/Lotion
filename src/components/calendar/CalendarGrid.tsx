@@ -259,6 +259,40 @@ export default function CalendarGrid({
           </div>
         </div>
 
+        {/* All-day section */}
+        <div className="border-b border-white/10">
+          <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+            {/* All-day label */}
+            <div className="border-r border-white/5 text-right pr-3 py-2 flex items-start justify-end">
+              <span className="text-xs text-[#9CA3AF]">all-day</span>
+            </div>
+            {/* All-day event columns */}
+            {weekDates.map((date, dayIdx) => {
+              const allDayEvents = events.filter((e) => e.allDay && isSameDayTz(e.start, date));
+              return (
+                <div
+                  key={`allday-${dayIdx}`}
+                  className="relative border-r border-white/5 last:border-r-0 min-h-[32px] py-1 px-1"
+                >
+                  {allDayEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate"
+                      style={{ backgroundColor: event.color }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(event, e);
+                      }}
+                    >
+                      {event.title}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Time Grid */}
         <div
           className="flex-1 overflow-auto"
@@ -292,7 +326,9 @@ export default function CalendarGrid({
                     >
                       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                       {hour === displayHours[0] &&
-                        renderEventCards(events.filter((e) => isSameDayTz(e.start, date)))}
+                        renderEventCards(
+                          events.filter((e) => !e.allDay && isSameDayTz(e.start, date))
+                        )}
                     </div>
                   ))}
                 </div>
@@ -393,6 +429,34 @@ export default function CalendarGrid({
           </div>
         </div>
 
+        {/* All-day section for day view */}
+        <div className="border-b border-white/10">
+          <div className="grid grid-cols-[60px_1fr]">
+            {/* All-day label */}
+            <div className="border-r border-white/5 text-right pr-3 py-2 flex items-start justify-end">
+              <span className="text-xs text-[#9CA3AF]">all-day</span>
+            </div>
+            {/* All-day events column */}
+            <div className="relative border-r border-white/5 min-h-[32px] py-1 px-1">
+              {events
+                .filter((e) => e.allDay && isSameDayTz(e.start, currentDate))
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    className="text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate"
+                    style={{ backgroundColor: event.color }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event, e);
+                    }}
+                  >
+                    {event.title}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
         {/* Day View Grid */}
         <div
           className="flex-1 overflow-auto"
@@ -425,7 +489,9 @@ export default function CalendarGrid({
                   >
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                     {hour === displayHours[0] &&
-                      renderEventCards(events.filter((e) => isSameDayTz(e.start, currentDate)))}
+                      renderEventCards(
+                        events.filter((e) => !e.allDay && isSameDayTz(e.start, currentDate))
+                      )}
                   </div>
                 </div>
               ))}
