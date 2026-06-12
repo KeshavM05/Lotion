@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createGoalSchema } from '@/lib/validation/schemas';
+import { indexContent } from '@/lib/context-engine';
 
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
@@ -57,6 +58,10 @@ export async function POST(request: NextRequest) {
         status,
       })
       .returning();
+
+    // Index goal for semantic retrieval
+    const text = `Goal: ${goal.title}${goal.description ? ` — ${goal.description}` : ''} (${goal.category}, ${goal.priority} priority)`;
+    indexContent(user.id, 'goal', text, goal.id, { category: goal.category }).catch(() => {});
 
     return Response.json(goal, { status: 201 });
   } catch (error) {
