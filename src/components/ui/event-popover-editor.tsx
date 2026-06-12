@@ -167,7 +167,7 @@ export function EventPopoverEditor({
   return (
     <div
       ref={popoverRef}
-      className="fixed z-[100] w-80 glass-card rounded-xl shadow-2xl border border-white/10"
+      className="fixed z-[100] w-80 bg-[#1A2744] rounded-xl shadow-2xl border border-white/10"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
