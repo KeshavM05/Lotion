@@ -4,7 +4,9 @@ import { env } from '@/lib/env';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { validateBody } from '@/lib/api-middleware';
 import { chatRequestSchema } from '@/lib/validation/schemas';
-import { requireAuth } from '@/lib/auth-server';
+import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { retrieveRelevantContext } from '@/lib/context-engine';
+import { extractAndStoreMemories } from '@/lib/memory-extraction';
 
 const bedrock =
   env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
@@ -20,8 +22,9 @@ const bedrock =
 const MODEL_ID = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
 
 export async function POST(request: NextRequest) {
+  let supabaseUserId: string;
   try {
-    await requireAuth(request);
+    supabaseUserId = await requireAuth(request);
   } catch (error) {
     if (error instanceof Response) return error;
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -58,13 +61,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { messages, goalContext, aiMemory, calendarContext, tasksContext } = data;
+    const { messages, goalContext, aiMemory, calendarContext, tasksContext, goalId } = data;
+
+    // Semantic context retrieval from embeddings
+    let semanticContext: string | undefined;
+    try {
+      const user = await getInternalUser(supabaseUserId);
+      if (user) {
+        const lastUserMsg = messages[messages.length - 1];
+        if (lastUserMsg?.role === 'user') {
+          semanticContext = await retrieveRelevantContext(user.id, lastUserMsg.content, goalId);
+        }
+      }
+    } catch (err) {
+      console.warn('Semantic context retrieval failed (non-fatal):', err);
+    }
 
     const systemPrompt = buildSystemPrompt({
       goalContext,
       aiMemory,
       calendarContext,
       tasksContext,
+      semanticContext,
     });
 
     const command = new ConverseCommand({
@@ -84,6 +102,13 @@ export async function POST(request: NextRequest) {
     const assistantMessage =
       response.output?.message?.content?.[0]?.text || "I couldn't generate a response.";
 
+    // Fire-and-forget: extract memories from the conversation
+    const user = await getInternalUser(supabaseUserId).catch(() => null);
+    if (user) {
+      const allMsgs = [...messages, { role: 'assistant', content: assistantMessage }];
+      extractAndStoreMemories(user.id, allMsgs, goalId).catch(() => {});
+    }
+
     return Response.json({ message: assistantMessage });
   } catch (error: unknown) {
     if (error instanceof Response) throw error;
@@ -98,11 +123,13 @@ function buildSystemPrompt({
   aiMemory,
   calendarContext,
   tasksContext,
+  semanticContext,
 }: {
   goalContext?: string;
   aiMemory?: string;
   calendarContext?: string;
   tasksContext?: string;
+  semanticContext?: string;
 }) {
   let prompt = `You are Lotion, an AI life coach. You help the user achieve their life goals by providing actionable advice, breaking down big goals into steps, and keeping them accountable.
 
@@ -136,6 +163,10 @@ Always be specific to the user's actual goals and situation. Never give generic 
 
   if (tasksContext) {
     prompt += `\n\n## Active Tasks\n${tasksContext}`;
+  }
+
+  if (semanticContext) {
+    prompt += `\n\n## Relevant Context (from memory)\n${semanticContext}`;
   }
 
   return prompt;

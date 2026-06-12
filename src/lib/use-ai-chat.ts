@@ -106,7 +106,7 @@ ${tasks.map((t) => `  ${t.completed ? '[x]' : '[ ]'} ${t.title} (${t.priority}, 
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: allMessages, ...context }),
+          body: JSON.stringify({ messages: allMessages, goalId, ...context }),
         });
 
         const data = await res.json();

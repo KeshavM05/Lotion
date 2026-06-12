@@ -5,6 +5,7 @@ import { requireAuth, getInternalUser } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createJournalEntrySchema } from '@/lib/validation/schemas';
 import { eq } from 'drizzle-orm';
+import { indexContent } from '@/lib/context-engine';
 
 // GET /api/journal - Get all journal entries for user
 export async function GET(request: NextRequest) {
@@ -53,6 +54,12 @@ export async function POST(request: NextRequest) {
         linkedGoalIds: linkedGoalIds ?? [],
       })
       .returning();
+
+    // Index journal entry for semantic retrieval (fire-and-forget)
+    indexContent(user.id, 'journal', content, entry.id, {
+      mood: mood ?? undefined,
+      date: entry.createdAt.toISOString(),
+    }).catch(() => {});
 
     return Response.json(entry, { status: 201 });
   } catch (error) {

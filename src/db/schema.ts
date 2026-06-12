@@ -7,8 +7,10 @@ import {
   integer,
   pgEnum,
   jsonb,
+  vector,
+  index,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // Enums
 export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high', 'critical']);
@@ -232,6 +234,36 @@ export const calendarPreferences = pgTable('calendar_preferences', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Context Embeddings (pgvector for semantic search)
+export const contextEmbeddingSourceEnum = pgEnum('embedding_source', [
+  'journal',
+  'chat',
+  'goal',
+  'task',
+  'memory',
+]);
+
+export const contextEmbeddings = pgTable(
+  'context_embeddings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    source: contextEmbeddingSourceEnum('source').notNull(),
+    sourceId: text('source_id'), // ID of the source record (journal entry, goal, etc.)
+    content: text('content').notNull(), // The text that was embedded
+    embedding: vector('embedding', { dimensions: 1024 }).notNull(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('context_embeddings_user_idx').on(table.userId),
+    index('context_embeddings_source_idx').on(table.userId, table.source),
+    index('context_embeddings_vector_idx').using('hnsw', table.embedding.op('vector_cosine_ops')),
+  ]
+);
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
