@@ -74,6 +74,23 @@ Context — what's broken, what's missing, or why this matters.
 - One issue = one focused change (don't combine 5 features in one issue)
 - For `auto-merge`: only use for low-risk, obvious changes (typos, simple refactors, adding a field)
 
+### `issue:` and `ship:` Commands
+
+**`issue: <idea>`** — Create a structured issue for the agent to work on (user reviews the PR)
+**`ship: <idea>`** — Same but auto-merges (no review needed, use for low-risk changes)
+
+When the user's message starts with `issue:` or `ship:`, follow this process:
+1. **Assess clarity** — Is the idea specific enough? If vague, ask 1-2 focused questions.
+2. **Explore the codebase** — Find relevant files using Glob/Grep/Read
+3. **Draft the issue** — Use the structured format (What/Why/Files/Acceptance/Constraints)
+4. **Show the draft** — Present it to the user for approval
+5. **Create it** — Run `gh issue create --title "<title>" --body "<body>" --label "<label>"`
+   - `issue:` uses label `auto`
+   - `ship:` uses label `auto-merge`
+6. **Confirm** — Share the issue URL. The GitHub Action picks it up automatically.
+
+---
+
 ### When Working on Issues (Agent Instructions)
 1. Read this CLAUDE.md first for project context
 2. Read the issue carefully — title + body contain all context
