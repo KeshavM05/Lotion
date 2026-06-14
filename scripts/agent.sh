@@ -6,8 +6,7 @@
 #
 # Usage: bash scripts/agent.sh
 
-export PATH="$PATH:/c/Program Files/GitHub CLI"
-set -e
+export PATH="/c/Program Files/GitHub CLI:$PATH"
 
 echo "=== Motion Local Agent ==="
 echo "Watching for issues labeled 'auto' or 'auto-merge'..."
