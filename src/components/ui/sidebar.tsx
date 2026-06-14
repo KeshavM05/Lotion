@@ -12,6 +12,7 @@ const navItems = [
   { href: '/focus', label: 'Focus Mode', icon: 'radio_button_unchecked' },
   { href: '/coach', label: 'AI Coach', icon: 'smart_toy' },
   { href: '/journal', label: 'Journal', icon: 'edit_note' },
+  { href: '/knowledge', label: 'Knowledge Base', icon: 'neurology' },
   { href: '/memory', label: 'AI Memory', icon: 'psychology' },
   { href: '/ritual', label: 'Weekly Ritual', icon: 'self_improvement' },
   { href: '/analytics', label: 'Analytics', icon: 'bar_chart' },

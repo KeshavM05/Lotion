@@ -169,6 +169,116 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Personal Stats Dashboard */}
+          <div className="pt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-serif text-2xl text-white">Daily Stats</h4>
+              <span className="text-[10px] font-['Space_Grotesk'] text-[#9CA3AF] uppercase tracking-widest">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard
+                icon="task_alt"
+                label="Tasks Done Today"
+                value={completedTasks
+                  .filter(
+                    (t) =>
+                      t.completedAt &&
+                      new Date(t.completedAt).toDateString() === new Date().toDateString()
+                  )
+                  .length.toString()}
+                color="#10b981"
+              />
+              <StatCard
+                icon="local_fire_department"
+                label="Journal Streak"
+                value={`${journalDays}d`}
+                color="#f59e0b"
+              />
+              <StatCard
+                icon="target"
+                label="Goal Progress"
+                value={`${activeGoals.length > 0 ? Math.round(activeGoals.reduce((sum, g) => sum + store.getGoalProgress(g.id), 0) / activeGoals.length) : 0}%`}
+                color="#C17A72"
+              />
+              <StatCard
+                icon="schedule"
+                label="Events Today"
+                value={todayEvents.length.toString()}
+                color="#8b5cf6"
+              />
+            </div>
+
+            {/* Weekly progress bar */}
+            <div className="glass-card p-5 rounded-xl mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-['Space_Grotesk'] text-[#9CA3AF] uppercase tracking-wider">
+                  Weekly Task Completion
+                </span>
+                <span className="text-sm font-mono font-bold text-[#C17A72]">
+                  {completedTasks.length}/{store.tasks.length}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#C17A72] to-[#8b5cf6] transition-all duration-500"
+                  style={{
+                    width: `${Math.round((completedTasks.length / Math.max(store.tasks.length, 1)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Overdue & upcoming deadlines */}
+            {(overdueTasks.length > 0 || upcomingDeadlines.length > 0) && (
+              <div className="glass-card p-5 rounded-xl mt-4">
+                {overdueTasks.length > 0 && (
+                  <div className="mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-400">
+                      Overdue ({overdueTasks.length})
+                    </span>
+                    <div className="mt-2 space-y-1">
+                      {overdueTasks.slice(0, 3).map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-2 text-xs text-red-300/80"
+                        >
+                          <span className="material-symbols-outlined text-sm">warning</span>
+                          <span className="truncate">{task.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {upcomingDeadlines.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                      Upcoming Deadlines
+                    </span>
+                    <div className="mt-2 space-y-1">
+                      {upcomingDeadlines.slice(0, 3).map((task) => (
+                        <div key={task.id} className="flex items-center justify-between text-xs">
+                          <span className="text-[#BEC6DF] truncate">{task.title}</span>
+                          <span className="text-[#6B7280] font-mono ml-2 flex-shrink-0">
+                            {new Date(task.deadline!).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Journal Preview */}
           <div className="pt-8">
             <div className="flex justify-between items-center mb-6">
@@ -281,6 +391,32 @@ function StatRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between">
       <span className="text-xs text-on-secondary-container">{label}</span>
       <span className="text-sm font-mono font-semibold text-white">{value}</span>
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <div className="glass-card p-4 rounded-xl text-center">
+      <span className="material-symbols-outlined text-xl mb-1 block" style={{ color }}>
+        {icon}
+      </span>
+      <span className="font-['JetBrains_Mono'] text-2xl font-bold text-[#F5F5F5] block">
+        {value}
+      </span>
+      <span className="text-[10px] text-[#9CA3AF] font-['Space_Grotesk'] uppercase tracking-wider">
+        {label}
+      </span>
     </div>
   );
 }
