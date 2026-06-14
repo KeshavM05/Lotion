@@ -291,7 +291,7 @@ export default function CalendarGrid({
                     <div
                       key={event.id}
                       className={`text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate ${
-                        selectedEventId === event.id ? 'ring-2 ring-white/80 brightness-[0.7]' : ''
+                        selectedEventId === event.id ? 'ring-2 ring-white/60 brightness-90' : ''
                       }`}
                       style={{ backgroundColor: event.color }}
                       onClick={(e) => {
@@ -463,7 +463,7 @@ export default function CalendarGrid({
                   <div
                     key={event.id}
                     className={`text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate ${
-                      selectedEventId === event.id ? 'ring-2 ring-white/80 brightness-[0.7]' : ''
+                      selectedEventId === event.id ? 'ring-2 ring-white/60 brightness-90' : ''
                     }`}
                     style={{ backgroundColor: event.color }}
                     onClick={(e) => {
@@ -646,7 +646,7 @@ export default function CalendarGrid({
                     <div
                       key={event.id}
                       className={`text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity ${
-                        selectedEventId === event.id ? 'ring-2 ring-white/80 brightness-[0.7]' : ''
+                        selectedEventId === event.id ? 'ring-2 ring-white/60 brightness-90' : ''
                       }`}
                       style={{
                         backgroundColor: `${event.color}40`,
