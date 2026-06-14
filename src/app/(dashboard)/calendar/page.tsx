@@ -429,6 +429,25 @@ export default function CalendarPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedEventId, store]);
 
+  // Keyboard listener for Ctrl+Z (undo) and Ctrl+Y (redo)
+  useEffect(() => {
+    function handleUndoRedo(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+        return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        store.undoEvents();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        store.redoEvents();
+      }
+    }
+    window.addEventListener('keydown', handleUndoRedo);
+    return () => window.removeEventListener('keydown', handleUndoRedo);
+  }, [store]);
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
   function navigateDate(direction: 'prev' | 'next' | 'today') {

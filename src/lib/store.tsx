@@ -214,6 +214,10 @@ interface StoreContextType {
   aiMemory: string;
   loading: boolean;
 
+  // Undo/Redo (events only)
+  undoEvents: () => void;
+  redoEvents: () => void;
+
   // Init
   loadInitialData: () => Promise<void>;
   syncGoogleCalendar: () => Promise<{ synced: number } | null>;
@@ -361,6 +365,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     aiMemoryRef.current = aiMemory;
   }, [aiMemory]);
+
+  // ─── Undo/Redo for Events ──────────────────────────────────
+
+  const UNDO_LIMIT = 50;
+  const undoStackRef = useRef<CalendarEvent[][]>([]);
+  const redoStackRef = useRef<CalendarEvent[][]>([]);
+
+  const pushUndoSnapshot = useCallback(() => {
+    undoStackRef.current = [...undoStackRef.current.slice(-(UNDO_LIMIT - 1)), eventsRef.current];
+    redoStackRef.current = [];
+  }, []);
+
+  const undoEvents = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current[undoStackRef.current.length - 1];
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    redoStackRef.current = [...redoStackRef.current, eventsRef.current];
+    setEvents(prev);
+  }, []);
+
+  const redoEvents = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current[redoStackRef.current.length - 1];
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current, eventsRef.current];
+    setEvents(next);
+  }, []);
 
   // ─── Load Initial Data ───────────────────────────────────
 
@@ -703,87 +734,99 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Events ──────────────────────────────────────────
 
-  const addEvent = useCallback(async (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
-    const tempId = `temp-${crypto.randomUUID()}`;
-    const tempEvent: CalendarEvent = {
-      ...data,
-      id: tempId,
-      createdAt: new Date().toISOString(),
-    };
-    setEvents((prev) => [...prev, tempEvent]);
+  const addEvent = useCallback(
+    async (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
+      pushUndoSnapshot();
+      const tempId = `temp-${crypto.randomUUID()}`;
+      const tempEvent: CalendarEvent = {
+        ...data,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+      };
+      setEvents((prev) => [...prev, tempEvent]);
 
-    try {
-      const savedEvent = await eventsApi.create(data);
-      setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
+      try {
+        const savedEvent = await eventsApi.create(data);
+        setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
 
-      // Mirror to Google if connected (source=local means user-created)
-      if (data.source === 'local') {
-        googleMirror.current.post('/calendar/google/events', {
-          title: savedEvent.title,
-          description: savedEvent.description,
-          start: savedEvent.start,
-          end: savedEvent.end,
-          allDay: savedEvent.allDay,
-          localEventId: savedEvent.id,
-        });
+        // Mirror to Google if connected (source=local means user-created)
+        if (data.source === 'local') {
+          googleMirror.current.post('/calendar/google/events', {
+            title: savedEvent.title,
+            description: savedEvent.description,
+            start: savedEvent.start,
+            end: savedEvent.end,
+            allDay: savedEvent.allDay,
+            localEventId: savedEvent.id,
+          });
+        }
+
+        return savedEvent;
+      } catch (error) {
+        setEvents((prev) => prev.filter((e) => e.id !== tempId));
+        console.error('Failed to create event:', error);
+        toast.error('Failed to create event', { description: errMsg(error) });
+        throw error;
       }
+    },
+    [pushUndoSnapshot]
+  );
 
-      return savedEvent;
-    } catch (error) {
-      setEvents((prev) => prev.filter((e) => e.id !== tempId));
-      console.error('Failed to create event:', error);
-      toast.error('Failed to create event', { description: errMsg(error) });
-      throw error;
-    }
-  }, []);
+  const updateEvent = useCallback(
+    async (id: string, updates: Partial<CalendarEvent>) => {
+      pushUndoSnapshot();
+      const snapshot = eventsRef.current;
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
 
-  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
-    const snapshot = eventsRef.current;
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+      try {
+        const updated = await eventsApi.update(id, updates);
+        setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
 
-    try {
-      const updated = await eventsApi.update(id, updates);
-      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
-
-      // Mirror to Google if this event has a googleEventId
-      const googleEventId =
-        updated.googleEventId ?? snapshot.find((e) => e.id === id)?.googleEventId;
-      if (googleEventId) {
-        googleMirror.current.patch(`/calendar/google/events/${googleEventId}`, {
-          title: updated.title,
-          description: updated.description,
-          start: updated.start,
-          end: updated.end,
-          allDay: updated.allDay,
-        });
+        // Mirror to Google if this event has a googleEventId
+        const googleEventId =
+          updated.googleEventId ?? snapshot.find((e) => e.id === id)?.googleEventId;
+        if (googleEventId) {
+          googleMirror.current.patch(`/calendar/google/events/${googleEventId}`, {
+            title: updated.title,
+            description: updated.description,
+            start: updated.start,
+            end: updated.end,
+            allDay: updated.allDay,
+          });
+        }
+      } catch (error) {
+        setEvents(snapshot);
+        console.error('Failed to update event:', error);
+        toast.error('Failed to update event', { description: errMsg(error) });
+        throw error;
       }
-    } catch (error) {
-      setEvents(snapshot);
-      console.error('Failed to update event:', error);
-      toast.error('Failed to update event', { description: errMsg(error) });
-      throw error;
-    }
-  }, []);
+    },
+    [pushUndoSnapshot]
+  );
 
-  const deleteEvent = useCallback(async (id: string) => {
-    const snapshot = eventsRef.current;
-    const event = eventsRef.current.find((e) => e.id === id);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+  const deleteEvent = useCallback(
+    async (id: string) => {
+      pushUndoSnapshot();
+      const snapshot = eventsRef.current;
+      const event = eventsRef.current.find((e) => e.id === id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
 
-    try {
-      await eventsApi.delete(id);
+      try {
+        await eventsApi.delete(id);
 
-      // Mirror delete to Google
-      if (event?.googleEventId) {
-        googleMirror.current.del(`/calendar/google/events/${event.googleEventId}`);
+        // Mirror delete to Google
+        if (event?.googleEventId) {
+          googleMirror.current.del(`/calendar/google/events/${event.googleEventId}`);
+        }
+      } catch (error) {
+        setEvents(snapshot);
+        console.error('Failed to delete event:', error);
+        toast.error('Failed to delete event', { description: errMsg(error) });
+        throw error;
       }
-    } catch (error) {
-      setEvents(snapshot);
-      console.error('Failed to delete event:', error);
-      toast.error('Failed to delete event', { description: errMsg(error) });
-      throw error;
-    }
-  }, []);
+    },
+    [pushUndoSnapshot]
+  );
 
   // ─── Chat ────────────────────────────────────────────
 
@@ -1132,6 +1175,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addEvent,
         updateEvent,
         deleteEvent,
+        undoEvents,
+        redoEvents,
         addChatMessage,
         getChatMessages,
         addJournalEntry,
