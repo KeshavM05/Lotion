@@ -2,7 +2,7 @@ name: Auto Agent
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 jobs:
   solve-issue:
