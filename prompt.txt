@@ -1,0 +1,37 @@
+You are working on the repo "KeshavM05/Lotion".
+
+GitHub Issue #182: feat: add undo/redo for calendar events (Ctrl+Z / Ctrl+Y)
+
+Description:
+## What
+Add undo/redo functionality for calendar event actions (create, edit, delete) using `Ctrl+Z` and `Ctrl+Y` keyboard shortcuts.
+
+## Why
+Destructive actions like deleting an event have no recovery path. Undo/redo gives confidence to make quick changes without fear of losing data.
+
+## Files to touch
+- `src/lib/store.tsx` — add an undo/redo history stack alongside the events state. Before any event mutation (addEvent, updateEvent, deleteEvent), push the current events array to the undo stack. Implement `undo()` and `redo()` actions that swap between stacks.
+- `src/app/(dashboard)/calendar/page.tsx` — add a `useEffect` with `keydown` listener for `Ctrl+Z` (calls `store.undo()`) and `Ctrl+Y` (calls `store.redo()`)
+
+## Acceptance criteria
+- [ ] `Ctrl+Z` undoes the last event action (create/edit/delete)
+- [ ] `Ctrl+Y` redoes the last undone action
+- [ ] History stack tracks: event creates, edits, and deletes
+- [ ] Stack has a reasonable limit (e.g. 50 entries) to avoid memory bloat
+- [ ] Undo/redo only affects events, not other store state
+- [ ] `npm run build` passes with no errors
+
+## Constraints
+- Keep the history stack simple — store snapshots of the events array (not diffs)
+- Don't modify unrelated store slices
+- Keyboard shortcuts should not fire when typing in an input/textarea
+- Run `npm run build` with no errors
+
+Instructions:
+1. Read CLAUDE.md for project conventions
+2. Explore the relevant parts of the codebase
+3. Implement the fix/feature described in the issue
+4. Run 'npm run build' to verify no TypeScript errors
+5. Commit your changes with a descriptive message
+
+Keep changes minimal and focused. Do not modify unrelated files.
