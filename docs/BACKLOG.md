@@ -68,6 +68,38 @@ This document is a snapshot of initial tickets derived from the project scope an
   - [ ] JSON export for full data dump
   - [ ] UI button in settings to trigger exports
 
+### Ticket 8: Knowledge Base (AI Second Brain)
+- **Type**: `type: feature`
+- **Priority**: `priority: P2`
+- **Area**: `area: knowledge-base`
+- **Description**: An AI-powered second brain that ingests raw sources and incrementally builds a persistent, compounding wiki. Sources go in, structured knowledge comes out.
+- **Acceptance Criteria**:
+  - [x] DB schema for knowledge_sources, wiki_pages, wiki_log
+  - [x] Store state and CRUD actions for KB entities
+  - [x] Knowledge Base page with sources/wiki/log tabs
+  - [x] Add Source modal with type selection and content input
+  - [x] Query bar for asking questions against the wiki
+  - [ ] Wire AI ingest: call Bedrock to process source into wiki pages
+  - [ ] Wire AI query: call Bedrock to synthesize answers from wiki
+  - [ ] Wire AI lint/health check: detect contradictions, orphans, gaps
+  - [ ] Wiki page editor for manual corrections
+  - [ ] Graph view of wiki page connections
+  - [ ] Integration with AI Coach context
+
+### Ticket 9: Personal Stats Dashboard
+- **Type**: `type: feature`
+- **Priority**: `priority: P2`
+- **Area**: `area: dashboard`
+- **Description**: Enhanced dashboard with personal productivity metrics, streaks, progress tracking, and deadline awareness.
+- **Acceptance Criteria**:
+  - [x] Daily stats cards (tasks done today, journal streak, goal progress, events)
+  - [x] Weekly task completion progress bar
+  - [x] Overdue task alerts
+  - [x] Upcoming deadline timeline
+  - [ ] Historical trend charts (tasks/week, mood over time)
+  - [ ] AI morning briefing card based on stats
+  - [ ] Customizable widget layout
+
 ### Ticket 7: Remove Duplicate / Unused Code
 - **Type**: `type: refactor`
 - **Priority**: `priority: P3`

@@ -97,6 +97,34 @@ The foundation. Calendar + Goals + AI Chat per goal.
 
 ---
 
+## Phase 3.5: Knowledge Base (AI Second Brain)
+
+### 3.4 Knowledge Base / Second Brain
+- **Raw Sources** — drop in articles, book notes, podcast takeaways, meeting transcripts, research
+  - Source types: article, book, podcast, meeting, note, research
+  - Immutable — AI reads but never modifies originals
+- **AI-Generated Wiki** — persistent, compounding knowledge artifact
+  - AI incrementally builds wiki pages from sources
+  - Page types: concept, entity, summary, comparison, synthesis
+  - Cross-references via [[slug]] links between pages
+  - Auto-updated index page cataloging everything
+- **Operations**:
+  - **Ingest**: Add source -> AI extracts key info, creates/updates wiki pages, logs changes
+  - **Query**: Ask questions against wiki -> AI synthesizes answers with citations -> good answers saved back as wiki pages
+  - **Lint/Health Check**: Weekly check for contradictions, orphan pages, stale claims, missing pages
+- **Activity Log** — chronological record of ingests, queries, health checks
+- Integration with AI Coach — coach can reference wiki knowledge in conversations
+- Integration with Goals — link knowledge sources to relevant goals
+
+### 3.5 Personal Stats Dashboard
+- Daily stats: tasks completed today, journal streak, average goal progress, events
+- Weekly task completion progress bar
+- Overdue task alerts with visual indicators
+- Upcoming deadline timeline
+- AI-generated daily briefing based on stats + calendar + goals
+
+---
+
 ## Phase 4: Polish & Integrations
 
 ### 4.1 Calendar Integrations
