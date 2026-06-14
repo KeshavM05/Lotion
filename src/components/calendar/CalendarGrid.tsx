@@ -32,6 +32,7 @@ interface CalendarGridProps {
   eventDragState: EventDragState;
   resizeState: ResizeState;
   preferences: CalendarPreferences;
+  selectedEventId: string | null;
   onCellMouseDown: (date: Date, hour: number, e: React.MouseEvent) => void;
   onMouseUp: () => void;
   onMouseLeave: () => void;
@@ -39,6 +40,7 @@ interface CalendarGridProps {
   onTaskDrop: (date: Date, hour: number, e: React.DragEvent) => void;
   onEventMouseDown: (event: CalendarEvent, e: React.MouseEvent) => void;
   onEventClick: (event: CalendarEvent, e: React.MouseEvent) => void;
+  onEventDoubleClick: (event: CalendarEvent, e: React.MouseEvent) => void;
   onResizeStart: (event: CalendarEvent, edge: 'top' | 'bottom', e: React.MouseEvent) => void;
   onMonthDayClick: (date: Date) => void;
 }
@@ -152,6 +154,7 @@ export default function CalendarGrid({
   eventDragState,
   resizeState,
   preferences,
+  selectedEventId,
   onCellMouseDown,
   onMouseUp,
   onMouseLeave,
@@ -159,6 +162,7 @@ export default function CalendarGrid({
   onTaskDrop,
   onEventMouseDown,
   onEventClick,
+  onEventDoubleClick,
   onResizeStart,
   onMonthDayClick,
 }: CalendarGridProps) {
@@ -197,6 +201,7 @@ export default function CalendarGrid({
     return dayEvents.map((event) => {
       const isDragging = eventDragState.draggingEvent?.id === event.id;
       const isResizing = resizeState.resizingEvent?.id === event.id;
+      const isSelected = selectedEventId === event.id;
       const layout = getEventLayout(event, dayEvents);
       return (
         <EventCard
@@ -204,6 +209,7 @@ export default function CalendarGrid({
           event={event}
           isDragging={isDragging}
           isResizing={isResizing}
+          isSelected={isSelected}
           layout={layout}
           style={getEventStyle(event)}
           onMouseDown={(e) => {
@@ -215,6 +221,12 @@ export default function CalendarGrid({
             e.stopPropagation();
             if (!isDragging && !isResizing) {
               onEventClick(event, e);
+            }
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging && !isResizing) {
+              onEventDoubleClick(event, e);
             }
           }}
           onResizeStart={(edge, e) => onResizeStart(event, edge, e)}
@@ -277,11 +289,17 @@ export default function CalendarGrid({
                   {allDayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate"
+                      className={`text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate ${
+                        selectedEventId === event.id ? 'ring-2 ring-white/70' : ''
+                      }`}
                       style={{ backgroundColor: event.color }}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEventClick(event, e);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onEventDoubleClick(event, e);
                       }}
                     >
                       {event.title}
@@ -443,11 +461,17 @@ export default function CalendarGrid({
                 .map((event) => (
                   <div
                     key={event.id}
-                    className="text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate"
+                    className={`text-xs font-medium text-white px-2 py-1 rounded mb-1 cursor-pointer hover:brightness-110 transition-all truncate ${
+                      selectedEventId === event.id ? 'ring-2 ring-white/70' : ''
+                    }`}
                     style={{ backgroundColor: event.color }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick(event, e);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onEventDoubleClick(event, e);
                     }}
                   >
                     {event.title}
@@ -620,7 +644,9 @@ export default function CalendarGrid({
                   {dayEvents.slice(0, 3).map((event) => (
                     <div
                       key={event.id}
-                      className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                      className={`text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity ${
+                        selectedEventId === event.id ? 'ring-2 ring-white/70' : ''
+                      }`}
                       style={{
                         backgroundColor: `${event.color}40`,
                         borderLeft: `2px solid ${event.color}`,
@@ -628,6 +654,10 @@ export default function CalendarGrid({
                       onClick={(e) => {
                         e.stopPropagation();
                         onEventClick(event, e);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onEventDoubleClick(event, e);
                       }}
                     >
                       <span className="font-medium text-white">

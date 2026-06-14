@@ -334,6 +334,7 @@ export default function CalendarPage() {
   const store = useStore();
   const { setPageControls } = usePageHeader();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<CalendarPreferences>({
     timezone: 'America/Toronto',
     firstDayOfWeek: 0,
@@ -401,6 +402,32 @@ export default function CalendarPage() {
     );
     return () => setPageControls(null);
   }, [currentDate, viewMode]);
+
+  // Keyboard listener for D (delete) and Escape (deselect)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!selectedEventId) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+        return;
+
+      if (e.key === 'Escape') {
+        setSelectedEventId(null);
+      } else if (e.key === 'd' || e.key === 'D') {
+        const event = store.events.find((ev) => ev.id === selectedEventId);
+        if (event) {
+          if (event.source === 'task') {
+            store.updateTask(event.id, { scheduledStart: null, scheduledEnd: null });
+          } else {
+            store.deleteEvent(event.id);
+          }
+        }
+        setSelectedEventId(null);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEventId, store]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -850,7 +877,11 @@ export default function CalendarPage() {
           eventDragState={eventDrag}
           resizeState={resize}
           preferences={preferences}
-          onCellMouseDown={handleCellMouseDown}
+          selectedEventId={selectedEventId}
+          onCellMouseDown={(date, hour, e) => {
+            setSelectedEventId(null);
+            handleCellMouseDown(date, hour, e);
+          }}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onMouseMove={viewMode === 'week' ? weekMouseMove : dayMouseMove}
@@ -864,7 +895,11 @@ export default function CalendarPage() {
               offset: { x: e.clientX - eventEl.left, y: e.clientY - eventEl.top },
             });
           }}
-          onEventClick={(event, e) => {
+          onEventClick={(event) => {
+            setSelectedEventId(event.id);
+          }}
+          onEventDoubleClick={(event, e) => {
+            setSelectedEventId(null);
             dispatch({ type: 'OPEN_POPOVER', event, anchor: e.currentTarget as HTMLElement });
           }}
           onResizeStart={(event, edge, e) => {

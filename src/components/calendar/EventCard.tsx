@@ -8,6 +8,7 @@ interface EventCardProps {
   event: CalendarEvent;
   isDragging: boolean;
   isResizing: boolean;
+  isSelected: boolean;
   layout: {
     left: string;
     right?: string;
@@ -21,6 +22,7 @@ interface EventCardProps {
   };
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
+  onDoubleClick: (e: React.MouseEvent) => void;
   onResizeStart: (edge: 'top' | 'bottom', e: React.MouseEvent) => void;
 }
 
@@ -28,27 +30,32 @@ const EventCard = memo(function EventCard({
   event,
   isDragging,
   isResizing,
+  isSelected,
   layout,
   style,
   onMouseDown,
   onClick,
+  onDoubleClick,
   onResizeStart,
 }: EventCardProps) {
   return (
     <div
-      className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border border-white/10 group ${
+      className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border group ${
         isDragging ? 'opacity-50' : ''
-      } ${isResizing ? 'select-none' : 'cursor-move'}`}
+      } ${isResizing ? 'select-none' : 'cursor-move'} ${
+        isSelected ? 'ring-2 ring-white/70 border-white/40' : 'border-white/10'
+      }`}
       style={{
         ...style,
         left: layout.left,
         right: layout.right,
         width: layout.width,
-        zIndex: layout.zIndex,
-        boxShadow: `0 2px 8px ${event.color}60`,
+        zIndex: isSelected ? 30 : layout.zIndex,
+        boxShadow: isSelected ? `0 2px 12px ${event.color}90` : `0 2px 8px ${event.color}60`,
       }}
       onMouseDown={onMouseDown}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     >
       {/* Top resize handle */}
       <div
