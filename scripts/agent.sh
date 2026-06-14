@@ -6,6 +6,7 @@
 #
 # Usage: bash scripts/agent.sh
 
+export PATH="$PATH:/c/Program Files/GitHub CLI"
 set -e
 
 echo "=== Motion Local Agent ==="
@@ -14,26 +15,25 @@ echo ""
 
 while true; do
   # Ensure we're on main and up to date
-  git checkout main --quiet 2>/dev/null
-  git pull origin main --quiet 2>/dev/null
+  git checkout main --quiet 2>/dev/null || true
+  git pull origin main --quiet 2>/dev/null || true
 
   # Get next open issue (check auto-merge first, then auto)
-  ISSUE_JSON=$(gh issue list --label auto-merge --state open --limit 1 --json number,title,body,labels --jq '.[0]')
+  ISSUE_NUM=$(gh issue list --label auto-merge --state open --limit 1 --json number --jq '.[0].number')
   LABEL="auto-merge"
 
-  if [ -z "$ISSUE_JSON" ] || [ "$ISSUE_JSON" = "null" ]; then
-    ISSUE_JSON=$(gh issue list --label auto --state open --limit 1 --json number,title,body,labels --jq '.[0]')
+  if [ -z "$ISSUE_NUM" ] || [ "$ISSUE_NUM" = "null" ]; then
+    ISSUE_NUM=$(gh issue list --label auto --state open --limit 1 --json number --jq '.[0].number')
     LABEL="auto"
   fi
 
-  if [ -z "$ISSUE_JSON" ] || [ "$ISSUE_JSON" = "null" ]; then
+  if [ -z "$ISSUE_NUM" ] || [ "$ISSUE_NUM" = "null" ]; then
     echo "No more issues. Done!"
     break
   fi
 
-  ISSUE_NUM=$(echo "$ISSUE_JSON" | jq -r '.number')
-  ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
-  ISSUE_BODY=$(echo "$ISSUE_JSON" | jq -r '.body')
+  ISSUE_TITLE=$(gh issue view "$ISSUE_NUM" --json title --jq '.title')
+  ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --json body --jq '.body')
 
   echo "----------------------------------------"
   echo "[$LABEL] Issue #$ISSUE_NUM: $ISSUE_TITLE"
