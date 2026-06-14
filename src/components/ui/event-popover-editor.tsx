@@ -8,6 +8,7 @@ interface EventPopoverEditorProps {
   event: CalendarEvent | null;
   isOpen: boolean;
   anchorElement: HTMLElement | null;
+  mode?: 'create' | 'edit';
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -33,6 +34,7 @@ export function EventPopoverEditor({
   event,
   isOpen,
   anchorElement,
+  mode = 'edit',
   onClose,
   onSave,
   onDelete,
@@ -103,6 +105,20 @@ export function EventPopoverEditor({
     };
   }, [isOpen, anchorElement]);
 
+  const hasChanges = () => {
+    if (!event) return false;
+    const origStart = toLocalDatetimeString(new Date(event.start));
+    const origEnd = toLocalDatetimeString(new Date(event.end));
+    return (
+      title.trim() !== (event.title || '') ||
+      description.trim() !== (event.description || '') ||
+      start !== origStart ||
+      end !== origEnd ||
+      color !== event.color ||
+      allDay !== (event.allDay || false)
+    );
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -117,7 +133,11 @@ export function EventPopoverEditor({
         anchorElement &&
         !anchorElement.contains(e.target as Node)
       ) {
-        handleSave();
+        if (mode === 'create') {
+          onClose();
+        } else {
+          handleSave();
+        }
       }
     };
 
@@ -134,10 +154,15 @@ export function EventPopoverEditor({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, anchorElement]);
+  }, [isOpen, anchorElement, mode]);
 
   const handleSave = () => {
     if (!title.trim()) {
+      onClose();
+      return;
+    }
+
+    if (mode === 'edit' && !hasChanges()) {
       onClose();
       return;
     }

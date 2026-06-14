@@ -969,6 +969,7 @@ export default function CalendarPage() {
           event={editingEvent}
           isOpen={popoverOpen}
           anchorElement={popoverAnchor}
+          mode={editingEvent?.id.startsWith('__draft_') ? 'create' : 'edit'}
           onClose={() => dispatch({ type: 'CLOSE_POPOVER' })}
           onSave={handlePopoverSave}
           onDelete={handlePopoverDelete}
