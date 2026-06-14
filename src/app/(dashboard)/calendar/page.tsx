@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { useStore, type CalendarEvent, type Task, type EnergyLevel } from '@/lib/store';
 import { Modal } from '@/components/ui/modal';
 import { EventPopoverEditor } from '@/components/ui/event-popover-editor';
@@ -85,7 +85,7 @@ type Action =
   | { type: 'SET_DATE'; date: Date }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'PATCH_VIEW_PREFS'; patch: Partial<ViewMenuPreferences> }
-  | { type: 'OPEN_POPOVER'; event: CalendarEvent; anchor: HTMLElement }
+  | { type: 'OPEN_POPOVER'; event: CalendarEvent; anchor: HTMLElement | null }
   | { type: 'CLOSE_POPOVER' }
   | { type: 'PATCH_FORM'; patch: Partial<EventFormState> }
   | { type: 'OPEN_TASK_MODAL' }
@@ -335,6 +335,7 @@ export default function CalendarPage() {
   const { setPageControls } = usePageHeader();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const dragAnchorRef = useRef<HTMLElement | null>(null);
   const [preferences, setPreferences] = useState<CalendarPreferences>({
     timezone: 'America/Toronto',
     firstDayOfWeek: 0,
@@ -617,6 +618,7 @@ export default function CalendarPage() {
   const handleCellMouseDown = useCallback(
     (date: Date, hour: number, e: React.MouseEvent) => {
       e.preventDefault();
+      dragAnchorRef.current = e.currentTarget as HTMLElement;
       const rect = e.currentTarget.getBoundingClientRect();
       const y = e.clientY - rect.top;
       const rawMinutes = Math.round((y / HOUR_HEIGHT) * 60);
@@ -651,22 +653,39 @@ export default function CalendarPage() {
 
       dispatch({ type: 'DRAG_END' });
 
-      // Check if event spans multiple days
-      const startDay = new Date(start).setHours(0, 0, 0, 0);
-      const endDay = new Date(end).setHours(0, 0, 0, 0);
-      const spansMultipleDays = startDay !== endDay;
+      const duration = end.getTime() - start.getTime();
+      const isSingleClick = duration <= minDuration;
 
-      // Create event immediately with default title
-      store.addEvent({
-        title: 'Blocked',
-        description: '',
-        start: start.toISOString(),
-        end: end.toISOString(),
-        color: '#EC4899',
-        allDay: spansMultipleDays,
-        taskId: null,
-        source: 'local',
-      });
+      if (isSingleClick) {
+        const draftEvent: CalendarEvent = {
+          id: `__draft_${Date.now()}`,
+          title: '',
+          description: '',
+          start: start.toISOString(),
+          end: end.toISOString(),
+          color: '#EC4899',
+          allDay: false,
+          taskId: null,
+          source: 'local',
+          createdAt: new Date().toISOString(),
+        };
+        dispatch({ type: 'OPEN_POPOVER', event: draftEvent, anchor: dragAnchorRef.current });
+      } else {
+        const startDay = new Date(start).setHours(0, 0, 0, 0);
+        const endDay = new Date(end).setHours(0, 0, 0, 0);
+        const spansMultipleDays = startDay !== endDay;
+
+        store.addEvent({
+          title: 'Blocked',
+          description: '',
+          start: start.toISOString(),
+          end: end.toISOString(),
+          color: '#EC4899',
+          allDay: spansMultipleDays,
+          taskId: null,
+          source: 'local',
+        });
+      }
     } else {
       dispatch({ type: 'DRAG_END' });
     }
@@ -823,7 +842,18 @@ export default function CalendarPage() {
         allDay: data.allDay,
       };
 
-      if (editingEvent.source === 'task') {
+      if (editingEvent.id.startsWith('__draft_')) {
+        store.addEvent({
+          title: data.title,
+          description: data.description,
+          start: new Date(data.start).toISOString(),
+          end: new Date(data.end).toISOString(),
+          color: data.color,
+          allDay: data.allDay,
+          taskId: null,
+          source: 'local',
+        });
+      } else if (editingEvent.source === 'task') {
         store.updateTask(editingEvent.id, {
           title: data.title,
           description: data.description,
@@ -842,7 +872,9 @@ export default function CalendarPage() {
   const handlePopoverDelete = useCallback(() => {
     if (!editingEvent) return;
 
-    if (editingEvent.source === 'task') {
+    if (editingEvent.id.startsWith('__draft_')) {
+      // Draft event — just close, nothing to delete
+    } else if (editingEvent.source === 'task') {
       store.updateTask(editingEvent.id, { scheduledStart: null, scheduledEnd: null });
     } else {
       store.deleteEvent(editingEvent.id);
