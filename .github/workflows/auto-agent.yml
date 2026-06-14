@@ -37,13 +37,18 @@ jobs:
         env:
           CLAUDE_CODE_USE_BEDROCK: "1"
           ANTHROPIC_MODEL: us.anthropic.claude-opus-4-6-v1
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_NAME: ${{ github.repository }}
         run: |
-          claude -p "You are working on the repo '${{ github.repository }}'.
+          PROMPT=$(cat <<'PROMPT_END'
+          You are working on the repo "${REPO_NAME}".
 
-          GitHub Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+          GitHub Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
           Description:
-          ${{ github.event.issue.body }}
+          ${ISSUE_BODY}
 
           Instructions:
           1. Read CLAUDE.md for project conventions
@@ -52,7 +57,11 @@ jobs:
           4. Run 'npm run build' to verify no TypeScript errors
           5. Commit your changes with a descriptive message
 
-          Keep changes minimal and focused. Do not modify unrelated files."
+          Keep changes minimal and focused. Do not modify unrelated files.
+          PROMPT_END
+          )
+          PROMPT=$(echo "$PROMPT" | envsubst)
+          claude -p "$PROMPT"
 
       - name: Create Pull Request
         id: create-pr
