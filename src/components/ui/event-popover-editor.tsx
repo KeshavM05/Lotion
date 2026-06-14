@@ -300,14 +300,7 @@ export function EventPopoverEditor({
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-white/10 px-4 py-3">
-        <button
-          onClick={() => {
-            if (confirm('Delete this event?')) {
-              onDelete();
-            }
-          }}
-          className="text-xs text-red-400 hover:text-red-300"
-        >
+        <button onClick={() => onDelete()} className="text-xs text-red-400 hover:text-red-300">
           Delete
         </button>
         <div className="flex items-center gap-2">
