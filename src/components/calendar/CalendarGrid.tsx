@@ -28,6 +28,7 @@ interface CalendarGridProps {
   today: Date;
   currentTime: Date;
   events: CalendarEvent[];
+  draftEvent?: CalendarEvent | null;
   dragState: DragState;
   eventDragState: EventDragState;
   resizeState: ResizeState;
@@ -150,6 +151,7 @@ export default function CalendarGrid({
   today,
   currentTime,
   events,
+  draftEvent,
   dragState,
   eventDragState,
   resizeState,
@@ -194,6 +196,11 @@ export default function CalendarGrid({
 
   const shouldShowTimeIndicator =
     viewMode === 'week' && weekDates.some((date) => isSameDay(date, today));
+
+  const eventsWithDraft = useMemo(() => {
+    if (draftEvent) return [...events, draftEvent];
+    return events;
+  }, [events, draftEvent]);
 
   const dragPreviewStyle = getDragPreviewStyle(dragState);
 
@@ -346,7 +353,7 @@ export default function CalendarGrid({
                       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                       {hour === displayHours[0] &&
                         renderEventCards(
-                          events.filter((e) => !e.allDay && isSameDayTz(e.start, date))
+                          eventsWithDraft.filter((e) => !e.allDay && isSameDayTz(e.start, date))
                         )}
                     </div>
                   ))}
@@ -515,7 +522,9 @@ export default function CalendarGrid({
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5"></div>
                     {hour === displayHours[0] &&
                       renderEventCards(
-                        events.filter((e) => !e.allDay && isSameDayTz(e.start, currentDate))
+                        eventsWithDraft.filter(
+                          (e) => !e.allDay && isSameDayTz(e.start, currentDate)
+                        )
                       )}
                   </div>
                 </div>
@@ -618,7 +627,7 @@ export default function CalendarGrid({
           {days.map((date) => {
             const isCurrentMonth = date.getMonth() === currentDate.getMonth();
             const isToday = isSameDay(date, today);
-            const dayEvents = events.filter((e) => isSameDayTz(e.start, date));
+            const dayEvents = eventsWithDraft.filter((e) => isSameDayTz(e.start, date));
 
             return (
               <div

@@ -924,6 +924,7 @@ export default function CalendarPage() {
           today={new Date()}
           currentTime={currentTime}
           events={allEvents}
+          draftEvent={popoverOpen && editingEvent?.id.startsWith('__draft_') ? editingEvent : null}
           dragState={drag}
           eventDragState={eventDrag}
           resizeState={resize}
