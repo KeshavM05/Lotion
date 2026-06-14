@@ -18,6 +18,7 @@ import {
   journalApi,
   eventsApi,
   aiMemoryApi,
+  knowledgeApi,
 } from './api-client';
 import { AsyncQueue } from './async-queue';
 
@@ -165,6 +166,41 @@ export interface JournalEntry {
   updatedAt: string;
 }
 
+export type KBSourceStatus = 'pending' | 'processing' | 'ingested' | 'failed';
+export type KBSourceType = 'article' | 'book' | 'podcast' | 'meeting' | 'note' | 'research';
+export type WikiCategory = 'concept' | 'entity' | 'summary' | 'comparison' | 'synthesis';
+
+export interface KnowledgeSource {
+  id: string;
+  title: string;
+  content: string;
+  sourceType: KBSourceType;
+  status: KBSourceStatus;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface WikiPage {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  category: WikiCategory;
+  linkedSourceIds: string[];
+  linkedPageSlugs: string[];
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WikiLogEntry {
+  id: string;
+  action: string;
+  description: string;
+  pagesAffected: string[];
+  createdAt: string;
+}
+
 // ─── Store Interface ─────────────────────────────────────
 
 interface StoreContextType {
@@ -228,6 +264,28 @@ interface StoreContextType {
 
   // AI Memory
   setAiMemory: (memory: string) => Promise<void>;
+
+  // Knowledge Base
+  knowledgeSources: KnowledgeSource[];
+  wikiPages: WikiPage[];
+  wikiLog: WikiLogEntry[];
+  loadKnowledgeBase: () => Promise<void>;
+  addKnowledgeSource: (
+    source: Omit<KnowledgeSource, 'id' | 'createdAt' | 'status'>
+  ) => Promise<KnowledgeSource>;
+  updateKnowledgeSource: (id: string, updates: Partial<KnowledgeSource>) => void;
+  deleteKnowledgeSource: (id: string) => Promise<void>;
+  addWikiPage: (page: Omit<WikiPage, 'id' | 'createdAt' | 'updatedAt'>) => WikiPage;
+  updateWikiPage: (id: string, updates: Partial<WikiPage>) => void;
+  deleteWikiPage: (id: string) => Promise<void>;
+  addWikiLogEntry: (entry: Omit<WikiLogEntry, 'id' | 'createdAt'>) => void;
+  ingestSource: (sourceId: string) => Promise<{ pages: WikiPage[]; mode: string }>;
+  queryKnowledgeBase: (question: string) => Promise<{ answer: string; citations: string[] }>;
+  lintKnowledgeBase: () => Promise<{
+    report: string;
+    issues: Array<{ type: string; description: string; page?: string }>;
+    mode: string;
+  }>;
 
   // Computed
   getGoalProgress: (goalId: string) => number;
@@ -833,6 +891,152 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // ─── Knowledge Base ─────────────────────────────────
+
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
+  const [wikiPages, setWikiPages] = useState<WikiPage[]>([]);
+  const [wikiLog, setWikiLog] = useState<WikiLogEntry[]>([]);
+
+  const loadKnowledgeBase = useCallback(async () => {
+    try {
+      const [sources, pages] = await Promise.all([
+        knowledgeApi.listSources(),
+        knowledgeApi.listPages(),
+      ]);
+      setKnowledgeSources(sources);
+      setWikiPages(pages);
+    } catch {
+      // Non-fatal — KB data just won't be available
+    }
+  }, []);
+
+  const addKnowledgeSource = useCallback(
+    async (data: Omit<KnowledgeSource, 'id' | 'createdAt' | 'status'>) => {
+      // Optimistic
+      const tempId = `temp-${crypto.randomUUID()}`;
+      const tempSource: KnowledgeSource = {
+        ...data,
+        id: tempId,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+      setKnowledgeSources((prev) => [tempSource, ...prev]);
+
+      try {
+        const saved = await knowledgeApi.createSource(data);
+        setKnowledgeSources((prev) => prev.map((s) => (s.id === tempId ? saved : s)));
+        return saved;
+      } catch (error) {
+        setKnowledgeSources((prev) => prev.filter((s) => s.id !== tempId));
+        toast.error('Failed to add source', { description: errMsg(error) });
+        throw error;
+      }
+    },
+    []
+  );
+
+  const updateKnowledgeSource = useCallback((id: string, updates: Partial<KnowledgeSource>) => {
+    setKnowledgeSources((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  }, []);
+
+  const deleteKnowledgeSource = useCallback(async (id: string) => {
+    setKnowledgeSources((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await knowledgeApi.deleteSource(id);
+    } catch (error) {
+      toast.error('Failed to delete source', { description: errMsg(error) });
+    }
+  }, []);
+
+  const addWikiPage = useCallback((data: Omit<WikiPage, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const page: WikiPage = {
+      ...data,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setWikiPages((prev) => [page, ...prev]);
+    return page;
+  }, []);
+
+  const updateWikiPage = useCallback((id: string, updates: Partial<WikiPage>) => {
+    setWikiPages((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p))
+    );
+  }, []);
+
+  const deleteWikiPage = useCallback(async (id: string) => {
+    setWikiPages((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await knowledgeApi.deletePage(id);
+    } catch (error) {
+      toast.error('Failed to delete page', { description: errMsg(error) });
+    }
+  }, []);
+
+  const addWikiLogEntry = useCallback((data: Omit<WikiLogEntry, 'id' | 'createdAt'>) => {
+    const entry: WikiLogEntry = {
+      ...data,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    setWikiLog((prev) => [entry, ...prev]);
+  }, []);
+
+  const ingestSource = useCallback(async (sourceId: string) => {
+    setKnowledgeSources((prev) =>
+      prev.map((s) => (s.id === sourceId ? { ...s, status: 'processing' as const } : s))
+    );
+    try {
+      const result = await knowledgeApi.ingest(sourceId);
+      setKnowledgeSources((prev) =>
+        prev.map((s) => (s.id === sourceId ? { ...s, status: 'ingested' as const } : s))
+      );
+      // Add the new wiki pages to state
+      setWikiPages((prev) => [...result.pages, ...prev]);
+      return result;
+    } catch (error) {
+      setKnowledgeSources((prev) =>
+        prev.map((s) => (s.id === sourceId ? { ...s, status: 'failed' as const } : s))
+      );
+      toast.error('Failed to ingest source', { description: errMsg(error) });
+      throw error;
+    }
+  }, []);
+
+  const queryKnowledgeBase = useCallback(
+    async (question: string) => {
+      try {
+        const result = await knowledgeApi.query(question);
+        addWikiLogEntry({
+          action: 'query',
+          description: `Query: "${question.slice(0, 80)}"`,
+          pagesAffected: result.citations,
+        });
+        return result;
+      } catch (error) {
+        toast.error('Query failed', { description: errMsg(error) });
+        throw error;
+      }
+    },
+    [addWikiLogEntry]
+  );
+
+  const lintKnowledgeBase = useCallback(async () => {
+    try {
+      const result = await knowledgeApi.lint();
+      addWikiLogEntry({
+        action: 'lint',
+        description: `Health check: ${result.issues.length} issue(s) found`,
+        pagesAffected: result.issues.map((i) => i.page).filter(Boolean) as string[],
+      });
+      return result;
+    } catch (error) {
+      toast.error('Health check failed', { description: errMsg(error) });
+      throw error;
+    }
+  }, [addWikiLogEntry]);
+
   // ─── Computed ────────────────────────────────────────
 
   const getGoalMilestones = useCallback(
@@ -939,6 +1143,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getGoalTasks,
         autoSchedule,
         syncGoogleCalendar,
+        knowledgeSources,
+        wikiPages,
+        wikiLog,
+        addKnowledgeSource,
+        updateKnowledgeSource,
+        deleteKnowledgeSource,
+        addWikiPage,
+        updateWikiPage,
+        deleteWikiPage,
+        addWikiLogEntry,
+        loadKnowledgeBase,
+        ingestSource,
+        queryKnowledgeBase,
+        lintKnowledgeBase,
       }}
     >
       {children}

@@ -304,6 +304,69 @@ export const aiChatApi = {
   },
 };
 
+// ─── Knowledge Base ─────────────────────────────────────
+
+import type { KnowledgeSource, WikiPage } from './store';
+
+export const knowledgeApi = {
+  listSources: async (): Promise<KnowledgeSource[]> => {
+    return apiRequest('/knowledge/sources');
+  },
+
+  createSource: async (data: {
+    title: string;
+    content: string;
+    sourceType: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<KnowledgeSource> => {
+    return apiRequest('/knowledge/sources', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteSource: async (id: string): Promise<void> => {
+    return apiRequest(`/knowledge/sources/${id}`, { method: 'DELETE' });
+  },
+
+  listPages: async (): Promise<WikiPage[]> => {
+    return apiRequest('/knowledge/wiki');
+  },
+
+  updatePage: async (id: string, data: Partial<WikiPage>): Promise<WikiPage> => {
+    return apiRequest(`/knowledge/wiki/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deletePage: async (id: string): Promise<void> => {
+    return apiRequest(`/knowledge/wiki/${id}`, { method: 'DELETE' });
+  },
+
+  ingest: async (sourceId: string): Promise<{ pages: WikiPage[]; mode: string }> => {
+    return apiRequest('/knowledge/ingest', {
+      method: 'POST',
+      body: JSON.stringify({ sourceId }),
+    });
+  },
+
+  query: async (question: string): Promise<{ answer: string; citations: string[] }> => {
+    return apiRequest('/knowledge/query', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  },
+
+  lint: async (): Promise<{
+    report: string;
+    issues: Array<{ type: string; description: string; page?: string }>;
+    mode: string;
+  }> => {
+    return apiRequest('/knowledge/lint', { method: 'POST' });
+  },
+};
+
 // ─── User Initialization ─────────────────────────────────
 
 export const initializeUser = async (): Promise<void> => {
