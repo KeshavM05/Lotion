@@ -1,30 +1,30 @@
 You are working on the repo "KeshavM05/Lotion".
 
-GitHub Issue #181: feat: double-click to edit, single-click to select, D to delete
+GitHub Issue #182: feat: add undo/redo for calendar events (Ctrl+Z / Ctrl+Y)
 
 Description:
 ## What
-Change calendar event interaction: single-click selects an event (visual highlight), double-click opens the edit popover. Pressing `D` while an event is selected deletes it immediately.
+Add undo/redo functionality for calendar event actions (create, edit, delete) using `Ctrl+Z` and `Ctrl+Y` keyboard shortcuts.
 
 ## Why
-Currently single-click opens the edit menu immediately, making it too easy to accidentally trigger. Deleting requires two steps (edit menu → delete button → confirm popup). This adds unnecessary friction to common operations.
+Destructive actions like deleting an event have no recovery path. Undo/redo gives confidence to make quick changes without fear of losing data.
 
 ## Files to touch
-- `src/app/(dashboard)/calendar/page.tsx` — change `onEventClick` handler to set a `selectedEventId` state instead of dispatching `OPEN_POPOVER`; add `onEventDoubleClick` handler that dispatches `OPEN_POPOVER`; add a `useEffect` with a `keydown` listener for `D` that calls `store.deleteEvent(selectedEventId)` when an event is selected
-- `src/components/ui/event-popover-editor.tsx` — no changes needed
+- `src/lib/store.tsx` — add an undo/redo history stack alongside the events state. Before any event mutation (addEvent, updateEvent, deleteEvent), push the current events array to the undo stack. Implement `undo()` and `redo()` actions that swap between stacks.
+- `src/app/(dashboard)/calendar/page.tsx` — add a `useEffect` with `keydown` listener for `Ctrl+Z` (calls `store.undo()`) and `Ctrl+Y` (calls `store.redo()`)
 
 ## Acceptance criteria
-- [ ] Single-click on an event selects it (visually highlighted — slightly darker/ring border)
-- [ ] Double-click on an event opens the edit popover (existing behavior moves here)
-- [ ] Pressing `D` while an event is selected deletes it immediately (no confirmation)
-- [ ] Clicking empty space or pressing `Escape` deselects the event
-- [ ] Drag-to-move and resize still work (single-click + drag should not conflict)
+- [ ] `Ctrl+Z` undoes the last event action (create/edit/delete)
+- [ ] `Ctrl+Y` redoes the last undone action
+- [ ] History stack tracks: event creates, edits, and deletes
+- [ ] Stack has a reasonable limit (e.g. 50 entries) to avoid memory bloat
+- [ ] Undo/redo only affects events, not other store state
 - [ ] `npm run build` passes with no errors
 
 ## Constraints
-- Don't break existing drag or resize functionality
-- Keep the existing popover editor UI intact
-- Selected state should be local to the calendar page (not in global store)
+- Keep the history stack simple — store snapshots of the events array (not diffs)
+- Don't modify unrelated store slices
+- Keyboard shortcuts should not fire when typing in an input/textarea
 - Run `npm run build` with no errors
 
 Instructions:
