@@ -899,7 +899,7 @@ export default function CalendarPage() {
   );
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-[calc(100vh-7rem)] gap-4 overflow-hidden">
       {/* Task Sidebar */}
       <TaskSidebar
         collapsed={taskSidebarCollapsed}
@@ -917,7 +917,7 @@ export default function CalendarPage() {
       />
 
       {/* Calendar Grid */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <CalendarGrid
           currentDate={currentDate}
           viewMode={viewMode}

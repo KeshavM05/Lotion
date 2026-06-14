@@ -169,7 +169,7 @@ export default function TaskSidebar({
     <div
       className={`flex-shrink-0 transition-all duration-300 ${
         collapsed ? 'w-16' : 'w-[340px]'
-      } flex flex-col`}
+      } flex flex-col min-h-0`}
     >
       <div className="glass-card rounded-2xl p-4 h-full overflow-visible flex flex-col bg-[#111111]/80 border-r border-white/5">
         {/* Sidebar Header */}
