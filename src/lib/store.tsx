@@ -201,6 +201,15 @@ export interface WikiLogEntry {
   createdAt: string;
 }
 
+// ─── Event History (Undo/Redo) ───────────────────────────
+
+const EVENT_HISTORY_LIMIT = 50;
+
+type EventHistoryEntry =
+  | { type: 'create'; eventId: string }
+  | { type: 'update'; eventId: string; before: CalendarEvent }
+  | { type: 'delete'; event: CalendarEvent };
+
 // ─── Store Interface ─────────────────────────────────────
 
 interface StoreContextType {
@@ -249,6 +258,12 @@ interface StoreContextType {
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<CalendarEvent>;
   updateEvent: (id: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
+
+  // Event Undo/Redo
+  undoEventAction: () => void;
+  redoEventAction: () => void;
+  canUndoEvent: boolean;
+  canRedoEvent: boolean;
 
   // Chat
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => ChatMessage;
@@ -339,6 +354,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const chatMessagesRef = useRef<ChatMessage[]>([]);
   const journalEntriesRef = useRef<JournalEntry[]>([]);
   const aiMemoryRef = useRef<string>('');
+
+  // ─── Event undo/redo stacks ─────────────────────────────
+  const eventUndoStackRef = useRef<EventHistoryEntry[]>([]);
+  const eventRedoStackRef = useRef<EventHistoryEntry[]>([]);
+  const [canUndoEvent, setCanUndoEvent] = useState(false);
+  const [canRedoEvent, setCanRedoEvent] = useState(false);
+
+  const pushEventUndo = useCallback((entry: EventHistoryEntry) => {
+    eventUndoStackRef.current = [
+      ...eventUndoStackRef.current.slice(-(EVENT_HISTORY_LIMIT - 1)),
+      entry,
+    ];
+    eventRedoStackRef.current = [];
+    setCanUndoEvent(true);
+    setCanRedoEvent(false);
+  }, []);
 
   useEffect(() => {
     goalsRef.current = goals;
@@ -703,86 +734,216 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ─── Events ──────────────────────────────────────────
 
-  const addEvent = useCallback(async (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
-    const tempId = `temp-${crypto.randomUUID()}`;
-    const tempEvent: CalendarEvent = {
-      ...data,
-      id: tempId,
-      createdAt: new Date().toISOString(),
-    };
-    setEvents((prev) => [...prev, tempEvent]);
+  const addEvent = useCallback(
+    async (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
+      const tempId = `temp-${crypto.randomUUID()}`;
+      const tempEvent: CalendarEvent = {
+        ...data,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+      };
+      setEvents((prev) => [...prev, tempEvent]);
 
-    try {
-      const savedEvent = await eventsApi.create(data);
-      setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
+      try {
+        const savedEvent = await eventsApi.create(data);
+        setEvents((prev) => prev.map((e) => (e.id === tempId ? savedEvent : e)));
 
-      // Mirror to Google if connected (source=local means user-created)
-      if (data.source === 'local') {
-        googleMirror.current.post('/calendar/google/events', {
-          title: savedEvent.title,
-          description: savedEvent.description,
-          start: savedEvent.start,
-          end: savedEvent.end,
-          allDay: savedEvent.allDay,
-          localEventId: savedEvent.id,
-        });
+        pushEventUndo({ type: 'create', eventId: savedEvent.id });
+
+        // Mirror to Google if connected (source=local means user-created)
+        if (data.source === 'local') {
+          googleMirror.current.post('/calendar/google/events', {
+            title: savedEvent.title,
+            description: savedEvent.description,
+            start: savedEvent.start,
+            end: savedEvent.end,
+            allDay: savedEvent.allDay,
+            localEventId: savedEvent.id,
+          });
+        }
+
+        return savedEvent;
+      } catch (error) {
+        setEvents((prev) => prev.filter((e) => e.id !== tempId));
+        console.error('Failed to create event:', error);
+        toast.error('Failed to create event', { description: errMsg(error) });
+        throw error;
       }
+    },
+    [pushEventUndo]
+  );
 
-      return savedEvent;
-    } catch (error) {
-      setEvents((prev) => prev.filter((e) => e.id !== tempId));
-      console.error('Failed to create event:', error);
-      toast.error('Failed to create event', { description: errMsg(error) });
-      throw error;
+  const updateEvent = useCallback(
+    async (id: string, updates: Partial<CalendarEvent>) => {
+      const snapshot = eventsRef.current;
+      const before = snapshot.find((e) => e.id === id);
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+
+      try {
+        const updated = await eventsApi.update(id, updates);
+        setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+
+        if (before) {
+          pushEventUndo({ type: 'update', eventId: id, before });
+        }
+
+        // Mirror to Google if this event has a googleEventId
+        const googleEventId =
+          updated.googleEventId ?? snapshot.find((e) => e.id === id)?.googleEventId;
+        if (googleEventId) {
+          googleMirror.current.patch(`/calendar/google/events/${googleEventId}`, {
+            title: updated.title,
+            description: updated.description,
+            start: updated.start,
+            end: updated.end,
+            allDay: updated.allDay,
+          });
+        }
+      } catch (error) {
+        setEvents(snapshot);
+        console.error('Failed to update event:', error);
+        toast.error('Failed to update event', { description: errMsg(error) });
+        throw error;
+      }
+    },
+    [pushEventUndo]
+  );
+
+  const deleteEvent = useCallback(
+    async (id: string) => {
+      const snapshot = eventsRef.current;
+      const event = eventsRef.current.find((e) => e.id === id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+
+      try {
+        await eventsApi.delete(id);
+
+        if (event) {
+          pushEventUndo({ type: 'delete', event });
+        }
+
+        // Mirror delete to Google
+        if (event?.googleEventId) {
+          googleMirror.current.del(`/calendar/google/events/${event.googleEventId}`);
+        }
+      } catch (error) {
+        setEvents(snapshot);
+        console.error('Failed to delete event:', error);
+        toast.error('Failed to delete event', { description: errMsg(error) });
+        throw error;
+      }
+    },
+    [pushEventUndo]
+  );
+
+  // ─── Event Undo/Redo ─────────────────────────────────
+
+  const undoEventAction = useCallback(() => {
+    const stack = eventUndoStackRef.current;
+    if (stack.length === 0) return;
+
+    const entry = stack[stack.length - 1];
+    eventUndoStackRef.current = stack.slice(0, -1);
+    setCanUndoEvent(eventUndoStackRef.current.length > 0);
+
+    switch (entry.type) {
+      case 'create': {
+        const event = eventsRef.current.find((e) => e.id === entry.eventId);
+        if (event) {
+          setEvents((prev) => prev.filter((e) => e.id !== entry.eventId));
+          eventsApi.delete(entry.eventId).catch(() => {});
+          eventRedoStackRef.current = [...eventRedoStackRef.current, { type: 'delete', event }];
+        }
+        break;
+      }
+      case 'update': {
+        const current = eventsRef.current.find((e) => e.id === entry.eventId);
+        setEvents((prev) => prev.map((e) => (e.id === entry.eventId ? entry.before : e)));
+        const { id: _id, createdAt: _ca, ...updateData } = entry.before;
+        eventsApi.update(entry.eventId, updateData).catch(() => {});
+        if (current) {
+          eventRedoStackRef.current = [
+            ...eventRedoStackRef.current,
+            { type: 'update', eventId: entry.eventId, before: current },
+          ];
+        }
+        break;
+      }
+      case 'delete': {
+        const { id: _id, createdAt: _ca, ...createData } = entry.event;
+        setEvents((prev) => [...prev, entry.event]);
+        eventsApi
+          .create(createData)
+          .then((saved) => {
+            setEvents((prev) => prev.map((e) => (e.id === entry.event.id ? saved : e)));
+            eventRedoStackRef.current = eventRedoStackRef.current.map((r) => {
+              if (r.type === 'create' && r.eventId === entry.event.id) {
+                return { ...r, eventId: saved.id };
+              }
+              return r;
+            });
+          })
+          .catch(() => {});
+        eventRedoStackRef.current = [
+          ...eventRedoStackRef.current,
+          { type: 'create', eventId: entry.event.id },
+        ];
+        break;
+      }
     }
+    setCanRedoEvent(true);
+    toast.success('Undone');
   }, []);
 
-  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
-    const snapshot = eventsRef.current;
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+  const redoEventAction = useCallback(() => {
+    const stack = eventRedoStackRef.current;
+    if (stack.length === 0) return;
 
-    try {
-      const updated = await eventsApi.update(id, updates);
-      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    const entry = stack[stack.length - 1];
+    eventRedoStackRef.current = stack.slice(0, -1);
+    setCanRedoEvent(eventRedoStackRef.current.length > 0);
 
-      // Mirror to Google if this event has a googleEventId
-      const googleEventId =
-        updated.googleEventId ?? snapshot.find((e) => e.id === id)?.googleEventId;
-      if (googleEventId) {
-        googleMirror.current.patch(`/calendar/google/events/${googleEventId}`, {
-          title: updated.title,
-          description: updated.description,
-          start: updated.start,
-          end: updated.end,
-          allDay: updated.allDay,
-        });
+    switch (entry.type) {
+      case 'create': {
+        const event = eventsRef.current.find((e) => e.id === entry.eventId);
+        if (event) {
+          setEvents((prev) => prev.filter((e) => e.id !== entry.eventId));
+          eventsApi.delete(entry.eventId).catch(() => {});
+          eventUndoStackRef.current = [...eventUndoStackRef.current, { type: 'delete', event }];
+        }
+        break;
       }
-    } catch (error) {
-      setEvents(snapshot);
-      console.error('Failed to update event:', error);
-      toast.error('Failed to update event', { description: errMsg(error) });
-      throw error;
-    }
-  }, []);
-
-  const deleteEvent = useCallback(async (id: string) => {
-    const snapshot = eventsRef.current;
-    const event = eventsRef.current.find((e) => e.id === id);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-
-    try {
-      await eventsApi.delete(id);
-
-      // Mirror delete to Google
-      if (event?.googleEventId) {
-        googleMirror.current.del(`/calendar/google/events/${event.googleEventId}`);
+      case 'update': {
+        const current = eventsRef.current.find((e) => e.id === entry.eventId);
+        setEvents((prev) => prev.map((e) => (e.id === entry.eventId ? entry.before : e)));
+        const { id: _id, createdAt: _ca, ...updateData } = entry.before;
+        eventsApi.update(entry.eventId, updateData).catch(() => {});
+        if (current) {
+          eventUndoStackRef.current = [
+            ...eventUndoStackRef.current,
+            { type: 'update', eventId: entry.eventId, before: current },
+          ];
+        }
+        break;
       }
-    } catch (error) {
-      setEvents(snapshot);
-      console.error('Failed to delete event:', error);
-      toast.error('Failed to delete event', { description: errMsg(error) });
-      throw error;
+      case 'delete': {
+        const { id: _id, createdAt: _ca, ...createData } = entry.event;
+        setEvents((prev) => [...prev, entry.event]);
+        eventsApi
+          .create(createData)
+          .then((saved) => {
+            setEvents((prev) => prev.map((e) => (e.id === entry.event.id ? saved : e)));
+          })
+          .catch(() => {});
+        eventUndoStackRef.current = [
+          ...eventUndoStackRef.current,
+          { type: 'create', eventId: entry.event.id },
+        ];
+        break;
+      }
     }
+    setCanUndoEvent(true);
+    toast.success('Redone');
   }, []);
 
   // ─── Chat ────────────────────────────────────────────
@@ -1132,6 +1293,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addEvent,
         updateEvent,
         deleteEvent,
+        undoEventAction,
+        redoEventAction,
+        canUndoEvent,
+        canRedoEvent,
         addChatMessage,
         getChatMessages,
         addJournalEntry,
