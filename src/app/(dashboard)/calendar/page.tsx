@@ -433,7 +433,7 @@ export default function CalendarPage() {
 
       if (e.key === 'Escape') {
         setSelectedEventId(null);
-      } else if (e.key === 'd' || e.key === 'D') {
+      } else if (e.key === 'Delete') {
         const event = store.events.find((ev) => ev.id === selectedEventId);
         if (event) {
           if (event.source === 'task') {

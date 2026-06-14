@@ -43,7 +43,7 @@ const EventCard = memo(function EventCard({
       className={`absolute rounded-lg px-2 py-1.5 text-white text-xs font-medium overflow-hidden hover:z-20 shadow-lg border group ${
         isDragging ? 'opacity-50' : ''
       } ${isResizing ? 'select-none' : 'cursor-move'} ${
-        isSelected ? 'ring-2 ring-white/80 border-white/50 brightness-[0.7]' : 'border-white/10'
+        isSelected ? 'ring-2 ring-white/60 border-white/40 brightness-90' : 'border-white/10'
       }`}
       style={{
         ...style,
