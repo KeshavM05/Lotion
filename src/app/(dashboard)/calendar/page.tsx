@@ -107,7 +107,9 @@ type Action =
   | { type: 'RESIZE_START'; event: CalendarEvent; edge: 'top' | 'bottom' }
   | { type: 'RESIZE_END' }
   | { type: 'TASK_DRAG_START'; task: Task }
-  | { type: 'TASK_DRAG_END' };
+  | { type: 'TASK_DRAG_END' }
+  | { type: 'OPEN_MODAL'; form: EventFormState; editingEvent?: CalendarEvent }
+  | { type: 'CLOSE_MODAL' };
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -218,6 +220,24 @@ function reducer(state: CalendarState, action: Action): CalendarState {
 
     case 'PATCH_NEW_LIST_FORM':
       return { ...state, newListForm: { ...state.newListForm, ...action.patch } };
+
+    case 'OPEN_MODAL':
+      return {
+        ...state,
+        popoverOpen: true,
+        editingEvent: action.editingEvent ?? null,
+        popoverAnchor: null,
+        form: action.form,
+      };
+
+    case 'CLOSE_MODAL':
+      return {
+        ...state,
+        popoverOpen: false,
+        editingEvent: null,
+        popoverAnchor: null,
+        form: defaultForm,
+      };
 
     case 'SET_QUICK_VIEW':
       return { ...state, quickViewEvent: action.event, quickViewAnchor: action.anchor };
@@ -598,6 +618,8 @@ export default function CalendarPage() {
         end: end.toISOString(),
         color: '#EC4899',
         allDay: spansMultipleDays,
+        taskId: null,
+        source: 'local',
       });
     } else {
       dispatch({ type: 'DRAG_END' });
