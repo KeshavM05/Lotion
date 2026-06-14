@@ -1,0 +1,37 @@
+You are working on the repo "KeshavM05/Lotion".
+
+GitHub Issue #181: feat: double-click to edit, single-click to select, D to delete
+
+Description:
+## What
+Change calendar event interaction: single-click selects an event (visual highlight), double-click opens the edit popover. Pressing `D` while an event is selected deletes it immediately.
+
+## Why
+Currently single-click opens the edit menu immediately, making it too easy to accidentally trigger. Deleting requires two steps (edit menu → delete button → confirm popup). This adds unnecessary friction to common operations.
+
+## Files to touch
+- `src/app/(dashboard)/calendar/page.tsx` — change `onEventClick` handler to set a `selectedEventId` state instead of dispatching `OPEN_POPOVER`; add `onEventDoubleClick` handler that dispatches `OPEN_POPOVER`; add a `useEffect` with a `keydown` listener for `D` that calls `store.deleteEvent(selectedEventId)` when an event is selected
+- `src/components/ui/event-popover-editor.tsx` — no changes needed
+
+## Acceptance criteria
+- [ ] Single-click on an event selects it (visually highlighted — slightly darker/ring border)
+- [ ] Double-click on an event opens the edit popover (existing behavior moves here)
+- [ ] Pressing `D` while an event is selected deletes it immediately (no confirmation)
+- [ ] Clicking empty space or pressing `Escape` deselects the event
+- [ ] Drag-to-move and resize still work (single-click + drag should not conflict)
+- [ ] `npm run build` passes with no errors
+
+## Constraints
+- Don't break existing drag or resize functionality
+- Keep the existing popover editor UI intact
+- Selected state should be local to the calendar page (not in global store)
+- Run `npm run build` with no errors
+
+Instructions:
+1. Read CLAUDE.md for project conventions
+2. Explore the relevant parts of the codebase
+3. Implement the fix/feature described in the issue
+4. Run 'npm run build' to verify no TypeScript errors
+5. Commit your changes with a descriptive message
+
+Keep changes minimal and focused. Do not modify unrelated files.
