@@ -33,35 +33,33 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Write prompt file
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prompt = `You are working on the repo "${context.repo.owner}/${context.repo.repo}".
+
+            GitHub Issue #${context.payload.issue.number}: ${context.payload.issue.title}
+
+            Description:
+            ${context.payload.issue.body}
+
+            Instructions:
+            1. Read CLAUDE.md for project conventions
+            2. Explore the relevant parts of the codebase
+            3. Implement the fix/feature described in the issue
+            4. Run 'npm run build' to verify no TypeScript errors
+            5. Commit your changes with a descriptive message
+
+            Keep changes minimal and focused. Do not modify unrelated files.`;
+            fs.writeFileSync('prompt.txt', prompt);
+
       - name: Run Claude Code
         env:
           CLAUDE_CODE_USE_BEDROCK: "1"
           ANTHROPIC_MODEL: us.anthropic.claude-opus-4-6-v1
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          PROMPT=$(cat <<'PROMPT_END'
-          You are working on the repo "${REPO_NAME}".
-
-          GitHub Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
-
-          Description:
-          ${ISSUE_BODY}
-
-          Instructions:
-          1. Read CLAUDE.md for project conventions
-          2. Explore the relevant parts of the codebase
-          3. Implement the fix/feature described in the issue
-          4. Run 'npm run build' to verify no TypeScript errors
-          5. Commit your changes with a descriptive message
-
-          Keep changes minimal and focused. Do not modify unrelated files.
-          PROMPT_END
-          )
-          PROMPT=$(echo "$PROMPT" | envsubst)
-          claude -p "$PROMPT"
+        run: claude -p "$(cat prompt.txt)" --dangerously-skip-permissions
 
       - name: Create Pull Request
         id: create-pr
