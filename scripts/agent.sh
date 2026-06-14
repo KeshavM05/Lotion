@@ -18,11 +18,11 @@ while true; do
   git pull origin main --quiet 2>/dev/null || true
 
   # Get next open issue (check auto-merge first, then auto)
-  ISSUE_NUM=$(gh issue list --label auto-merge --state open --limit 1 --json number --jq '.[0].number')
+  ISSUE_NUM=$(gh issue list --label auto-merge --state open --json number --jq 'sort_by(.number)[0].number')
   LABEL="auto-merge"
 
   if [ -z "$ISSUE_NUM" ] || [ "$ISSUE_NUM" = "null" ]; then
-    ISSUE_NUM=$(gh issue list --label auto --state open --limit 1 --json number --jq '.[0].number')
+    ISSUE_NUM=$(gh issue list --label auto --state open --json number --jq 'sort_by(.number)[0].number')
     LABEL="auto"
   fi
 
