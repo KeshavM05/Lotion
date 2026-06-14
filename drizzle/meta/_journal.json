@@ -36,6 +36,20 @@
       "when": 1780676398411,
       "tag": "0004_loose_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781288910956,
+      "tag": "0005_slim_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781289982512,
+      "tag": "0006_deep_dark_beast",
+      "breakpoints": true
     }
   ]
 }

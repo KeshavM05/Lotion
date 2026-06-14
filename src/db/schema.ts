@@ -235,6 +235,56 @@ export const calendarPreferences = pgTable('calendar_preferences', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Knowledge Base Sources
+export const kbSourceStatusEnum = pgEnum('kb_source_status', [
+  'pending',
+  'processing',
+  'ingested',
+  'failed',
+]);
+
+export const knowledgeSources = pgTable('knowledge_sources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  sourceType: text('source_type').notNull(), // 'article', 'book', 'podcast', 'meeting', 'note', 'research'
+  status: kbSourceStatusEnum('status').default('pending').notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Knowledge Base Wiki Pages
+export const wikiPages = pgTable('wiki_pages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  slug: text('slug').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  category: text('category').notNull(), // 'concept', 'entity', 'summary', 'comparison', 'synthesis'
+  linkedSourceIds: jsonb('linked_source_ids').$type<string[]>().default([]),
+  linkedPageSlugs: jsonb('linked_page_slugs').$type<string[]>().default([]),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Knowledge Base Log
+export const wikiLog = pgTable('wiki_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // 'ingest', 'query', 'lint', 'update'
+  description: text('description').notNull(),
+  pagesAffected: jsonb('pages_affected').$type<string[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Context Embeddings (pgvector for semantic search)
 export const contextEmbeddingSourceEnum = pgEnum('embedding_source', [
   'journal',
@@ -333,4 +383,16 @@ export const oauthConnectionsRelations = relations(oauthConnections, ({ one }) =
 
 export const calendarPreferencesRelations = relations(calendarPreferences, ({ one }) => ({
   user: one(users, { fields: [calendarPreferences.userId], references: [users.id] }),
+}));
+
+export const knowledgeSourcesRelations = relations(knowledgeSources, ({ one }) => ({
+  user: one(users, { fields: [knowledgeSources.userId], references: [users.id] }),
+}));
+
+export const wikiPagesRelations = relations(wikiPages, ({ one }) => ({
+  user: one(users, { fields: [wikiPages.userId], references: [users.id] }),
+}));
+
+export const wikiLogRelations = relations(wikiLog, ({ one }) => ({
+  user: one(users, { fields: [wikiLog.userId], references: [users.id] }),
 }));
