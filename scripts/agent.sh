@@ -69,7 +69,7 @@ PROMPT_EOF
   rm -f .agent-prompt.txt
 
   # Push branch and create PR
-  git push origin "$BRANCH" --force-with-lease
+  git push origin "$BRANCH" --force
   PR_URL=$(gh pr create \
     --title "fix: resolve #$ISSUE_NUM - $ISSUE_TITLE" \
     --body "Automated fix for #$ISSUE_NUM
