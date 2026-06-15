@@ -476,6 +476,7 @@ export default function CalendarPage() {
         color: '#10b981',
         allDay: false,
         source: 'task' as const,
+        tagId: null,
         taskId: t.id,
         isRecurring: false,
         createdAt: t.createdAt,
@@ -532,6 +533,7 @@ export default function CalendarPage() {
       start: new Date(form.start).toISOString(),
       end: new Date(form.end).toISOString(),
       color: form.color,
+      tagId: null,
       isRecurring: form.isRecurring,
       ...(form.isRecurring && {
         recurrenceFrequency: form.recurrenceFrequency,
@@ -556,7 +558,7 @@ export default function CalendarPage() {
         store.updateEvent(editingEvent.id, data);
       }
     } else {
-      store.addEvent({ ...data, allDay: false, taskId: null, source: 'local' });
+      store.addEvent({ ...data, allDay: false, tagId: null, taskId: null, source: 'local' });
     }
     dispatch({ type: 'CLOSE_MODAL' });
   }
@@ -665,6 +667,7 @@ export default function CalendarPage() {
           end: end.toISOString(),
           color: '#EC4899',
           allDay: false,
+          tagId: null,
           taskId: null,
           source: 'local',
           createdAt: new Date().toISOString(),
@@ -682,6 +685,7 @@ export default function CalendarPage() {
           end: end.toISOString(),
           color: '#EC4899',
           allDay: spansMultipleDays,
+          tagId: null,
           taskId: null,
           source: 'local',
         });
@@ -814,6 +818,7 @@ export default function CalendarPage() {
       end: end.toISOString(),
       color: '#10b981',
       allDay: false,
+      tagId: null,
       taskId: draggingTask.id,
       source: 'local',
     });
@@ -830,6 +835,7 @@ export default function CalendarPage() {
       end: string;
       color: string;
       allDay: boolean;
+      tagId: string | null;
     }) => {
       if (!editingEvent) return;
 
@@ -840,6 +846,7 @@ export default function CalendarPage() {
         end: new Date(data.end).toISOString(),
         color: data.color,
         allDay: data.allDay,
+        tagId: data.tagId,
       };
 
       if (editingEvent.id.startsWith('__draft_')) {
@@ -850,6 +857,7 @@ export default function CalendarPage() {
           end: new Date(data.end).toISOString(),
           color: data.color,
           allDay: data.allDay,
+          tagId: data.tagId,
           taskId: null,
           source: 'local',
         });
@@ -970,9 +978,13 @@ export default function CalendarPage() {
           isOpen={popoverOpen}
           anchorElement={popoverAnchor}
           mode={editingEvent?.id.startsWith('__draft_') ? 'create' : 'edit'}
+          tags={store.tags}
           onClose={() => dispatch({ type: 'CLOSE_POPOVER' })}
           onSave={handlePopoverSave}
           onDelete={handlePopoverDelete}
+          onCreateTag={store.createTag}
+          onUpdateTag={store.updateTag}
+          onDeleteTag={store.deleteTag}
         />
 
         {/* New Task List Modal */}

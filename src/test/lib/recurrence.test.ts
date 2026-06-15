@@ -11,6 +11,7 @@ const baseEvent: CalendarEvent = {
   end: '2026-06-01T09:30:00.000Z',
   allDay: false,
   color: '#C17A72',
+  tagId: null,
   taskId: null,
   source: 'local',
   isRecurring: true,

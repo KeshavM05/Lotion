@@ -130,6 +130,25 @@ export interface TaskList {
   createdAt: string;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export const TAG_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#f59e0b',
+  '#10b981',
+  '#14b8a6',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#6b7280',
+];
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -138,6 +157,7 @@ export interface CalendarEvent {
   end: string;
   allDay: boolean;
   color: string;
+  tagId: string | null;
   taskId: string | null;
   googleEventId?: string | null;
   source: 'local' | 'google' | 'outlook' | 'task';
@@ -219,6 +239,7 @@ interface StoreContextType {
   tasks: Task[];
   taskLists: TaskList[];
   events: CalendarEvent[];
+  tags: Tag[];
   chatMessages: ChatMessage[];
   aiMemory: string;
   loading: boolean;
@@ -264,6 +285,11 @@ interface StoreContextType {
   redoEventAction: () => void;
   canUndoEvent: boolean;
   canRedoEvent: boolean;
+
+  // Tags
+  createTag: (name: string, color: string) => Tag;
+  updateTag: (id: string, updates: Partial<Omit<Tag, 'id'>>) => void;
+  deleteTag: (id: string) => void;
 
   // Chat
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => ChatMessage;
@@ -327,6 +353,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [aiMemory, setAiMemoryState] = useState<string>('');
@@ -946,6 +973,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.success('Redone');
   }, []);
 
+  // ─── Tags ────────────────────────────────────────────
+
+  const createTag = useCallback((name: string, color: string): Tag => {
+    const tag: Tag = { id: crypto.randomUUID(), name, color };
+    setTags((prev) => [...prev, tag]);
+    return tag;
+  }, []);
+
+  const updateTag = useCallback((id: string, updates: Partial<Omit<Tag, 'id'>>) => {
+    setTags((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+  }, []);
+
+  const deleteTag = useCallback((id: string) => {
+    setTags((prev) => prev.filter((t) => t.id !== id));
+    setEvents((prev) => prev.map((e) => (e.tagId === id ? { ...e, tagId: null } : e)));
+  }, []);
+
   // ─── Chat ────────────────────────────────────────────
 
   const addChatMessage = useCallback((data: Omit<ChatMessage, 'id' | 'createdAt'>) => {
@@ -1272,6 +1316,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         tasks,
         taskLists,
         events,
+        tags,
         journalEntries,
         chatMessages,
         aiMemory,
@@ -1297,6 +1342,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         redoEventAction,
         canUndoEvent,
         canRedoEvent,
+        createTag,
+        updateTag,
+        deleteTag,
         addChatMessage,
         getChatMessages,
         addJournalEntry,
