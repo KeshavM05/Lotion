@@ -51,6 +51,7 @@ export function EventPopoverEditor({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const saveRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (event) {
@@ -120,6 +121,10 @@ export function EventPopoverEditor({
   };
 
   useEffect(() => {
+    saveRef.current = handleSave;
+  });
+
+  useEffect(() => {
     if (!isOpen) return;
 
     // Focus title input
@@ -136,7 +141,7 @@ export function EventPopoverEditor({
         if (mode === 'create') {
           onClose();
         } else {
-          handleSave();
+          saveRef.current();
         }
       }
     };
