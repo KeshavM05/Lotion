@@ -71,7 +71,7 @@ export function EventPopoverEditor({
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (event) {
+    if (event && isOpen) {
       setTitle(event.title);
       setDescription(event.description || '');
       setStart(toLocalDatetimeString(new Date(event.start)));
@@ -79,8 +79,11 @@ export function EventPopoverEditor({
       setColor(event.color);
       setAllDay(event.allDay || false);
       setTagId(event.tagId || null);
+      setTagDropdownOpen(false);
+      setTagFilter('');
+      setEditingTag(null);
     }
-  }, [event]);
+  }, [event?.id, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !anchorElement || !popoverRef.current) return;
