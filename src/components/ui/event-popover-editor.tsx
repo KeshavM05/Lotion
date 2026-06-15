@@ -45,7 +45,7 @@ export function EventPopoverEditor({
   const [end, setEnd] = useState('');
   const [color, setColor] = useState('#8b5cf6');
   const [allDay, setAllDay] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -61,7 +61,6 @@ export function EventPopoverEditor({
       setEnd(toLocalDatetimeString(new Date(event.end)));
       setColor(event.color);
       setAllDay(event.allDay || false);
-      setShowNotes(!!event.description);
     }
   }, [event]);
 
@@ -221,24 +220,14 @@ export function EventPopoverEditor({
           className="w-full bg-transparent border-none outline-none text-white font-semibold text-base placeholder-[#9CA3AF]"
         />
 
-        {/* Notes button/textarea */}
-        {!showNotes ? (
-          <button
-            onClick={() => setShowNotes(true)}
-            className="text-xs text-[#9CA3AF] hover:text-white flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-sm">notes</span>
-            Notes
-          </button>
-        ) : (
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add notes..."
-            rows={2}
-            className="w-full bg-[#1F2D47] border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder-[#9CA3AF] focus:outline-none focus:border-[#C17A72] resize-none"
-          />
-        )}
+        {/* Notes textarea */}
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Add notes..."
+          rows={2}
+          className="w-full bg-transparent border border-transparent rounded-lg px-3 py-2 text-white text-xs placeholder-[#9CA3AF] focus:outline-none focus:bg-[#1F2D47] focus:border-[#C17A72] resize-none transition-colors"
+        />
 
         {/* Tag and color */}
         <div className="relative">
