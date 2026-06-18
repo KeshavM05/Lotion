@@ -177,6 +177,14 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface JournalEntry {
   id: string;
   content: string;
@@ -294,6 +302,16 @@ interface StoreContextType {
   // Chat
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => ChatMessage;
   getChatMessages: (goalId: string | null) => ChatMessage[];
+
+  // Chat Sessions (AI Coach)
+  chatSessions: ChatSession[];
+  activeChatId: string | null;
+  createChatSession: () => string;
+  deleteChatSession: (id: string) => void;
+  renameChatSession: (id: string, title: string) => void;
+  setActiveChatId: (id: string | null) => void;
+  addMessageToSession: (sessionId: string, role: ChatRole, content: string) => void;
+  getActiveSessionMessages: () => ChatMessage[];
 
   // Journal
   journalEntries: JournalEntry[];
@@ -1007,6 +1025,67 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [chatMessages]
   );
 
+  // ─── Chat Sessions (AI Coach) ───────────────────────────
+
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
+
+  const createChatSession = useCallback(() => {
+    const id = crypto.randomUUID();
+    const session: ChatSession = {
+      id,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setChatSessions((prev) => [session, ...prev]);
+    setActiveChatIdState(id);
+    return id;
+  }, []);
+
+  const deleteChatSession = useCallback((id: string) => {
+    setChatSessions((prev) => prev.filter((s) => s.id !== id));
+    setActiveChatIdState((curr) => (curr === id ? null : curr));
+  }, []);
+
+  const renameChatSession = useCallback((id: string, title: string) => {
+    setChatSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s))
+    );
+  }, []);
+
+  const setActiveChatId = useCallback((id: string | null) => {
+    setActiveChatIdState(id);
+  }, []);
+
+  const addMessageToSession = useCallback((sessionId: string, role: ChatRole, content: string) => {
+    const msg: ChatMessage = {
+      id: crypto.randomUUID(),
+      goalId: null,
+      role,
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    setChatSessions((prev) =>
+      prev.map((s) => {
+        if (s.id !== sessionId) return s;
+        const messages = [...s.messages, msg];
+        const title =
+          s.title === 'New Chat' && role === 'user'
+            ? content.slice(0, 40) + (content.length > 40 ? '...' : '')
+            : s.title;
+        return { ...s, messages, title, updatedAt: new Date().toISOString() };
+      })
+    );
+  }, []);
+
+  const getActiveSessionMessages = useCallback(() => {
+    if (!activeChatId) return [];
+    const session = chatSessions.find((s) => s.id === activeChatId);
+    return session?.messages ?? [];
+  }, [activeChatId, chatSessions]);
+
   // ─── Journal ─────────────────────────────────────────
 
   const addJournalEntry = useCallback(
@@ -1347,6 +1426,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         deleteTag,
         addChatMessage,
         getChatMessages,
+        chatSessions,
+        activeChatId,
+        createChatSession,
+        deleteChatSession,
+        renameChatSession,
+        setActiveChatId,
+        addMessageToSession,
+        getActiveSessionMessages,
         addJournalEntry,
         updateJournalEntry,
         deleteJournalEntry,
