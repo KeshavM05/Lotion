@@ -19,7 +19,7 @@ const bedrock =
       })
     : null;
 
-const MODEL_ID = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
+const MODEL_ID = 'us.anthropic.claude-sonnet-4-6-v1';
 
 export async function POST(request: NextRequest) {
   let supabaseUserId: string;
