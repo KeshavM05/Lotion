@@ -62,6 +62,7 @@ export function EventPopoverEditor({
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editTagName, setEditTagName] = useState('');
   const [editTagColor, setEditTagColor] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -82,6 +83,7 @@ export function EventPopoverEditor({
       setTagDropdownOpen(false);
       setTagFilter('');
       setEditingTag(null);
+      setShowDeleteConfirm(false);
     }
   }, [event?.id, isOpen]);
 
@@ -270,9 +272,16 @@ export function EventPopoverEditor({
 
   const handleDeleteTagGlobally = () => {
     if (editingTag) {
+      setShowDeleteConfirm(true);
+    }
+  };
+
+  const confirmDeleteTag = () => {
+    if (editingTag) {
       onDeleteTag(editingTag.id);
       if (tagId === editingTag.id) setTagId(null);
       setEditingTag(null);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -514,6 +523,41 @@ export function EventPopoverEditor({
           </button>
         </div>
       </div>
+
+      {showDeleteConfirm && editingTag && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-[#1F2D47] border border-white/10 rounded-xl p-6 w-full max-w-xs shadow-2xl text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="w-8 h-8 rounded-full mx-auto mb-4"
+              style={{ backgroundColor: editingTag.color }}
+            />
+            <h3 className="text-white font-semibold text-base mb-2">Delete tag</h3>
+            <p className="text-[#9CA3AF] text-sm mb-6">
+              Are you sure you want to permanently delete the tag &ldquo;{editingTag.name}&rdquo;
+              from all events?
+            </p>
+            <button
+              onClick={confirmDeleteTag}
+              className="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-2 rounded-lg transition-colors mb-2"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="w-full bg-white/5 hover:bg-white/10 text-[#9CA3AF] text-sm py-2 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
