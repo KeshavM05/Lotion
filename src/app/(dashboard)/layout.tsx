@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { toast } from 'sonner';
 import { Sidebar } from '@/components/ui/sidebar';
@@ -11,7 +11,7 @@ import { CommandPalette } from '@/components/ui/command-palette';
 import { QuickCaptureOverlay, useQuickCapture } from '@/components/ui/quick-capture';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
 import { StoreProvider, useStore } from '@/lib/store';
-import { SidebarProvider } from '@/lib/sidebar-context';
+import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
 import { PageHeaderProvider } from '@/lib/page-header-context';
 import { useAuth } from '@/lib/auth-context';
 import { initializeUser } from '@/lib/api-client';
@@ -20,12 +20,19 @@ import { queryClient } from '@/lib/query-client';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { loadInitialData, goals, loading: storeLoading } = useStore();
   const { isOpen, close } = useQuickCapture();
+  const { setCollapsed } = useSidebar();
   const [initializing, setInitializing] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const isCoachPage = pathname === '/coach' || pathname.startsWith('/coach/');
+    setCollapsed(isCoachPage);
+  }, [pathname, setCollapsed]);
 
   // Global unhandled rejection listener
   useEffect(() => {
