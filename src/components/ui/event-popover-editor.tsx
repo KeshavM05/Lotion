@@ -177,6 +177,8 @@ export function EventPopoverEditor({
     };
   }, [isOpen, anchorElement, mode]);
 
+  const MIN_DURATION_MS = 30 * 60 * 1000;
+
   const handleSave = () => {
     if (!title.trim()) {
       onClose();
@@ -188,11 +190,17 @@ export function EventPopoverEditor({
       return;
     }
 
+    let finalEnd = end;
+    if (!allDay && new Date(end).getTime() <= new Date(start).getTime()) {
+      finalEnd = toLocalDatetimeString(new Date(new Date(start).getTime() + MIN_DURATION_MS));
+      setEnd(finalEnd);
+    }
+
     onSave({
       title: title.trim(),
       description: description.trim(),
       start,
-      end,
+      end: finalEnd,
       color,
       allDay,
       tagId,
@@ -203,6 +211,29 @@ export function EventPopoverEditor({
     if (e.key === 'Enter' && !e.shiftKey && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
       e.preventDefault();
       handleSave();
+    }
+  };
+
+  const handleStartChange = (newStart: string) => {
+    setStart(newStart);
+    if (allDay) return;
+    const startMs = new Date(newStart).getTime();
+    const endMs = new Date(end).getTime();
+    if (startMs >= endMs) {
+      const origStart = new Date(start).getTime();
+      const origDuration = endMs - origStart;
+      const duration = origDuration > 0 ? origDuration : MIN_DURATION_MS;
+      setEnd(toLocalDatetimeString(new Date(startMs + duration)));
+    }
+  };
+
+  const handleEndChange = (newEnd: string) => {
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(newEnd).getTime();
+    if (!allDay && endMs <= startMs) {
+      setEnd(toLocalDatetimeString(new Date(startMs + MIN_DURATION_MS)));
+    } else {
+      setEnd(newEnd);
     }
   };
 
@@ -427,7 +458,7 @@ export function EventPopoverEditor({
             <input
               type="datetime-local"
               value={start}
-              onChange={(e) => setStart(e.target.value)}
+              onChange={(e) => handleStartChange(e.target.value)}
               className="flex-1 bg-[#1F2D47] border border-white/10 rounded px-2 py-1 text-white focus:outline-none focus:border-[#C17A72]"
             />
           </div>
@@ -436,7 +467,7 @@ export function EventPopoverEditor({
             <input
               type="datetime-local"
               value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => handleEndChange(e.target.value)}
               className="flex-1 bg-[#1F2D47] border border-white/10 rounded px-2 py-1 text-white focus:outline-none focus:border-[#C17A72]"
             />
           </div>
