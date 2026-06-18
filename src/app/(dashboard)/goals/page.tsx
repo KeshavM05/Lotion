@@ -202,8 +202,37 @@ export default function GoalsPage() {
                 <Link
                   key={goal.id}
                   href={`/goals/${goal.id}`}
-                  className="glass-card p-8 rounded-2xl flex flex-col justify-between group hover:border-[#C17A72]/30 transition-all duration-500 hover:-translate-y-1"
+                  className="glass-card p-8 rounded-2xl flex flex-col justify-between group hover:border-[#C17A72]/30 transition-all duration-500 hover:-translate-y-1 relative"
                 >
+                  {/* Edit/Delete buttons (visible on hover) */}
+                  <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openEdit(goal);
+                      }}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#9CA3AF] hover:text-[#F5F5F5] transition-colors"
+                      aria-label={`Edit ${goal.title}`}
+                    >
+                      <span className="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingGoal(goal);
+                        setConfirmDelete(false);
+                        setModalOpen(true);
+                        setTimeout(() => setConfirmDelete(true), 0);
+                      }}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-[#9CA3AF] hover:text-red-400 transition-colors"
+                      aria-label={`Delete ${goal.title}`}
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+
                   {/* Header with Progress Ring */}
                   <div className="flex justify-between items-start mb-12">
                     <div className="relative w-24 h-24">
