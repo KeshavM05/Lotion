@@ -177,10 +177,20 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface ChatFolder {
+  id: string;
+  name: string;
+  color?: string;
+  order: number;
+  goalId?: string;
+  collapsed: boolean;
+}
+
 export interface ChatSession {
   id: string;
   title: string;
   messages: ChatMessage[];
+  folderId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -306,12 +316,20 @@ interface StoreContextType {
   // Chat Sessions (AI Coach)
   chatSessions: ChatSession[];
   activeChatId: string | null;
-  createChatSession: () => string;
+  createChatSession: (folderId?: string) => string;
   deleteChatSession: (id: string) => void;
   renameChatSession: (id: string, title: string) => void;
   setActiveChatId: (id: string | null) => void;
   addMessageToSession: (sessionId: string, role: ChatRole, content: string) => void;
   getActiveSessionMessages: () => ChatMessage[];
+
+  // Chat Folders
+  chatFolders: ChatFolder[];
+  createChatFolder: (name: string, goalId?: string, color?: string) => string;
+  renameChatFolder: (id: string, name: string) => void;
+  deleteChatFolder: (id: string) => void;
+  moveChatToFolder: (chatId: string, folderId: string | null) => void;
+  toggleFolderCollapsed: (id: string) => void;
 
   // Journal
   journalEntries: JournalEntry[];
@@ -1030,12 +1048,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
 
-  const createChatSession = useCallback(() => {
+  const createChatSession = useCallback((folderId?: string) => {
     const id = crypto.randomUUID();
     const session: ChatSession = {
       id,
       title: 'New Chat',
       messages: [],
+      folderId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -1085,6 +1104,72 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const session = chatSessions.find((s) => s.id === activeChatId);
     return session?.messages ?? [];
   }, [activeChatId, chatSessions]);
+
+  // ─── Chat Folders ───────────────────────────────────────
+
+  const [chatFolders, setChatFolders] = useState<ChatFolder[]>([]);
+
+  const syncGoalFolders = useCallback((currentGoals: Goal[], currentFolders: ChatFolder[]) => {
+    const goalFolderGoalIds = new Set(currentFolders.filter((f) => f.goalId).map((f) => f.goalId));
+    const newFolders: ChatFolder[] = [];
+    currentGoals.forEach((goal) => {
+      if (!goalFolderGoalIds.has(goal.id)) {
+        newFolders.push({
+          id: crypto.randomUUID(),
+          name: goal.title,
+          color: goal.color,
+          order: currentFolders.length + newFolders.length,
+          goalId: goal.id,
+          collapsed: false,
+        });
+      }
+    });
+    if (newFolders.length > 0) {
+      setChatFolders((prev) => [...prev, ...newFolders]);
+    }
+    const activeGoalIds = new Set(currentGoals.map((g) => g.id));
+    const hasStale = currentFolders.some((f) => f.goalId && !activeGoalIds.has(f.goalId));
+    if (hasStale) {
+      setChatFolders((prev) => prev.filter((f) => !f.goalId || activeGoalIds.has(f.goalId)));
+    }
+  }, []);
+
+  useEffect(() => {
+    syncGoalFolders(goals, chatFolders);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals]);
+
+  const createChatFolder = useCallback((name: string, goalId?: string, color?: string) => {
+    const id = crypto.randomUUID();
+    setChatFolders((prev) => [
+      ...prev,
+      { id, name, color, order: prev.length, goalId, collapsed: false },
+    ]);
+    return id;
+  }, []);
+
+  const renameChatFolder = useCallback((id: string, name: string) => {
+    setChatFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
+  }, []);
+
+  const deleteChatFolder = useCallback((id: string) => {
+    setChatFolders((prev) => prev.filter((f) => f.id !== id));
+    setChatSessions((prev) =>
+      prev.map((s) => (s.folderId === id ? { ...s, folderId: undefined } : s))
+    );
+  }, []);
+
+  const moveChatToFolder = useCallback((chatId: string, folderId: string | null) => {
+    setChatSessions((prev) =>
+      prev.map((s) => (s.id === chatId ? { ...s, folderId: folderId ?? undefined } : s))
+    );
+  }, []);
+
+  const toggleFolderCollapsed = useCallback((id: string) => {
+    setChatFolders((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, collapsed: !f.collapsed } : f))
+    );
+  }, []);
 
   // ─── Journal ─────────────────────────────────────────
 
@@ -1434,6 +1519,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setActiveChatId,
         addMessageToSession,
         getActiveSessionMessages,
+        chatFolders,
+        createChatFolder,
+        renameChatFolder,
+        deleteChatFolder,
+        moveChatToFolder,
+        toggleFolderCollapsed,
         addJournalEntry,
         updateJournalEntry,
         deleteJournalEntry,
