@@ -94,7 +94,10 @@ export default function CoachPage() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden -mx-4 md:-mx-8 -mt-6 -mb-8">
+    <div
+      className="flex overflow-hidden -mx-4 md:-mx-8 -mt-6 -mb-8"
+      style={{ height: 'calc(100vh - 64px)' }}
+    >
       <ChatSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Empty State */}
