@@ -19,6 +19,7 @@ import {
   eventsApi,
   aiMemoryApi,
   knowledgeApi,
+  chatSessionsApi,
 } from './api-client';
 import { AsyncQueue } from './async-queue';
 
@@ -316,10 +317,10 @@ interface StoreContextType {
   // Chat Sessions (AI Coach)
   chatSessions: ChatSession[];
   activeChatId: string | null;
-  createChatSession: (folderId?: string) => string;
+  createChatSession: (folderId?: string) => Promise<string>;
   deleteChatSession: (id: string) => void;
   renameChatSession: (id: string, title: string) => void;
-  setActiveChatId: (id: string | null) => void;
+  setActiveChatId: (id: string | null) => Promise<void>;
   addMessageToSession: (sessionId: string, role: ChatRole, content: string) => void;
   getActiveSessionMessages: () => ChatMessage[];
 
@@ -465,15 +466,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      const [goalsData, tasksData, taskListsData, journalData, eventsData, memoryData] =
-        await Promise.all([
-          goalsApi.list(),
-          tasksApi.list(),
-          taskListsApi.list(),
-          journalApi.list(),
-          eventsApi.list(),
-          aiMemoryApi.get(),
-        ]);
+      const [
+        goalsData,
+        tasksData,
+        taskListsData,
+        journalData,
+        eventsData,
+        memoryData,
+        sessionsData,
+      ] = await Promise.all([
+        goalsApi.list(),
+        tasksApi.list(),
+        taskListsApi.list(),
+        journalApi.list(),
+        eventsApi.list(),
+        aiMemoryApi.get(),
+        chatSessionsApi.list().catch(() => []),
+      ]);
 
       // Extract milestones from goals
       const allMilestones: Milestone[] = [];
@@ -490,6 +499,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setJournalEntries(journalData);
       setEvents(eventsData);
       setAiMemoryState(memoryData.memory || '');
+      setChatSessions(
+        sessionsData.map((s) => ({
+          id: s.id,
+          title: s.title,
+          messages: [],
+          folderId: s.folderId || undefined,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        }))
+      );
       initializedRef.current = true;
     } catch (error) {
       console.error('Failed to load initial data:', error);
@@ -1048,10 +1067,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
 
-  const createChatSession = useCallback((folderId?: string) => {
-    const id = crypto.randomUUID();
+  const createChatSession = useCallback(async (folderId?: string) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
     const session: ChatSession = {
-      id,
+      id: tempId,
       title: 'New Chat',
       messages: [],
       folderId,
@@ -1059,24 +1078,69 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updatedAt: new Date().toISOString(),
     };
     setChatSessions((prev) => [session, ...prev]);
-    setActiveChatIdState(id);
-    return id;
+    setActiveChatIdState(tempId);
+
+    try {
+      const created = await chatSessionsApi.create({ folderId });
+      setChatSessions((prev) =>
+        prev.map((s) =>
+          s.id === tempId
+            ? { ...s, id: created.id, createdAt: created.createdAt, updatedAt: created.updatedAt }
+            : s
+        )
+      );
+      setActiveChatIdState(created.id);
+      return created.id;
+    } catch {
+      return tempId;
+    }
   }, []);
 
   const deleteChatSession = useCallback((id: string) => {
     setChatSessions((prev) => prev.filter((s) => s.id !== id));
     setActiveChatIdState((curr) => (curr === id ? null : curr));
+    chatSessionsApi.delete(id).catch(() => {});
   }, []);
 
   const renameChatSession = useCallback((id: string, title: string) => {
     setChatSessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s))
     );
+    chatSessionsApi.update(id, { title }).catch(() => {});
   }, []);
 
-  const setActiveChatId = useCallback((id: string | null) => {
-    setActiveChatIdState(id);
-  }, []);
+  const setActiveChatId = useCallback(
+    async (id: string | null) => {
+      setActiveChatIdState(id);
+      if (!id) return;
+      // Load messages from DB if session has none locally
+      const session = chatSessions.find((s) => s.id === id);
+      if (session && session.messages.length === 0) {
+        try {
+          const full = await chatSessionsApi.get(id);
+          setChatSessions((prev) =>
+            prev.map((s) =>
+              s.id === id
+                ? {
+                    ...s,
+                    messages: full.messages.map((m) => ({
+                      id: m.id,
+                      goalId: null,
+                      role: m.role as ChatRole,
+                      content: m.content,
+                      createdAt: m.createdAt,
+                    })),
+                  }
+                : s
+            )
+          );
+        } catch {
+          // Ignore — messages stay empty
+        }
+      }
+    },
+    [chatSessions]
+  );
 
   const addMessageToSession = useCallback((sessionId: string, role: ChatRole, content: string) => {
     const msg: ChatMessage = {

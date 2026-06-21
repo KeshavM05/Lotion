@@ -156,12 +156,28 @@ export const calendarEvents = pgTable('calendar_events', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Chat Sessions
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull().default('New Chat'),
+  folderId: text('folder_id'),
+  goalId: uuid('goal_id').references(() => goals.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Chat Messages
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => chatSessions.id, { onDelete: 'cascade' }),
   goalId: uuid('goal_id').references(() => goals.id, { onDelete: 'cascade' }),
   role: chatRoleEnum('role').notNull(),
   content: text('content').notNull(),
@@ -321,6 +337,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   tasks: many(tasks),
   taskLists: many(taskLists),
   calendarEvents: many(calendarEvents),
+  chatSessions: many(chatSessions),
   chatMessages: many(chatMessages),
   journalEntries: many(journalEntries),
   autoScheduleSettings: one(autoScheduleSettings, {
@@ -364,8 +381,15 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
   task: one(tasks, { fields: [calendarEvents.taskId], references: [tasks.id] }),
 }));
 
+export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
+  user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
+  goal: one(goals, { fields: [chatSessions.goalId], references: [goals.id] }),
+  messages: many(chatMessages),
+}));
+
 export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
   user: one(users, { fields: [chatMessages.userId], references: [users.id] }),
+  session: one(chatSessions, { fields: [chatMessages.sessionId], references: [chatSessions.id] }),
   goal: one(goals, { fields: [chatMessages.goalId], references: [goals.id] }),
 }));
 

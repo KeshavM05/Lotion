@@ -292,14 +292,79 @@ export const aiMemoryApi = {
 export const aiChatApi = {
   send: async (params: {
     messages: ChatMessage[];
+    sessionId?: string;
+    goalId?: string | null;
     goalContext?: string;
     aiMemory?: string;
     calendarContext?: string;
     tasksContext?: string;
-  }): Promise<{ message: string }> => {
+  }): Promise<{ message: string; sessionId: string }> => {
     return apiRequest('/ai/chat', {
       method: 'POST',
       body: JSON.stringify(params),
+    });
+  },
+};
+
+// ─── Chat Sessions ──────────────────────────────────────
+
+export interface ChatSessionResponse {
+  id: string;
+  title: string;
+  folderId: string | null;
+  goalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatSessionWithMessages extends ChatSessionResponse {
+  messages: ChatMessage[];
+}
+
+export const chatSessionsApi = {
+  list: async (): Promise<ChatSessionResponse[]> => {
+    return apiRequest('/chat/sessions');
+  },
+
+  get: async (id: string): Promise<ChatSessionWithMessages> => {
+    return apiRequest(`/chat/sessions/${id}`);
+  },
+
+  create: async (params: {
+    title?: string;
+    folderId?: string;
+    goalId?: string;
+  }): Promise<ChatSessionResponse> => {
+    return apiRequest('/chat/sessions', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  update: async (
+    id: string,
+    params: { title?: string; folderId?: string | null; goalId?: string | null }
+  ): Promise<ChatSessionResponse> => {
+    return apiRequest(`/chat/sessions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await fetch(`${API_BASE}/chat/sessions/${id}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+    });
+  },
+
+  addMessages: async (
+    sessionId: string,
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  ): Promise<ChatMessage[]> => {
+    return apiRequest(`/chat/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
     });
   },
 };

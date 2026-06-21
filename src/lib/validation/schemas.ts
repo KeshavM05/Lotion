@@ -122,6 +122,7 @@ export const chatMessageSchema = z.object({
 
 export const chatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1, 'At least one message is required'),
+  sessionId: z.string().optional(),
   goalId: z.string().nullable().optional(),
   goalContext: z.string().max(5000).optional(),
   aiMemory: z.string().max(10000).optional(),

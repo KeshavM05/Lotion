@@ -44,7 +44,7 @@ export default function CoachPage() {
 
       let sessionId = activeChatId;
       if (!sessionId) {
-        sessionId = createChatSession();
+        sessionId = await createChatSession();
       }
 
       addMessageToSession(sessionId, 'user', content.trim());
@@ -64,6 +64,7 @@ export default function CoachPage() {
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: allMessages,
+            sessionId,
             goalId: null,
             aiMemory: store.aiMemory || undefined,
           }),

@@ -7,6 +7,9 @@ import { chatRequestSchema } from '@/lib/validation/schemas';
 import { requireAuth, getInternalUser } from '@/lib/auth-server';
 import { retrieveRelevantContext } from '@/lib/context-engine';
 import { extractAndStoreMemories } from '@/lib/memory-extraction';
+import { db } from '@/db';
+import { chatSessions, chatMessages } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 const bedrock =
   env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
@@ -61,7 +64,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { messages, goalContext, aiMemory, calendarContext, tasksContext, goalId } = data;
+    const { messages, sessionId, goalContext, aiMemory, calendarContext, tasksContext, goalId } =
+      data;
 
     // Semantic context retrieval from embeddings
     let semanticContext: string | undefined;
@@ -102,14 +106,59 @@ export async function POST(request: NextRequest) {
     const assistantMessage =
       response.output?.message?.content?.[0]?.text || "I couldn't generate a response.";
 
-    // Fire-and-forget: extract memories from the conversation
+    // Persist messages to database
     const user = await getInternalUser(supabaseUserId).catch(() => null);
+    let resolvedSessionId = sessionId;
+
     if (user) {
+      // Create session if none provided
+      if (!resolvedSessionId) {
+        const userMsg = messages[messages.length - 1];
+        const title = userMsg?.content?.slice(0, 60) || 'New Chat';
+        const [session] = await db
+          .insert(chatSessions)
+          .values({
+            userId: user.id,
+            title,
+            goalId: goalId || null,
+          })
+          .returning();
+        resolvedSessionId = session.id;
+      }
+
+      // Persist user message + assistant response
+      const lastUserMsg = messages[messages.length - 1];
+      if (lastUserMsg && resolvedSessionId) {
+        await db.insert(chatMessages).values([
+          {
+            userId: user.id,
+            sessionId: resolvedSessionId,
+            goalId: goalId || null,
+            role: 'user' as const,
+            content: lastUserMsg.content,
+          },
+          {
+            userId: user.id,
+            sessionId: resolvedSessionId,
+            goalId: goalId || null,
+            role: 'assistant' as const,
+            content: assistantMessage,
+          },
+        ]);
+
+        // Update session timestamp
+        await db
+          .update(chatSessions)
+          .set({ updatedAt: new Date() })
+          .where(eq(chatSessions.id, resolvedSessionId));
+      }
+
+      // Fire-and-forget: extract memories from the conversation
       const allMsgs = [...messages, { role: 'assistant', content: assistantMessage }];
       extractAndStoreMemories(user.id, allMsgs, goalId).catch(() => {});
     }
 
-    return Response.json({ message: assistantMessage });
+    return Response.json({ message: assistantMessage, sessionId: resolvedSessionId });
   } catch (error: unknown) {
     if (error instanceof Response) throw error;
     console.error('AI Chat error:', error);
