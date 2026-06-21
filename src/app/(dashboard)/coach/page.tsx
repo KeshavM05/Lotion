@@ -20,10 +20,12 @@ export default function CoachPage() {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [pendingActions, setPendingActions] = useState<ProposedAction[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const messages = getActiveSessionMessages();
 
@@ -119,8 +121,44 @@ export default function CoachPage() {
     setTimeout(() => setPendingActions((prev) => prev.filter((a) => a.id !== actionId)), 1500);
   }, []);
 
+  const toggleVoice = useCallback(() => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) return;
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput(transcript);
+    };
+
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setIsListening(true);
+  }, [isListening]);
+
   function send() {
     if (!input.trim() || isLoading) return;
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
     const msg = input.trim();
     setInput('');
     sendMessage(msg);
@@ -371,13 +409,30 @@ export default function CoachPage() {
           <div className="max-w-2xl mx-auto flex gap-3 px-8">
             <input
               type="text"
-              placeholder="Ask your AI coach anything..."
+              placeholder={isListening ? 'Listening...' : 'Ask your AI coach anything...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
               disabled={isLoading}
-              className="input-glass flex-1 disabled:opacity-50"
+              className={`input-glass flex-1 disabled:opacity-50 ${isListening ? 'border-[#C17A72]/50' : ''}`}
             />
+            <button
+              onClick={toggleVoice}
+              disabled={isLoading}
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isListening
+                  ? 'bg-[#C17A72] text-white shadow-[0_0_15px_rgba(193,122,114,0.4)]'
+                  : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border border-white/10'
+              } disabled:opacity-30 disabled:cursor-not-allowed`}
+              title={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              <span
+                className="material-symbols-outlined text-lg"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                {isListening ? 'mic' : 'mic_none'}
+              </span>
+            </button>
             <button
               onClick={send}
               disabled={!input.trim() || isLoading}
