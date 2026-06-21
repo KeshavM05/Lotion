@@ -416,7 +416,9 @@ export default function CoachPage() {
               onChange={(e) => {
                 setInput(e.target.value);
                 e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                const h = Math.min(e.target.scrollHeight, 150);
+                e.target.style.height = h + 'px';
+                e.target.style.overflowY = e.target.scrollHeight > 150 ? 'auto' : 'hidden';
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -425,8 +427,13 @@ export default function CoachPage() {
                 }
               }}
               disabled={isLoading}
-              className={`input-glass flex-1 disabled:opacity-50 resize-none overflow-y-auto ${isListening ? 'border-[#C17A72]/50' : ''}`}
+              className={`input-glass flex-1 disabled:opacity-50 resize-none overflow-hidden ${isListening ? 'border-[#C17A72]/50' : ''}`}
               style={{ maxHeight: '150px' }}
+              ref={(el) => {
+                if (el) {
+                  el.style.overflowY = el.scrollHeight > 150 ? 'auto' : 'hidden';
+                }
+              }}
             />
             <button
               onClick={toggleVoice}
