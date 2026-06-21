@@ -431,7 +431,7 @@ export default function CoachPage() {
             <button
               onClick={toggleVoice}
               disabled={isLoading}
-              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-all shrink-0 ${
                 isListening
                   ? 'bg-[#C17A72] text-white shadow-[0_0_15px_rgba(193,122,114,0.4)]'
                   : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border border-white/10'
@@ -448,7 +448,7 @@ export default function CoachPage() {
             <button
               onClick={send}
               disabled={!input.trim() || isLoading}
-              className="btn-glow px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+              className="btn-glow w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <svg
                 width="16"
