@@ -26,6 +26,10 @@ export default function CoachPage() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceInsertPos = useRef<number>(0);
+  const voicePrefix = useRef<string>('');
+  const voiceSuffix = useRef<string>('');
 
   const messages = getActiveSessionMessages();
 
@@ -132,19 +136,46 @@ export default function CoachPage() {
       return;
     }
 
+    // Capture cursor position and split text at that point
+    const cursorPos = textareaRef.current?.selectionStart ?? input.length;
+    const before = input.slice(0, cursorPos);
+    const after = input.slice(cursorPos);
+    voicePrefix.current = before;
+    voiceSuffix.current = after;
+    voiceInsertPos.current = cursorPos;
+
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    const prefixAtStart = input;
     recognition.onresult = (event) => {
-      let transcript = '';
+      let finalText = '';
+      let interimText = '';
       for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalText += result[0].transcript;
+        } else {
+          interimText += result[0].transcript;
+        }
       }
-      const separator = prefixAtStart && !prefixAtStart.endsWith(' ') ? ' ' : '';
-      setInput(prefixAtStart + separator + transcript);
+
+      const prefix = voicePrefix.current;
+      const suffix = voiceSuffix.current;
+      const separator = prefix && !prefix.endsWith(' ') ? ' ' : '';
+      const newText =
+        prefix +
+        separator +
+        finalText +
+        interimText +
+        (suffix ? (suffix.startsWith(' ') ? '' : ' ') + suffix : '');
+      setInput(newText);
+
+      // Update prefix to include finalized text so next results build on it
+      if (finalText) {
+        voicePrefix.current = prefix + separator + finalText;
+      }
     };
 
     recognition.onerror = () => setIsListening(false);
@@ -430,6 +461,7 @@ export default function CoachPage() {
               className={`input-glass flex-1 disabled:opacity-50 resize-none overflow-hidden ${isListening ? 'border-[#C17A72]/50' : ''}`}
               style={{ maxHeight: '150px' }}
               ref={(el) => {
+                textareaRef.current = el;
                 if (el) {
                   el.style.overflowY = el.scrollHeight > 150 ? 'auto' : 'hidden';
                 }
