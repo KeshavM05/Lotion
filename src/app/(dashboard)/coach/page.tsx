@@ -254,9 +254,9 @@ export default function CoachPage() {
           <div
             ref={chatScrollRef}
             onScroll={handleChatScroll}
-            className="flex-1 overflow-auto min-h-0 mb-20"
+            className="flex-1 overflow-auto min-h-0"
           >
-            <div className="max-w-2xl mx-auto space-y-4 pb-4 pt-6 px-8">
+            <div className="max-w-2xl mx-auto space-y-4 pb-32 pt-6 px-8">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
