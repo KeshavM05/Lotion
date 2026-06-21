@@ -170,6 +170,15 @@ export default function CoachPage() {
       const suffixSep = suffix && !suffix.startsWith(' ') && (allFinal || interim) ? ' ' : '';
       setInput(basePrefix + separator + allFinal + interim + suffixSep + suffix);
 
+      // Resize textarea to fit content
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        const h = Math.min(textareaRef.current.scrollHeight, 150);
+        textareaRef.current.style.height = h + 'px';
+        textareaRef.current.style.overflowY =
+          textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden';
+      }
+
       // Update prefix to include all finalized text (for when voice stops)
       voicePrefix.current = basePrefix + separator + allFinal;
     };
