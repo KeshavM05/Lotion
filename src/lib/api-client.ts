@@ -289,6 +289,19 @@ export const aiMemoryApi = {
 
 // ─── AI Chat ─────────────────────────────────────────────
 
+export interface ProposedAction {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+  summary: string;
+}
+
+export interface AiChatResponse {
+  message: string;
+  sessionId: string;
+  pendingActions?: ProposedAction[];
+}
+
 export const aiChatApi = {
   send: async (params: {
     messages: ChatMessage[];
@@ -298,10 +311,24 @@ export const aiChatApi = {
     aiMemory?: string;
     calendarContext?: string;
     tasksContext?: string;
-  }): Promise<{ message: string; sessionId: string }> => {
+  }): Promise<AiChatResponse> => {
     return apiRequest('/ai/chat', {
       method: 'POST',
       body: JSON.stringify(params),
+    });
+  },
+
+  confirmActions: async (
+    actions: Array<{
+      id: string;
+      tool: string;
+      status: 'accepted' | 'rejected';
+      input?: Record<string, unknown>;
+    }>
+  ): Promise<{ results: Array<{ id: string; status: string; summary?: string }> }> => {
+    return apiRequest('/ai/chat/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ actions }),
     });
   },
 };

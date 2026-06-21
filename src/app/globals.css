@@ -292,3 +292,9 @@ select.input-glass option {
 .journal-entry-preview blockquote { border-left: 2px solid rgba(193,122,114,0.4); padding-left: 0.6rem; color: #9ca3af; font-style: italic; margin: 0.3rem 0; }
 .journal-entry-preview code { background: rgba(255,255,255,0.08); border-radius: 3px; padding: 0.1em 0.25em; font-size: 0.82em; color: #c17a72; }
 .journal-entry-preview mark { background: rgba(193,122,114,0.2); color: inherit; border-radius: 2px; }
+
+/* AI Chat markdown */
+.prose-chat { line-height: 1.6; }
+.prose-chat > *:first-child { margin-top: 0; }
+.prose-chat > *:last-child { margin-bottom: 0; }
+.prose-chat hr { border-color: rgba(255,255,255,0.1); margin: 0.75rem 0; }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useStore, type ChatRole } from '@/lib/store';
 import { useSidebar } from '@/lib/sidebar-context';
-import { getAuthHeaders } from '@/lib/api-client';
+import { getAuthHeaders, aiChatApi, type ProposedAction } from '@/lib/api-client';
 import { ChatSidebar } from '@/components/ui/chat-sidebar';
 
 export default function CoachPage() {
@@ -19,6 +20,7 @@ export default function CoachPage() {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingActions, setPendingActions] = useState<ProposedAction[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
@@ -78,6 +80,10 @@ export default function CoachPage() {
           : data.message;
 
         addMessageToSession(sessionId!, 'assistant', reply);
+
+        if (data.pendingActions?.length) {
+          setPendingActions((prev) => [...prev, ...data.pendingActions]);
+        }
       } catch {
         addMessageToSession(sessionId!, 'assistant', getFallbackResponse(store));
       } finally {
@@ -86,6 +92,32 @@ export default function CoachPage() {
     },
     [activeChatId, chatSessions, createChatSession, addMessageToSession, isLoading, store]
   );
+
+  const handleActionConfirm = useCallback(
+    async (action: ProposedAction) => {
+      try {
+        await aiChatApi.confirmActions([
+          { id: action.id, tool: action.tool, status: 'accepted', input: action.input },
+        ]);
+        setPendingActions((prev) =>
+          prev.map((a) => (a.id === action.id ? { ...a, summary: `✓ ${a.summary}` } : a))
+        );
+        // Refresh store data
+        store.loadInitialData();
+      } catch {
+        // ignore
+      }
+      setTimeout(() => setPendingActions((prev) => prev.filter((a) => a.id !== action.id)), 2000);
+    },
+    [store]
+  );
+
+  const handleActionReject = useCallback((actionId: string) => {
+    setPendingActions((prev) =>
+      prev.map((a) => (a.id === actionId ? { ...a, summary: `✗ Declined` } : a))
+    );
+    setTimeout(() => setPendingActions((prev) => prev.filter((a) => a.id !== actionId)), 1500);
+  }, []);
 
   function send() {
     if (!input.trim() || isLoading) return;
@@ -201,7 +233,7 @@ export default function CoachPage() {
                     </div>
                   )}
                   <div
-                    className="max-w-[75%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap"
+                    className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${msg.role === 'user' ? 'whitespace-pre-wrap' : 'prose-chat'}`}
                     style={{
                       background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-glass)',
                       color: msg.role === 'user' ? 'white' : 'var(--text-primary)',
@@ -210,7 +242,42 @@ export default function CoachPage() {
                         msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                     }}
                   >
-                    {msg.content}
+                    {msg.role === 'user' ? (
+                      msg.content
+                    ) : (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => (
+                            <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>
+                          ),
+                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-white">{children}</strong>
+                          ),
+                          em: ({ children }) => <em className="italic opacity-80">{children}</em>,
+                          h1: ({ children }) => (
+                            <h1 className="text-base font-bold mb-2 text-white">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-sm font-bold mb-1.5 text-white">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-sm font-semibold mb-1 text-white">{children}</h3>
+                          ),
+                          code: ({ children }) => (
+                            <code className="px-1.5 py-0.5 rounded bg-white/10 text-xs font-mono">
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 </div>
               ))}
@@ -242,6 +309,58 @@ export default function CoachPage() {
                   </div>
                 </div>
               )}
+
+              {pendingActions.length > 0 && (
+                <div className="space-y-2 ml-12">
+                  {pendingActions.map((action) => (
+                    <div
+                      key={action.id}
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm border"
+                      style={{
+                        background: 'var(--bg-glass)',
+                        borderColor: action.summary.startsWith('✓')
+                          ? '#10b981'
+                          : action.summary.startsWith('✗')
+                            ? '#ef4444'
+                            : 'var(--border)',
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[#C17A72] text-lg"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        {action.tool.includes('task')
+                          ? 'task_alt'
+                          : action.tool.includes('goal')
+                            ? 'flag'
+                            : action.tool.includes('event') || action.tool.includes('move')
+                              ? 'calendar_month'
+                              : 'auto_awesome'}
+                      </span>
+                      <span className="flex-1" style={{ color: 'var(--text-primary)' }}>
+                        {action.summary}
+                      </span>
+                      {!action.summary.startsWith('✓') && !action.summary.startsWith('✗') && (
+                        <>
+                          <button
+                            onClick={() => handleActionConfirm(action)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleActionReject(action.id)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div ref={chatEndRef} />
             </div>
           </div>
