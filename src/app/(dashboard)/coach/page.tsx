@@ -149,33 +149,29 @@ export default function CoachPage() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
+    const basePrefix = voicePrefix.current;
+
     recognition.onresult = (event) => {
-      let finalText = '';
-      let interimText = '';
+      // Rebuild full voice transcript from all results
+      let allFinal = '';
+      let interim = '';
+
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          finalText += result[0].transcript;
+          allFinal += result[0].transcript;
         } else {
-          interimText += result[0].transcript;
+          interim += result[0].transcript;
         }
       }
 
-      const prefix = voicePrefix.current;
       const suffix = voiceSuffix.current;
-      const separator = prefix && !prefix.endsWith(' ') ? ' ' : '';
-      const newText =
-        prefix +
-        separator +
-        finalText +
-        interimText +
-        (suffix ? (suffix.startsWith(' ') ? '' : ' ') + suffix : '');
-      setInput(newText);
+      const separator = basePrefix && !basePrefix.endsWith(' ') && (allFinal || interim) ? ' ' : '';
+      const suffixSep = suffix && !suffix.startsWith(' ') && (allFinal || interim) ? ' ' : '';
+      setInput(basePrefix + separator + allFinal + interim + suffixSep + suffix);
 
-      // Update prefix to include finalized text so next results build on it
-      if (finalText) {
-        voicePrefix.current = prefix + separator + finalText;
-      }
+      // Update prefix to include all finalized text (for when voice stops)
+      voicePrefix.current = basePrefix + separator + allFinal;
     };
 
     recognition.onerror = () => setIsListening(false);
