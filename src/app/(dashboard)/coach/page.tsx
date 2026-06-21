@@ -137,12 +137,14 @@ export default function CoachPage() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
+    const prefixAtStart = input;
     recognition.onresult = (event) => {
       let transcript = '';
       for (let i = 0; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript;
       }
-      setInput(transcript);
+      const separator = prefixAtStart && !prefixAtStart.endsWith(' ') ? ' ' : '';
+      setInput(prefixAtStart + separator + transcript);
     };
 
     recognition.onerror = () => setIsListening(false);
@@ -151,7 +153,7 @@ export default function CoachPage() {
     recognition.start();
     recognitionRef.current = recognition;
     setIsListening(true);
-  }, [isListening]);
+  }, [isListening, input]);
 
   function send() {
     if (!input.trim() || isLoading) return;
@@ -406,15 +408,25 @@ export default function CoachPage() {
 
         {/* Input */}
         <div className="absolute bottom-0 left-[250px] right-0 pt-8 pb-4 bg-gradient-to-t from-[#0F1729] via-[#0F1729] to-transparent">
-          <div className="max-w-2xl mx-auto flex gap-3 px-8">
-            <input
-              type="text"
+          <div className="max-w-2xl mx-auto flex items-end gap-3 px-8">
+            <textarea
+              rows={1}
               placeholder={isListening ? 'Listening...' : 'Ask your AI coach anything...'}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
               disabled={isLoading}
-              className={`input-glass flex-1 disabled:opacity-50 ${isListening ? 'border-[#C17A72]/50' : ''}`}
+              className={`input-glass flex-1 disabled:opacity-50 resize-none overflow-y-auto ${isListening ? 'border-[#C17A72]/50' : ''}`}
+              style={{ maxHeight: '150px' }}
             />
             <button
               onClick={toggleVoice}
