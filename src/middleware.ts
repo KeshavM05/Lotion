@@ -11,7 +11,7 @@ const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * depth by rejecting mutation requests whose Origin doesn't match the host,
  * blocking any cookie-based CSRF vectors that may be added in the future.
  */
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   if (!MUTATION_METHODS.has(request.method)) {
     return NextResponse.next();
   }
