@@ -12,3 +12,5 @@ next-env.d.ts
 quillio/*
 prompt.txt
 .open-next
+.open-next
+.wrangler
