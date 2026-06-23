@@ -1,17 +1,22 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextRequest } from "next/server";
-import { env } from "@/lib/env";
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { NextRequest } from 'next/server';
+import { env } from '@/lib/env';
 
-const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let _supabaseAdmin: SupabaseClient | undefined;
 
-// Server-side Supabase client
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return _supabaseAdmin;
+}
 
 /**
  * Get authenticated user from request
@@ -19,15 +24,18 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
  */
 export async function getAuthUser(request: NextRequest): Promise<string | null> {
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
       return null;
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace('Bearer ', '');
 
     // Verify JWT token with Supabase
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await getSupabaseAdmin().auth.getUser(token);
 
     if (error || !user) {
       return null;
@@ -35,7 +43,7 @@ export async function getAuthUser(request: NextRequest): Promise<string | null> 
 
     return user.id;
   } catch (error) {
-    console.error("Auth error:", error);
+    console.error('Auth error:', error);
     return null;
   }
 }
@@ -45,13 +53,16 @@ export async function getAuthUser(request: NextRequest): Promise<string | null> 
  */
 export async function getAuthUserObject(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
       return null;
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const token = authHeader.replace('Bearer ', '');
+    const {
+      data: { user },
+      error,
+    } = await getSupabaseAdmin().auth.getUser(token);
 
     if (error || !user) {
       return null;
@@ -59,7 +70,7 @@ export async function getAuthUserObject(request: NextRequest) {
 
     return user;
   } catch (error) {
-    console.error("Auth error:", error);
+    console.error('Auth error:', error);
     return null;
   }
 }
@@ -71,9 +82,9 @@ export async function getAuthUserObject(request: NextRequest) {
 export async function requireAuth(request: NextRequest): Promise<string> {
   const userId = await getAuthUser(request);
   if (!userId) {
-    throw new Response(JSON.stringify({ error: "Unauthorized" }), {
+    throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   }
   return userId;
@@ -84,9 +95,9 @@ export async function requireAuth(request: NextRequest): Promise<string> {
  * Helper to avoid repeating this lookup in every route
  */
 export async function getInternalUser(supabaseUserId: string) {
-  const { db } = await import("@/db");
-  const { users } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { db } = await import('@/db');
+  const { users } = await import('@/db/schema');
+  const { eq } = await import('drizzle-orm');
 
   const user = await db.query.users.findFirst({
     where: eq(users.supabaseId, supabaseUserId),
