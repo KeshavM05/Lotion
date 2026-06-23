@@ -12,4 +12,4 @@ assets = { directory = ".open-next/assets", binding = "ASSETS" }
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "cdc5540efa194a7f83d82488fc38b5d3"
-localConnectionString = "postgresql://localhost:5432/postgres"
+localConnectionString = "postgresql://user:password@localhost:5432/postgres"
