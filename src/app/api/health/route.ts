@@ -12,7 +12,12 @@ export async function GET() {
   } catch (error) {
     console.error('[health] DB ping failed:', error);
     return NextResponse.json(
-      { status: 'error', db: 'unreachable', timestamp: new Date().toISOString() },
+      {
+        status: 'error',
+        db: 'unreachable',
+        error: String(error),
+        timestamp: new Date().toISOString(),
+      },
       { status: 503 }
     );
   }
