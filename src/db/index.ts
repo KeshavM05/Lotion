@@ -14,7 +14,13 @@ function getConnectionString(): string {
   } catch {
     // Not running on Cloudflare, use local env
   }
-  return env.DATABASE_URL;
+  const dbUrl = env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error(
+      'No database connection string available (neither Hyperdrive nor DATABASE_URL)'
+    );
+  }
+  return dbUrl;
 }
 
 export const db: PostgresJsDatabase<typeof schema> = new Proxy(

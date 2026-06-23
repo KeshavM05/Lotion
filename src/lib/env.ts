@@ -5,8 +5,8 @@ import { z } from 'zod';
  * The app will fail fast with a clear error message if required vars are missing.
  */
 const envSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Database (optional on Cloudflare Workers where Hyperdrive is used)
+  DATABASE_URL: z.string().min(1).optional(),
 
   // AWS Bedrock (optional in dev — AI features won't work without these)
   AWS_REGION: z.string().min(1).default('us-east-1'),
@@ -36,9 +36,6 @@ export const env: Env = new Proxy({} as Env, {
     if (!_env) {
       const parsed = envSchema.safeParse(process.env);
       if (!parsed.success) {
-        if (!process.env.DATABASE_URL) {
-          return undefined;
-        }
         const missing = parsed.error.issues
           .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
           .join('\n');
