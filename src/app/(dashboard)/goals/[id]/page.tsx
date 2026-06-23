@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { useStore, type Priority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/lib/store';
+import { goalsApi } from '@/lib/api-client';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { Modal } from '@/components/ui/modal';
 import { useAiChat } from '@/lib/use-ai-chat';
@@ -17,7 +19,12 @@ export default function GoalDetailPage() {
   const store = useStore();
   const goalId = params.id as string;
 
-  const goal = store.goals.find((g) => g.id === goalId);
+  const { data: goalData, isLoading: goalLoading } = useQuery({
+    queryKey: ['goal', goalId],
+    queryFn: () => goalsApi.get(goalId),
+    enabled: !!goalId,
+  });
+  const goal = goalData;
   const [activeTab, setActiveTab] = useState<Tab>('milestones');
 
   // Milestone form
@@ -61,6 +68,17 @@ export default function GoalDetailPage() {
     }
   }, [chatMessages.length, chatMessages[chatMessages.length - 1]?.content, chatLoading]);
 
+  if (goalLoading) {
+    return (
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <p className="text-lg">Loading...</p>
+      </div>
+    );
+  }
+
   if (!goal) {
     return (
       <div
@@ -77,9 +95,13 @@ export default function GoalDetailPage() {
     );
   }
 
-  const progress = store.getGoalProgress(goalId);
-  const milestones = store.getGoalMilestones(goalId);
-  const tasks = store.getGoalTasks(goalId);
+  const milestones = goal.milestones ?? [];
+  const tasks = goal.tasks ?? [];
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const completedMilestones = milestones.filter((m) => m.completed).length;
+  const totalItems = tasks.length + milestones.length;
+  const completedItems = completedTasks + completedMilestones;
+  const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   function handleExportGoalMarkdown() {
     if (!goal) return;

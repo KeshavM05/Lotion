@@ -25,11 +25,13 @@ export default function CoachPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const voiceInsertPos = useRef<number>(0);
+  const lastCursorPos = useRef<number>(0);
   const voicePrefix = useRef<string>('');
   const voiceSuffix = useRef<string>('');
+  const voiceRestarting = useRef(false);
 
   const messages = getActiveSessionMessages();
 
@@ -46,6 +48,14 @@ export default function CoachPage() {
     }
   }, [messages.length, messages[messages.length - 1]?.content, isLoading]);
 
+  const stopResponse = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsLoading(false);
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isLoading) return;
@@ -57,6 +67,9 @@ export default function CoachPage() {
 
       addMessageToSession(sessionId, 'user', content.trim());
       setIsLoading(true);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       try {
         const session = chatSessions.find((s) => s.id === sessionId);
@@ -76,6 +89,7 @@ export default function CoachPage() {
             goalId: null,
             aiMemory: store.aiMemory || undefined,
           }),
+          signal: controller.signal,
         });
 
         const data = await res.json();
@@ -90,9 +104,14 @@ export default function CoachPage() {
         if (data.pendingActions?.length) {
           setPendingActions((prev) => [...prev, ...data.pendingActions]);
         }
-      } catch {
-        addMessageToSession(sessionId!, 'assistant', getFallbackResponse(store));
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
+          addMessageToSession(sessionId!, 'assistant', '*Response stopped.*');
+        } else {
+          addMessageToSession(sessionId!, 'assistant', getFallbackResponse(store));
+        }
       } finally {
+        abortRef.current = null;
         setIsLoading(false);
       }
     },
@@ -125,24 +144,9 @@ export default function CoachPage() {
     setTimeout(() => setPendingActions((prev) => prev.filter((a) => a.id !== actionId)), 1500);
   }, []);
 
-  const toggleVoice = useCallback(() => {
+  const startRecognition = useCallback(() => {
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     if (!SpeechRecognitionCtor) return;
-
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      return;
-    }
-
-    // Capture cursor position and split text at that point
-    const cursorPos = textareaRef.current?.selectionStart ?? input.length;
-    const before = input.slice(0, cursorPos);
-    const after = input.slice(cursorPos);
-    voicePrefix.current = before;
-    voiceSuffix.current = after;
-    voiceInsertPos.current = cursorPos;
 
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
@@ -152,10 +156,8 @@ export default function CoachPage() {
     const basePrefix = voicePrefix.current;
 
     recognition.onresult = (event) => {
-      // Rebuild full voice transcript from all results
       let allFinal = '';
       let interim = '';
-
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
@@ -170,35 +172,71 @@ export default function CoachPage() {
       const suffixSep = suffix && !suffix.startsWith(' ') && (allFinal || interim) ? ' ' : '';
       setInput(basePrefix + separator + allFinal + interim + suffixSep + suffix);
 
-      // Resize textarea to fit content
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         const h = Math.min(textareaRef.current.scrollHeight, 150);
         textareaRef.current.style.height = h + 'px';
         textareaRef.current.style.overflowY =
           textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden';
+        const insertEnd = (basePrefix + separator + allFinal + interim).length;
+        textareaRef.current.setSelectionRange(insertEnd, insertEnd);
+        textareaRef.current.focus();
+        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
       }
 
-      // Update prefix to include all finalized text (for when voice stops)
       voicePrefix.current = basePrefix + separator + allFinal;
     };
 
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      voiceRestarting.current = false;
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      if (voiceRestarting.current) {
+        voiceRestarting.current = false;
+        startRecognition();
+      } else {
+        setIsListening(false);
+      }
+    };
 
     recognition.start();
     recognitionRef.current = recognition;
     setIsListening(true);
-  }, [isListening, input]);
+  }, []);
+
+  const toggleVoice = useCallback(() => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const cursorPos = lastCursorPos.current;
+    const before = input.slice(0, cursorPos);
+    const after = input.slice(cursorPos);
+    voicePrefix.current = before;
+    voiceSuffix.current = after;
+
+    startRecognition();
+  }, [isListening, input, startRecognition]);
 
   function send() {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
     }
     const msg = input.trim();
     setInput('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.overflowY = 'hidden';
+    }
     sendMessage(msg);
   }
 
@@ -451,10 +489,26 @@ export default function CoachPage() {
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
+                lastCursorPos.current = e.target.selectionStart;
                 e.target.style.height = 'auto';
                 const h = Math.min(e.target.scrollHeight, 150);
                 e.target.style.height = h + 'px';
                 e.target.style.overflowY = e.target.scrollHeight > 150 ? 'auto' : 'hidden';
+              }}
+              onSelect={(e) => {
+                const pos = (e.target as HTMLTextAreaElement).selectionStart;
+                lastCursorPos.current = pos;
+                if (isListening && recognitionRef.current && !voiceRestarting.current) {
+                  const currentPrefix = voicePrefix.current;
+                  const val = (e.target as HTMLTextAreaElement).value;
+                  const newPrefix = val.slice(0, pos);
+                  if (newPrefix !== currentPrefix && Math.abs(pos - currentPrefix.length) > 1) {
+                    voicePrefix.current = newPrefix;
+                    voiceSuffix.current = val.slice(pos);
+                    voiceRestarting.current = true;
+                    recognitionRef.current.stop();
+                  }
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -462,8 +516,7 @@ export default function CoachPage() {
                   send();
                 }
               }}
-              disabled={isLoading}
-              className={`input-glass flex-1 disabled:opacity-50 resize-none overflow-hidden ${isListening ? 'border-[#C17A72]/50' : ''}`}
+              className={`input-glass flex-1 resize-none overflow-hidden ${isListening ? 'border-[#C17A72]/50' : ''}`}
               style={{ maxHeight: '150px' }}
               ref={(el) => {
                 textareaRef.current = el;
@@ -474,7 +527,6 @@ export default function CoachPage() {
             />
             <button
               onClick={toggleVoice}
-              disabled={isLoading}
               className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-all shrink-0 ${
                 isListening
                   ? 'bg-[#C17A72] text-white shadow-[0_0_15px_rgba(193,122,114,0.4)]'
@@ -489,22 +541,32 @@ export default function CoachPage() {
                 {isListening ? 'mic' : 'mic_none'}
               </span>
             </button>
-            <button
-              onClick={send}
-              disabled={!input.trim() || isLoading}
-              className="btn-glow w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {isLoading ? (
+              <button
+                onClick={stopResponse}
+                className="btn-glow w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium shrink-0 bg-red-500/20 border border-red-500/40 hover:bg-red-500/30"
+                title="Stop response"
               >
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />
-              </svg>
-            </button>
+                <span className="material-symbols-outlined text-lg text-red-400">stop</span>
+              </button>
+            ) : (
+              <button
+                onClick={send}
+                disabled={!input.trim()}
+                className="btn-glow w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
