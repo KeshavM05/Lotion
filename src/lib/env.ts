@@ -35,16 +35,13 @@ export const env: Env = new Proxy({} as Env, {
   get(_, prop: string) {
     if (!_env) {
       const parsed = envSchema.safeParse(process.env);
-      if (!parsed.success) {
-        const missing = parsed.error.issues
-          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
-          .join('\n');
-        throw new Error(
-          `Missing or invalid environment variables:\n${missing}\n\n` +
-            `Please check your .env.local file against .env.local.example.`
-        );
+      if (parsed.success) {
+        _env = parsed.data;
+      } else {
+        // On Cloudflare Workers, process.env may not have all vars at parse time.
+        // Fall through to raw process.env access rather than crashing.
+        return (process.env as Record<string, string | undefined>)[prop];
       }
-      _env = parsed.data;
     }
     return _env[prop as keyof Env];
   },

@@ -6,7 +6,16 @@ export async function GET() {
   try {
     await db.execute(sql`SELECT 1`);
     return NextResponse.json(
-      { status: 'ok', db: 'connected', timestamp: new Date().toISOString() },
+      {
+        status: 'ok',
+        db: 'connected',
+        timestamp: new Date().toISOString(),
+        env: {
+          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        },
+      },
       { status: 200 }
     );
   } catch (error) {
@@ -17,6 +26,11 @@ export async function GET() {
         db: 'unreachable',
         error: String(error),
         timestamp: new Date().toISOString(),
+        env: {
+          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        },
       },
       { status: 503 }
     );
