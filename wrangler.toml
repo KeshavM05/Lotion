@@ -8,3 +8,7 @@ assets = { directory = ".open-next/assets", binding = "ASSETS" }
 [vars]
 # Non-secret env vars can go here. Secrets should be set via:
 # npx wrangler secret put SECRET_NAME
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "cdc5540efa194a7f83d82488fc38b5d3"
