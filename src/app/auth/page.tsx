@@ -3,15 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 
 export default function AuthPage() {
   const router = useRouter();
   const { signIn, signUp, user } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -21,7 +23,21 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
+
+    if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('Check your email for a password reset link');
+      }
+      setLoading(false);
+      return;
+    }
 
     const { error } =
       mode === 'signin' ? await signIn(email, password) : await signUp(email, password, name);
@@ -30,7 +46,6 @@ export default function AuthPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      // Success - redirect to dashboard
       router.push('/dashboard');
     }
   };
@@ -75,6 +90,22 @@ export default function AuthPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'forgot' && (
+            <div>
+              <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="input-glass w-full"
+              />
+            </div>
+          )}
+
           {mode === 'signup' && (
             <div>
               <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
@@ -90,34 +121,38 @@ export default function AuthPage() {
             </div>
           )}
 
-          <div>
-            <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="input-glass w-full"
-            />
-          </div>
+          {mode !== 'forgot' && (
+            <>
+              <div>
+                <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="input-glass w-full"
+                />
+              </div>
 
-          <div>
-            <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="input-glass w-full"
-            />
-          </div>
+              <div>
+                <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="input-glass w-full"
+                />
+              </div>
+            </>
+          )}
 
           {error && (
             <div
@@ -128,24 +163,64 @@ export default function AuthPage() {
             </div>
           )}
 
+          {message && (
+            <div
+              className="text-xs px-3 py-2 rounded-lg"
+              style={{ background: 'rgba(74, 222, 128, 0.1)', color: '#4ade80' }}
+            >
+              {message}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
             className="btn-glow w-full py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+            {loading
+              ? 'Loading...'
+              : mode === 'forgot'
+                ? 'Send Reset Link'
+                : mode === 'signin'
+                  ? 'Sign In'
+                  : 'Create Account'}
           </button>
         </form>
 
+        {/* Forgot password link */}
+        {mode === 'signin' && (
+          <p className="text-center text-xs mt-4">
+            <button
+              onClick={() => {
+                setMode('forgot');
+                setError('');
+                setMessage('');
+              }}
+              className="font-medium"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Forgot password?
+            </button>
+          </p>
+        )}
+
         {/* Footer */}
-        <p className="text-center text-xs mt-6" style={{ color: 'var(--text-muted)' }}>
-          {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
+          {mode === 'forgot'
+            ? 'Remember your password?'
+            : mode === 'signin'
+              ? "Don't have an account?"
+              : 'Already have an account?'}{' '}
           <button
-            onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+            onClick={() => {
+              setMode(mode === 'signup' ? 'signin' : mode === 'forgot' ? 'signin' : 'signup');
+              setError('');
+              setMessage('');
+            }}
             className="font-medium"
             style={{ color: 'var(--accent)' }}
           >
-            {mode === 'signin' ? 'Sign up' : 'Sign in'}
+            {mode === 'forgot' ? 'Sign in' : mode === 'signin' ? 'Sign up' : 'Sign in'}
           </button>
         </p>
       </div>
