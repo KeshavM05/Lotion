@@ -36,6 +36,9 @@ export const env: Env = new Proxy({} as Env, {
     if (!_env) {
       const parsed = envSchema.safeParse(process.env);
       if (!parsed.success) {
+        if (!process.env.DATABASE_URL) {
+          return undefined;
+        }
         const missing = parsed.error.issues
           .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
           .join('\n');

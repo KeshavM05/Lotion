@@ -1,7 +1,7 @@
 name = "motion"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".open-next"
 
 [vars]
-# Non-secret env vars can go here. Secrets should be set via:
-# npx wrangler pages secret put SECRET_NAME
+# Non-secret env vars can go here. Secrets should be set via Cloudflare dashboard.
