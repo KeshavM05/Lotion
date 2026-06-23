@@ -24,9 +24,17 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userGoals);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof Response) {
+      return new Response(error.body, {
+        status: (error as Response).status,
+        headers: (error as Response).headers,
+      });
+    }
     console.error('GET /api/goals error:', error);
-    return Response.json({ error: 'Failed to fetch goals' }, { status: 500 });
+    return Response.json(
+      { error: 'Failed to fetch goals', detail: String(error) },
+      { status: 500 }
+    );
   }
 }
 

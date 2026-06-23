@@ -37,8 +37,16 @@ export async function POST(request: NextRequest) {
 
     return Response.json(user);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof Response) {
+      return new Response(error.body, {
+        status: (error as Response).status,
+        headers: (error as Response).headers,
+      });
+    }
     console.error('POST /api/user/init error:', error);
-    return Response.json({ error: 'Failed to initialize user' }, { status: 500 });
+    return Response.json(
+      { error: 'Failed to initialize user', detail: String(error) },
+      { status: 500 }
+    );
   }
 }
