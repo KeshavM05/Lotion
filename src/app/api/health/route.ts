@@ -16,11 +16,24 @@ export async function GET(request: NextRequest) {
   const cfContext = (globalThis as Record<symbol, unknown>)[cfSymbol] as
     | { env?: { HYPERDRIVE?: { connectionString?: string } } }
     | undefined;
-  const dbSource = cfContext?.env?.HYPERDRIVE?.connectionString
+  const hyperdriveConnStr = cfContext?.env?.HYPERDRIVE?.connectionString;
+  const dbSource = hyperdriveConnStr
     ? 'hyperdrive'
     : process.env.DATABASE_URL
       ? 'DATABASE_URL'
       : 'none';
+
+  // Show the host portion of the connection string for debugging (no credentials)
+  let dbHost = '';
+  try {
+    const connStr = hyperdriveConnStr || process.env.DATABASE_URL || '';
+    if (connStr) {
+      const url = new URL(connStr);
+      dbHost = `${url.hostname}:${url.port}`;
+    }
+  } catch {
+    dbHost = 'parse-error';
+  }
 
   let dbStatus = 'unknown';
   let dbError = '';
@@ -63,6 +76,7 @@ export async function GET(request: NextRequest) {
     status: dbStatus === 'connected' ? 'ok' : 'error',
     db: dbStatus,
     dbSource,
+    dbHost,
     dbError: dbError || undefined,
     auth: authStatus,
     authError: authError || undefined,
