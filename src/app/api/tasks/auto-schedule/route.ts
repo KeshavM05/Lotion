@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { tasks, autoScheduleSettings } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { SchedulingService } from '@/lib/scheduling/SchedulingService';
 import { AutoScheduleSettings as TAutoScheduleSettings } from '@/lib/scheduling/types';
 import { ScorerTask } from '@/lib/scheduling/SlotScorer';
@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
       scheduledCount: scheduledTasks.length,
     });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('POST /api/tasks/auto-schedule error:', error);
     const errObj = {
       message: error instanceof Error ? error.message : undefined,

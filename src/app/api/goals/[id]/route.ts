@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { goals } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { updateGoalSchema } from '@/lib/validation/schemas';
 
@@ -34,7 +34,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return Response.json(goal);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('GET /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to fetch goal' }, { status: 500 });
   }
@@ -74,7 +75,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('PATCH /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to update goal' }, { status: 500 });
   }
@@ -106,7 +108,8 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('DELETE /api/goals/[id] error:', error);
     return Response.json({ error: 'Failed to delete goal' }, { status: 500 });
   }

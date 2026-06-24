@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { calendarEvents } from '@/db/schema';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createEventSchema } from '@/lib/validation/schemas';
 import { eq, and, gte, lte } from 'drizzle-orm';
@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
 
     return Response.json(events);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('GET /api/events error:', error);
     return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
   }
@@ -98,7 +99,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(event, { status: 201 });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('POST /api/events error:', error);
     return Response.json({ error: 'Failed to create event' }, { status: 500 });
   }

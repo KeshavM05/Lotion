@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { journalEntries } from '@/db/schema';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createJournalEntrySchema } from '@/lib/validation/schemas';
 import { eq } from 'drizzle-orm';
@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
     return Response.json(entries);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('GET /api/journal error:', error);
     return Response.json({ error: 'Failed to fetch journal entries' }, { status: 500 });
   }
@@ -63,7 +64,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(entry, { status: 201 });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('POST /api/journal error:', error);
     return Response.json({ error: 'Failed to create journal entry' }, { status: 500 });
   }

@@ -75,17 +75,24 @@ export async function getAuthUserObject(request: NextRequest) {
   }
 }
 
+class AuthError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export { AuthError };
+
 /**
  * Require authentication middleware
- * Returns user ID or throws 401 error response
+ * Returns user ID or throws AuthError
  */
 export async function requireAuth(request: NextRequest): Promise<string> {
   const userId = await getAuthUser(request);
   if (!userId) {
-    throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    throw new AuthError('Unauthorized', 401);
   }
   return userId;
 }

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, getAuthUserObject } from '@/lib/auth-server';
+import { requireAuth, getAuthUserObject, AuthError } from '@/lib/auth-server';
 
 // POST /api/user/init - Initialize or get user from Supabase auth
 export async function POST(request: NextRequest) {
@@ -37,11 +37,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(user);
   } catch (error) {
-    if (error instanceof Response) {
-      return new Response(error.body, {
-        status: (error as Response).status,
-        headers: (error as Response).headers,
-      });
+    if (error instanceof AuthError) {
+      return Response.json({ error: error.message }, { status: error.status });
     }
     console.error('POST /api/user/init error:', error);
     return Response.json(

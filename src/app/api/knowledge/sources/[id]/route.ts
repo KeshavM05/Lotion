@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { db } from '@/db';
 import { knowledgeSources } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -12,7 +12,8 @@ export async function DELETE(
   try {
     supabaseUserId = await requireAuth(request);
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -33,7 +34,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     supabaseUserId = await requireAuth(request);
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

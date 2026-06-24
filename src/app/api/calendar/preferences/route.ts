@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { db } from '@/db';
 import { calendarPreferences } from '@/db/schema';
 import { eq } from 'drizzle-orm';

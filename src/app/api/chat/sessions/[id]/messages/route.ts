@@ -2,14 +2,15 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { chatMessages, chatSessions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let supabaseUserId: string;
   try {
     supabaseUserId = await requireAuth(request);
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

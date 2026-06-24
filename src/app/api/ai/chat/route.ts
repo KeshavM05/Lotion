@@ -5,7 +5,7 @@ import { env } from '@/lib/env';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { validateBody } from '@/lib/api-middleware';
 import { chatRequestSchema } from '@/lib/validation/schemas';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { retrieveRelevantContext } from '@/lib/context-engine';
 import { extractAndStoreMemories } from '@/lib/memory-extraction';
 import { db } from '@/db';
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
   try {
     supabaseUserId = await requireAuth(request);
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -221,7 +222,8 @@ export async function POST(request: NextRequest) {
       pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
     });
   } catch (error: unknown) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('AI Chat error:', error);
     const message = error instanceof Error ? error.message : 'AI request failed';
     return Response.json({ error: message }, { status: 500 });

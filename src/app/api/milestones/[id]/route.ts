@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { milestones } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { updateMilestoneSchema } from '@/lib/validation/schemas';
 
@@ -51,7 +51,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json(updated);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('PATCH /api/milestones/[id] error:', error);
     return Response.json({ error: 'Failed to update milestone' }, { status: 500 });
   }
@@ -86,7 +87,8 @@ export async function DELETE(
 
     return Response.json({ success: true });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('DELETE /api/milestones/[id] error:', error);
     return Response.json({ error: 'Failed to delete milestone' }, { status: 500 });
   }

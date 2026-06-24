@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { indexContent, removeEmbeddings } from '@/lib/context-engine';
 import { z } from 'zod';
 
@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    if (error instanceof Response) return error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('Index content error:', error);
     return Response.json({ error: 'Failed to index content' }, { status: 500 });
   }

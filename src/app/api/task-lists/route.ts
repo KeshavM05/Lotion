@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { taskLists } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createTaskListSchema } from '@/lib/validation/schemas';
 
@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userTaskLists);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('GET /api/task-lists error:', error);
     return Response.json({ error: 'Failed to fetch task lists' }, { status: 500 });
   }
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(newList[0]);
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('POST /api/task-lists error:', error);
     return Response.json({ error: 'Failed to create task list' }, { status: 500 });
   }

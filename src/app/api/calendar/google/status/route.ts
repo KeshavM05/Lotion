@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { getGoogleConnection } from '@/lib/google-calendar';
 import { db } from '@/db';
 import { oauthConnections } from '@/db/schema';

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { goals } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, getInternalUser } from '@/lib/auth-server';
+import { requireAuth, getInternalUser, AuthError } from '@/lib/auth-server';
 import { validateBody } from '@/lib/api-middleware';
 import { createGoalSchema } from '@/lib/validation/schemas';
 import { indexContent } from '@/lib/context-engine';
@@ -24,11 +24,8 @@ export async function GET(request: NextRequest) {
 
     return Response.json(userGoals);
   } catch (error) {
-    if (error instanceof Response) {
-      return new Response(error.body, {
-        status: (error as Response).status,
-        headers: (error as Response).headers,
-      });
+    if (error instanceof AuthError) {
+      return Response.json({ error: error.message }, { status: error.status });
     }
     console.error('GET /api/goals error:', error);
     return Response.json(
@@ -73,7 +70,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(goal, { status: 201 });
   } catch (error) {
-    if (error instanceof Response) throw error;
+    if (error instanceof AuthError)
+      return Response.json({ error: error.message }, { status: error.status });
     console.error('POST /api/goals error:', error);
     return Response.json({ error: 'Failed to create goal' }, { status: 500 });
   }
