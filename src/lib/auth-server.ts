@@ -23,29 +23,28 @@ function getSupabaseAdmin() {
  * Validates JWT token and returns user ID
  */
 export async function getAuthUser(request: NextRequest): Promise<string | null> {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return null;
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-
-    // Verify JWT token with Supabase
-    const {
-      data: { user },
-      error,
-    } = await getSupabaseAdmin().auth.getUser(token);
-
-    if (error || !user) {
-      return null;
-    }
-
-    return user.id;
-  } catch (error) {
-    console.error('Auth error:', error);
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
     return null;
   }
+
+  const token = authHeader.replace('Bearer ', '');
+
+  const {
+    data: { user },
+    error,
+  } = await getSupabaseAdmin().auth.getUser(token);
+
+  if (error) {
+    console.error('Auth verification error:', error.message);
+    return null;
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return user.id;
 }
 
 /**
@@ -90,11 +89,28 @@ export { AuthError };
  * Returns user ID or throws AuthError
  */
 export async function requireAuth(request: NextRequest): Promise<string> {
-  const userId = await getAuthUser(request);
-  if (!userId) {
-    throw new AuthError('Unauthorized', 401);
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw new AuthError('No authorization header', 401);
   }
-  return userId;
+
+  const token = authHeader.replace('Bearer ', '');
+  const admin = getSupabaseAdmin();
+
+  const {
+    data: { user },
+    error,
+  } = await admin.auth.getUser(token);
+
+  if (error) {
+    throw new AuthError(`Token verification failed: ${error.message}`, 401);
+  }
+
+  if (!user) {
+    throw new AuthError('No user found for token', 401);
+  }
+
+  return user.id;
 }
 
 /**
