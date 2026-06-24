@@ -40,9 +40,15 @@ export async function GET(request: NextRequest) {
   try {
     await db.execute(sql`SELECT 1`);
     dbStatus = 'connected';
-  } catch (error) {
+  } catch (error: unknown) {
     dbStatus = 'unreachable';
-    dbError = String(error);
+    if (error instanceof Error) {
+      dbError = `${error.name}: ${error.message}`;
+      if (error.cause) dbError += ` | cause: ${JSON.stringify(error.cause)}`;
+      if ('code' in error) dbError += ` | code: ${(error as Record<string, unknown>).code}`;
+    } else {
+      dbError = String(error);
+    }
   }
 
   let authStatus = 'skipped';
