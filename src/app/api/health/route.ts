@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20) || 'MISSING',
+    serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
   };
 
   let dbStatus = 'unknown';

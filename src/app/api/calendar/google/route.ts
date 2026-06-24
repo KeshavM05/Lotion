@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getInternalUser } from '@/lib/auth-server';
 import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
 
 // GET /api/calendar/google — redirect to Google OAuth
 export async function GET(request: NextRequest) {
@@ -19,8 +18,8 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   const {
     data: { user: supaUser },

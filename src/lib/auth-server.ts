@@ -1,13 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
-import { env } from '@/lib/env';
 
 let _supabaseAdmin: SupabaseClient | undefined;
 
 function getSupabaseAdmin() {
   if (!_supabaseAdmin) {
-    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Use process.env directly so Next.js inlines NEXT_PUBLIC_* at build time
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error(`Missing Supabase config: url=${!!supabaseUrl}, key=${!!supabaseServiceKey}`);
+    }
     _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
