@@ -11,6 +11,17 @@ export async function GET(request: NextRequest) {
     serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
   };
 
+  // Debug: check which DB connection source is being used
+  const cfSymbol = Symbol.for('__cloudflare-context__');
+  const cfContext = (globalThis as Record<symbol, unknown>)[cfSymbol] as
+    | { env?: { HYPERDRIVE?: { connectionString?: string } } }
+    | undefined;
+  const dbSource = cfContext?.env?.HYPERDRIVE?.connectionString
+    ? 'hyperdrive'
+    : process.env.DATABASE_URL
+      ? 'DATABASE_URL'
+      : 'none';
+
   let dbStatus = 'unknown';
   let dbError = '';
   try {
@@ -51,6 +62,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: dbStatus === 'connected' ? 'ok' : 'error',
     db: dbStatus,
+    dbSource,
     dbError: dbError || undefined,
     auth: authStatus,
     authError: authError || undefined,
