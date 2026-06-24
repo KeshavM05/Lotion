@@ -1,38 +1,60 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { sql } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const envInfo = {
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20) || 'MISSING',
+  };
+
+  let dbStatus = 'unknown';
+  let dbError = '';
   try {
     await db.execute(sql`SELECT 1`);
-    return NextResponse.json(
-      {
-        status: 'ok',
-        db: 'connected',
-        timestamp: new Date().toISOString(),
-        env: {
-          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        },
-      },
-      { status: 200 }
-    );
+    dbStatus = 'connected';
   } catch (error) {
-    console.error('[health] DB ping failed:', error);
-    return NextResponse.json(
-      {
-        status: 'error',
-        db: 'unreachable',
-        error: String(error),
-        timestamp: new Date().toISOString(),
-        env: {
-          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        },
-      },
-      { status: 503 }
-    );
+    dbStatus = 'unreachable';
+    dbError = String(error);
   }
+
+  let authStatus = 'skipped';
+  let authError = '';
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const serviceKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const client = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data, error } = await client.auth.getUser(token);
+      if (error) {
+        authStatus = 'error';
+        authError = error.message;
+      } else if (data.user) {
+        authStatus = 'ok';
+      } else {
+        authStatus = 'no_user';
+      }
+    } catch (error) {
+      authStatus = 'exception';
+      authError = String(error);
+    }
+  }
+
+  return NextResponse.json({
+    status: dbStatus === 'connected' ? 'ok' : 'error',
+    db: dbStatus,
+    dbError: dbError || undefined,
+    auth: authStatus,
+    authError: authError || undefined,
+    env: envInfo,
+    timestamp: new Date().toISOString(),
+  });
 }
